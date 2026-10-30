@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DocumentationDrifter Console</title>
+<style>
+:root {
+  --bg-canvas:#0B0E13; --bg-panel:#11151C; --bg-raised:#161B24; --bg-overlay:#1C222D;
+  --border-subtle:#1F2630; --border-default:#2A323F; --border-strong:#3A4452;
+  --fg-default:#E4EAF2; --fg-muted:#8A95A5; --fg-subtle:#5A6474; --fg-on-accent:#0B0E13;
+  --idle:#6E7A8A; --info:#58A6FF; --work:#D29922; --ok:#3FB950;
+  --signal:#2DD4BF; --warn:#DB6D28; --error:#F85149; --stale:#A371F7;
+  --font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --ease:cubic-bezier(.2,0,.2,1); --fast:120ms; --base:180ms;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html,body { height:100%; }
+body {
+  background:var(--bg-canvas); color:var(--fg-default);
+  font:400 13px/1.45 var(--font-ui); min-width:1100px; overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select { font:inherit; color:inherit; background:none; border:none; outline:none; }
+button { cursor:pointer; }
+:focus-visible { box-shadow:0 0 0 1px var(--border-strong); border-radius:3px; }
+.mono { font-family:var(--font-mono); }
+.num { font-variant-numeric:tabular-nums; }
+.label { font-size:10px; font-weight:600; letter-spacing:.10em; text-transform:uppercase; color:var(--fg-muted); }
+.truncl { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:rtl; text-align:left; }
+.truncl > span { direction:ltr; unicode-bidi:plaintext; }
+
+/* ---------- header ---------- */
+header {
+  height:48px; display:flex; align-items:center; padding:0 16px; gap:16px;
+  background:var(--bg-panel); border-bottom:1px solid var(--border-subtle);
+}
+.brand { display:flex; align-items:baseline; gap:10px; width:288px; flex-shrink:0; }
+.brand b { font:700 13px var(--font-mono); letter-spacing:.14em; }
+.brand span { font:400 11px var(--font-mono); color:var(--fg-subtle); }
+.apiwrap { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
+#api {
+  height:28px; width:280px; padding:0 8px; border-radius:5px;
+  font:400 11px var(--font-mono); color:var(--fg-muted);
+  border:1px solid transparent; transition:background var(--fast) var(--ease),border-color var(--fast) var(--ease);
+}
+#api:hover,#api:focus { background:var(--bg-raised); border-color:var(--border-default); color:var(--fg-default); }
+#api.cross { border-color:var(--warn); color:var(--warn); }
+.hint { font:400 11px var(--font-mono); color:var(--warn); }
+.meter { display:flex; align-items:center; gap:8px; }
+.track { width:64px; height:4px; border-radius:3px; background:var(--border-default); overflow:hidden; }
+.track i { display:block; height:100%; background:var(--ok); transition:width var(--base) var(--ease); }
+.track.low i { background:var(--warn); }
+.ctl {
+  height:28px; display:flex; align-items:center; gap:8px; padding:0 10px;
+  border:1px solid var(--border-default); border-radius:5px; background:var(--bg-raised);
+  font:400 11px var(--font-mono); color:var(--fg-muted);
+}
+.ctl:hover { border-color:var(--border-strong); color:var(--fg-default); }
+.ctl select { font:400 11px var(--font-mono); color:inherit; cursor:pointer; }
+.ctl select option { background:var(--bg-panel); }
+
+/* ---------- layout ---------- */
+.split { display:flex; height:calc(100vh - 48px); }
+aside { width:320px; flex-shrink:0; background:var(--bg-panel); border-right:1px solid var(--border-default); display:flex; flex-direction:column; }
+main { flex:1; min-width:0; overflow-y:auto; }
+
+/* ---------- add form ---------- */
+form.add { padding:12px; background:var(--bg-raised); border-bottom:1px solid var(--border-default); }
+form.add .row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+form.add input {
+  height:32px; width:100%; margin-bottom:8px; padding:0 10px; border-radius:5px;
+  background:var(--bg-canvas); border:1px solid var(--border-default);
+  font:400 12px var(--font-mono); color:var(--fg-default);
+}
+form.add input::placeholder { color:var(--fg-subtle); }
+form.add input:focus { border-color:var(--border-strong); }
+form.add input.bad { border-color:var(--error); }
+form.add button {
+  height:32px; width:100%; border-radius:5px; background:var(--signal); color:var(--fg-on-accent);
+  font-size:10px; font-weight:600; letter-spacing:.10em; text-transform:uppercase;
+}
+form.add button:hover { filter:brightness(1.1); }
+.err { font:400 11px var(--font-mono); color:var(--error); margin-top:-4px; margin-bottom:8px; }
+
+/* ---------- watch list ---------- */
+.listhead { height:32px; display:flex; align-items:center; justify-content:space-between; padding:0 12px; border-bottom:1px solid var(--border-subtle); }
+.listhead span { font:400 10px var(--font-mono); color:var(--fg-subtle); }
+.rows { overflow-y:auto; flex:1; }
+.row {
+  position:relative; height:52px; width:100%; display:flex; align-items:center; gap:10px;
+  padding:0 12px; text-align:left; border-bottom:1px solid var(--border-subtle);
+  border-left:1px solid transparent; transition:background var(--base) var(--ease);
+}
+.row:hover { background:var(--bg-raised); }
+.row.sel { background:var(--bg-overlay); border-left-color:var(--signal); }
+.row.off { opacity:.55; }
+.row .body { min-width:0; flex:1; }
+.row .name { display:block; font:400 12px var(--font-mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.row .sub { display:block; margin-top:4px; font:400 11px var(--font-mono); color:var(--fg-subtle); font-variant-numeric:tabular-nums; }
+.row.sel .sub { color:var(--fg-muted); }
+.row .sub.e { color:var(--error); font-weight:600; }
+.row .sub.w { color:var(--warn); font-weight:600; }
+.row .sub.s { color:var(--signal); }
+.chip-n {
+  flex-shrink:0; padding:2px 8px; border-radius:999px; font:600 10px var(--font-mono);
+  color:var(--signal); border:1px solid rgba(45,212,191,.4); background:rgba(45,212,191,.1);
+  font-variant-numeric:tabular-nums;
+}
+.acts { display:none; gap:2px; flex-shrink:0; }
+.row:hover .acts { display:flex; }
+.acts button { width:22px; height:22px; border-radius:3px; color:var(--fg-subtle); font:400 12px var(--font-mono); }
+.acts button:hover { background:var(--bg-overlay); color:var(--fg-default); }
+
+/* ---------- status indicators ---------- */
+.dot { width:10px; height:10px; flex-shrink:0; border-radius:50%; }
+.dot.ring { background:none; border:2px solid var(--idle); }
+.dot.ring.pulse { border-color:var(--info); animation:pulse 1.6s var(--ease) infinite; }
+.dot.arc { border:2px solid var(--work); border-right-color:transparent; border-bottom-color:transparent; border-left-color:transparent; animation:spin .9s linear infinite; }
+.dot.tri { width:0; height:0; border-radius:0; border-left:6px solid transparent; border-right:6px solid transparent; border-bottom:10px solid var(--warn); }
+.dot.sq { border-radius:3px; background:var(--idle); }
+@keyframes pulse { 0%,100%{opacity:.35} 50%{opacity:1} }
+@keyframes spin { to { transform:rotate(360deg) } }
+@media (prefers-reduced-motion:reduce) {
+  .dot.ring.pulse { animation:none; opacity:1; }
+  .dot.arc { animation:none; border-color:var(--work); }
+}
+
+/* ---------- run detail ---------- */
+.rhead { padding:12px 20px; border-bottom:1px solid var(--border-default); }
+.rtop { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.rtop h1 { font-size:14px; font-weight:600; letter-spacing:-.01em; }
+.shas { margin-top:6px; display:flex; align-items:center; gap:8px; font:600 12px var(--font-mono); }
+.shas button { padding:1px 4px; border-radius:3px; }
+.shas button:hover { background:var(--bg-raised); }
+.shas i { color:var(--fg-subtle); font-style:normal; }
+.counters { margin-top:12px; height:48px; display:flex; border-top:1px solid var(--border-subtle); }
+.counters div { width:128px; display:flex; flex-direction:column; justify-content:center; border-right:1px solid var(--border-subtle); padding-left:16px; }
+.counters div:first-child { padding-left:0; }
+.counters div:last-child { border-right:none; }
+.counters b { font:600 20px var(--font-mono); font-variant-numeric:tabular-nums; }
+section.tbl { padding:12px 20px 0; }
+.thead, .trow { display:grid; grid-template-columns:32px minmax(0,1fr) 150px; align-items:center; padding:0 8px; }
+.thead { height:28px; position:sticky; top:0; z-index:2; background:var(--bg-panel); border-top:1px solid var(--border-subtle); border-bottom:1px solid var(--border-subtle); }
+.thead span:last-child { text-align:right; }
+.trow { min-height:28px; border-bottom:1px solid var(--border-subtle); font:400 12px var(--font-mono); }
+.trow:hover { background:var(--bg-raised); }
+.glyph { font-weight:700; width:20px; text-align:center; }
+.old { display:block; font-size:10px; color:var(--fg-subtle); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.chip { justify-self:end; padding:1px 8px; border-radius:3px; font:400 10px var(--font-mono); border:1px solid; }
+section.skip { margin:12px 20px 0; border-left:2px solid var(--warn); }
+.shead, .srow { display:grid; grid-template-columns:minmax(0,1fr) 260px; align-items:center; height:28px; padding:0 8px; }
+.shead { background:var(--bg-panel); border-top:1px solid var(--border-subtle); border-bottom:1px solid var(--border-subtle); }
+.srow { border-bottom:1px solid var(--border-subtle); }
+.srow span:first-child { font:400 12px var(--font-mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.srow span:last-child { font-size:12px; color:var(--fg-muted); }
+section.issues { margin:12px 20px 0; padding:10px 12px; border:1px dashed var(--border-default); }
+section.issues .row { height:auto; border:none; padding:0; display:flex; justify-content:space-between; }
+section.issues p { margin-top:8px; text-align:center; font:400 11px var(--font-mono); color:var(--fg-subtle); }
+footer.meta { margin:12px 20px 20px; padding:12px 0; border-top:1px solid var(--border-subtle); font:400 11px var(--font-mono); color:var(--fg-subtle); font-variant-numeric:tabular-nums; }
+footer.meta b { font-weight:400; color:var(--fg-muted); }
+footer.meta .sel { user-select:all; }
+
+/* ---------- notices ---------- */
+.notice { display:flex; align-items:center; gap:12px; padding:8px 12px; background:var(--bg-raised); border-left:2px solid var(--stale); }
+.notice b { display:block; font:600 11px var(--font-mono); color:var(--stale); }
+.notice p { margin-top:2px; font-size:11px; color:var(--fg-muted); }
+.notice button { height:28px; padding:0 10px; border:1px solid var(--stale); border-radius:5px; color:var(--stale); font-size:10px; font-weight:600; letter-spacing:.10em; text-transform:uppercase; }
+.notice button:hover { background:var(--bg-overlay); }
+.notice.bad { border-left-color:var(--error); }
+.notice.bad b { color:var(--error); }
+.notice.bad button { border-color:var(--error); color:var(--error); }
+.empty { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:var(--fg-subtle); }
+.empty code { font:400 12px var(--font-mono); color:var(--fg-muted); background:var(--bg-panel); padding:2px 6px; border-radius:3px; }
+.empty button { color:var(--signal); font:400 12px var(--font-mono); text-decoration:underline; text-underline-offset:3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><b>DRIFTER</b><span id="ver">v1.1.0</span></div>
+  <div class="apiwrap">
+    <label class="label" for="api">API</label>
+    <input id="api" type="text" spellcheck="false" aria-label="API base URL">
+    <span class="hint" id="cors" hidden>cross-origin — browser will block unless proxied</span>
+  </div>
+  <div class="meter" title="Unauthenticated GitHub REST allows 60 requests per hour per IP">
+    <span class="label">GitHub</span>
+    <span class="track" id="track"><i style="width:100%"></i></span>
+    <span class="mono num" id="rate" style="color:var(--fg-muted);font-size:11px">60 / 60</span>
+  </div>
+  <button class="ctl" id="poll">
+    <span class="dot" id="polldot" style="background:var(--ok)"></span>
+    <span>every</span>
+    <select id="interval" aria-label="Poll interval">
+      <option value="60">60s</option>
+      <option value="120">120s</option>
+      <option value="300" selected>300s</option>
+      <option value="900">900s</option>
+    </select>
+  </button>
+  <button class="ctl" id="pause">pause</button>
+</header>
+
+<div class="split">
+  <aside>
+    <form class="add" id="addform">
+      <div class="row" style="height:auto;border:none;padding:0">
+        <h2 class="label">Add repository</h2>
+        <span class="mono" id="activity" style="font-size:10px;color:var(--fg-subtle)"></span>
+      </div>
+      <input id="f-repo" placeholder="owner/name" spellcheck="false" aria-label="Repository owner and name">
+      <input id="f-sha" placeholder="a1b2c3d… (last seen commit)" spellcheck="false" aria-label="Commit SHA">
+      <div class="err" id="f-err" hidden></div>
+      <button type="submit">Watch</button>
+    </form>
+    <div class="listhead">
+      <h2 class="label">Watch list</h2>
+      <span class="num" id="count">0 repositories</span>
+    </div>
+    <div class="rows" id="rows" role="listbox" aria-label="Watched repositories" tabindex="0"></div>
+  </aside>
+  <main id="detail"></main>
+</div>
+
+<script>
+"use strict";
+
+/* ---- contract constants, copied from Source/GitHub_Connector ---- */
+const RE_REPO = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;      // analysis.REPOSITORY
+const RE_SHA  = /^[0-9a-fA-F]{7,40}$/;                    // analysis.SHA
+const CAT = {
+  IMPLEMENTATION:"#58A6FF", DESIGN:"#A371F7", ARCHITECTURE:"#2DD4BF",
+  SPECIFICATION:"#7C8CF8", REQUIREMENT:"#D29922", DOCUMENTATION:"#3FB950", OTHER:"#6E7A8A"
+};
+const GLYPH = {
+  ADDED:["A","var(--ok)"], MODIFIED:["M","var(--work)"], DELETED:["D","var(--error)"],
+  RENAMED:["R","var(--info)"], COPIED:["C","var(--info)"], TYPE_CHANGED:["T","var(--stale)"]
+};
+const STORE = "drifter.watchlist.v1";
+
+/* ---- state. results live in memory only; never persisted ---- */
+let repos = [];          // {repo, branch, base, paused, state, code, msg, count, since, checked, runId}
+let selected = null;
+let result = null;       // AnalysisResult | {expired:true} | null
+let apiBase = "";        // "" means same origin, i.e. through tools/ui.py
+let rate = { remaining: 60, reset: 0 };
+let paused = false;
+let timer = null, ticker = null;
+
+/* ---- persistence: watch list + last-seen SHA only (decision Q9b) ---- */
+function save() {
+  try {
+    localStorage.setItem(STORE, JSON.stringify({
+      api: apiBase, interval: iv(), paused,
+      repos: repos.map(r => ({ repo:r.repo, branch:r.branch, base:r.base, paused:r.paused, runId:r.runId }))
+    }));
+  } catch (e) { /* private window or blocked storage: run in-memory */ }
+}
+function load() {
+  let raw = null;
+  try { raw = localStorage.getItem(STORE); } catch (e) { return; }
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    apiBase = d.api || "";
+    paused = !!d.paused;
+    if (d.interval) $("#interval").value = String(d.interval);
+    repos = (d.repos || []).map(r => ({
+      repo:r.repo, branch:r.branch || null, base:r.base, paused:!!r.paused, runId:r.runId || null,
+      state:"watching", code:null, msg:null, count:0, since:0, checked:0
+    }));
+  } catch (e) { /* corrupt entry: start clean rather than crash */ }
+}
+
+/* ---- helpers ---- */
+const $ = s => document.querySelector(s);
+const iv = () => Number($("#interval").value);
+const short = s => (s || "").slice(0, 7);
+const now = () => Date.now();
+function ago(t) {
+  if (!t) return "never";
+  const s = Math.round((now() - t) / 1000);
+  if (s < 60) return s + "s ago";
+  if (s < 3600) return Math.round(s / 60) + "m ago";
+  return Math.round(s / 3600) + "h ago";
+}
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+function api(path) { return apiBase ? apiBase.replace(/\/+$/, "") + path : path; }
+
+/* =========================================================
+   NETWORK — the three calls this console makes
+   ========================================================= */
+
+/* GitHub: head SHA of the watched branch. One request per repo per poll.
+   Unauthenticated REST is 60/hr/IP, which is what the header meter tracks. */
+async function githubHead(r) {
+  const q = r.branch ? "?sha=" + encodeURIComponent(r.branch) + "&per_page=1" : "?per_page=1";
+  const res = await fetch("https://api.github.com/repos/" + r.repo + "/commits" + q,
+                          { headers: { Accept: "application/vnd.github+json" } });
+  const rem = res.headers.get("x-ratelimit-remaining");
+  const rst = res.headers.get("x-ratelimit-reset");
+  if (rem !== null) rate.remaining = Number(rem);
+  if (rst !== null) rate.reset = Number(rst) * 1000;
+  if (res.status === 403 || res.status === 429) {
+    if (rate.remaining === 0) { const e = new Error("rate"); e.rate = true; throw e; }
+  }
+  if (res.status === 404) { const e = new Error("nf"); e.notFound = true; throw e; }
+  if (!res.ok) throw new Error("github " + res.status);
+  const body = await res.json();
+  if (!Array.isArray(body) || !body.length) { const e = new Error("nf"); e.notFound = true; throw e; }
+  return body[0].sha;
+}
+
+/* POST /system/analyze — the one call that produces a run. Synchronous server side:
+   it clones, diffs and writes the run file before answering. */
+async function postAnalyze(repository, commit_id, base_commit) {
+  const res = await fetch(api("/system/analyze"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ repository, commit_id, base_commit: base_commit || null })
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const err = new Error((body && body.message) || ("HTTP " + res.status));
+    err.code = (body && body.code) || "TIMEOUT";
+    throw err;
+  }
+  return body;
+}
+
+/* GET /system/analysis/{id} — a saved run, byte for byte. 404 once the disk is wiped. */
+async function getAnalysis(id) {
+  const res = await fetch(api("/system/analysis/" + encodeURIComponent(id)));
+  if (res.status === 404) return { expired: true };
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+}
+
+/* =========================================================
+   BEHAVIOUR
+   ========================================================= */
+
+function add(repo, sha, branch) {
+  repos.push({ repo, branch: branch || null, base: sha.toLowerCase(), paused:false,
+               state:"watching", code:null, msg:null, count:0, since:0, checked:0, runId:null });
+  save(); render();
+}
+
+async function check(r) {
+  if (r.paused) return;
+  r.state = "checking"; render();
+  let head;
+  try {
+    head = await githubHead(r);
+  } catch (e) {
+    r.state = e.rate ? "rate" : "error";
+    r.code = e.rate ? null : "REPOSITORY_NOT_FOUND";
+    r.checked = now(); render(); return;
+  }
+  r.checked = now();
+  if (head.toLowerCase() === r.base.toLowerCase()) {
+    r.state = "ok"; r.code = null; render(); return;
+  }
+  await analyze(r, head, r.base);
+}
+
+async function analyze(r, head, base) {
+  r.state = "analyzing"; r.since = now(); r.code = null; render();
+  try {
+    const run = await postAnalyze(r.repo, head, base);
+    r.base = run.head_commit || head;
+    r.runId = run.analysis_id;
+    r.count = (run.changes || []).length;
+    r.state = r.count ? "changes" : "ok";
+    if (selected === r.repo) { result = run; }
+    save();
+  } catch (e) {
+    r.state = "error";
+    r.code = e.code || "TIMEOUT";
+    r.msg = e.message;
+  }
+  render();
+}
+
+async function openRepo(repo) {
+  selected = repo; result = null; render();
+  const r = repos.find(x => x.repo === repo);
+  if (!r || !r.runId) return;
+  try { result = await getAnalysis(r.runId); } catch (e) { result = null; }
+  render();
+}
+
+async function sweep() {
+  if (paused) return;
+  for (const r of repos) {
+    if (rate.remaining <= 1) { r.state = "rate"; continue; }
+    await check(r);
+  }
+}
+
+function schedule() {
+  if (timer) clearInterval(timer);
+  timer = setInterval(sweep, iv() * 1000);
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+
+const STATES = {
+  watching:  r => ["ring", "", "watching · checked " + ago(r.checked)],
+  checking:  r => ["ring pulse", "", "checking github…"],
+  analyzing: r => ["arc", "", "analyzing · " + Math.max(0, Math.round((now() - r.since) / 1000)) + "s"],
+  ok:        r => ["", "", "up to date · " + short(r.base)],
+  changes:   r => ["", "s", r.count + " file" + (r.count === 1 ? "" : "s") + " changed"],
+  error:     r => r.code === "TIMEOUT"
+               ? ["tri", "w", "TIMEOUT · 120s deadline"]
+               : ["", "e", r.code],
+  rate:      r => ["tri", "w", "rate limited · resets " + (rate.reset ? new Date(rate.reset).toTimeString().slice(0,5) : "soon")],
+  paused:    r => ["sq", "", "paused"]
+};
+
+function renderList() {
+  const box = $("#rows");
+  box.textContent = "";
+  $("#count").textContent = repos.length + " repositor" + (repos.length === 1 ? "y" : "ies");
+  repos.forEach(r => {
+    const key = r.paused ? "paused" : r.state;
+    const [shape, tone, text] = (STATES[key] || STATES.watching)(r);
+    const row = el("button", "row" + (selected === r.repo ? " sel" : "") + (r.paused ? " off" : ""));
+    row.type = "button"; row.setAttribute("role", "option");
+    row.setAttribute("aria-selected", selected === r.repo ? "true" : "false");
+
+    const dot = el("span", "dot " + shape);
+    if (!shape) dot.style.background =
+      r.state === "changes" ? "var(--signal)" : r.state === "ok" ? "var(--ok)" : "var(--error)";
+    row.appendChild(dot);
+
+    const body = el("span", "body");
+    body.appendChild(el("span", "name", r.repo + (r.branch ? " @" + r.branch : "")));
+    body.appendChild(el("span", "sub " + tone, text));
+    row.appendChild(body);
+
+    if (r.state === "changes" && !r.paused) row.appendChild(el("span", "chip-n num", String(r.count)));
+
+    const acts = el("span", "acts");
+    const p = el("button", null, r.paused ? "▸" : "❙❙");
+    p.title = r.paused ? "Resume" : "Pause";
+    p.onclick = ev => { ev.stopPropagation(); r.paused = !r.paused; save(); render(); };
+    const x = el("button", null, "✕");
+    x.title = "Remove";
+    x.onclick = ev => {
+      ev.stopPropagation();
+      repos = repos.filter(q => q !== r);
+      if (selected === r.repo) { selected = null; result = null; }
+      save(); render();
+    };
+    acts.appendChild(p); acts.appendChild(x);
+    row.appendChild(acts);
+
+    row.onclick = () => openRepo(r.repo);
+    box.appendChild(row);
+  });
+}
+
+function chip(cat) {
+  const c = CAT[cat] || CAT.OTHER;
+  const n = el("span", "chip", cat);
+  n.style.color = c; n.style.borderColor = c + "66"; n.style.background = c + "1A";
+  return n;
+}
+
+function renderDetail() {
+  const main = $("#detail");
+  main.textContent = "";
+  const r = repos.find(x => x.repo === selected);
+
+  if (!r) {
+    const e = el("div", "empty");
+    e.appendChild(el("p", null, repos.length ? "Select a repository." : "No repositories watched yet."));
+    const c = el("p"); c.appendChild(el("code", null, "owner/name")); 
+    c.appendChild(document.createTextNode(" + a commit SHA, top left."));
+    e.appendChild(c);
+    const d = el("button", null, "load demo data");
+    d.onclick = demo;
+    e.appendChild(d);
+    main.appendChild(e);
+    return;
+  }
+
+  /* header: identity, SHAs, counters */
+  const head = el("section", "rhead");
+  const top = el("div", "rtop");
+  const idb = el("div");
+  idb.appendChild(el("h1", null, r.repo));
+  const shas = el("div", "shas");
+  const base = result && result.base_commit, headc = result && result.head_commit;
+  const b1 = el("button", null, short(base) || "—"); b1.title = base || "no base commit (first audit)";
+  const b2 = el("button", null, short(headc) || short(r.base));  b2.title = headc || r.base;
+  shas.appendChild(b1); shas.appendChild(el("i", null, "→")); shas.appendChild(b2);
+  idb.appendChild(shas);
+  top.appendChild(idb);
+
+  if (result && result.expired) {
+    const n = el("div", "notice");
+    const t = el("div");
+    t.appendChild(el("b", null, "RUN EXPIRED"));
+    t.appendChild(el("p", null, "Run files live on local disk and are wiped on redeploy or restart."));
+    n.appendChild(t);
+    const btn = el("button", null, "Re-analyze");
+    btn.onclick = () => check(r);
+    n.appendChild(btn);
+    top.appendChild(n);
+  } else if (r.state === "error") {
+    const n = el("div", "notice bad");
+    const t = el("div");
+    t.appendChild(el("b", null, r.code));
+    t.appendChild(el("p", null, r.msg || "The analysis did not complete."));
+    n.appendChild(t);
+    const btn = el("button", null, "Retry");
+    btn.onclick = () => check(r);
+    n.appendChild(btn);
+    top.appendChild(n);
+  }
+  head.appendChild(top);
+
+  const run = (result && !result.expired) ? result : null;
+  const counters = el("div", "counters");
+  [["Changes", run ? run.changes.length : 0],
+   ["Skipped", run ? run.skipped.length : 0],
+   ["Issues",  run ? run.issues.length  : 0]].forEach(([k, v]) => {
+    const d = el("div");
+    d.appendChild(el("span", "label", k));
+    d.appendChild(el("b", null, String(v)));
+    counters.appendChild(d);
+  });
+  head.appendChild(counters);
+  main.appendChild(head);
+
+  if (!run) {
+    if (!result || !result.expired) {
+      const e = el("div", "empty");
+      e.appendChild(el("p", null, r.runId ? "Loading run…" : "No run yet — it appears the first time this branch moves."));
+      main.appendChild(e);
+    }
+    return;
+  }
+
+  /* changes[] */
+  const s1 = el("section", "tbl");
+  const th = el("div", "thead");
+  ["Δ", "Path", "Category"].forEach(t => th.appendChild(el("span", "label", t)));
+  s1.appendChild(th);
+  run.changes.forEach(c => {
+    const row = el("div", "trow");
+    const [g, col] = GLYPH[c.change_type] || ["?", "var(--fg-muted)"];
+    const gl = el("span", "glyph", g); gl.style.color = col; gl.title = c.change_type;
+    row.appendChild(gl);
+    const p = el("span");
+    const t = el("span", "truncl"); t.appendChild(el("span", null, c.path)); p.appendChild(t);
+    if (c.old_path) p.appendChild(el("span", "old", "← " + c.old_path));
+    row.appendChild(p);
+    row.appendChild(chip(c.category));
+    s1.appendChild(row);
+  });
+  main.appendChild(s1);
+
+  /* skipped[] */
+  if (run.skipped.length) {
+    const s2 = el("section", "skip");
+    const sh = el("div", "shead");
+    const l = el("span", "label", "Skipped ");
+    l.appendChild(el("span", "mono num", String(run.skipped.length)));
+    sh.appendChild(l); sh.appendChild(el("span", "label", "Reason"));
+    s2.appendChild(sh);
+    run.skipped.forEach(s => {
+      const row = el("div", "srow");
+      row.appendChild(el("span", null, s.path));
+      row.appendChild(el("span", null, s.reason));
+      s2.appendChild(row);
+    });
+    main.appendChild(s2);
+  }
+
+  /* issues[] — a clean verdict says how much of the docs it covered */
+  const s3 = el("section", "issues");
+  const ih = el("div", "row");
+  ih.appendChild(el("h2", "label", "Issues"));
+  ih.appendChild(el("span", "mono num", String(run.issues.length)));
+  s3.appendChild(ih);
+  if (!run.issues.length) {
+    const unchecked = run.skipped.filter(s => s.reason === "OVER_DOC_BUDGET").length;
+    s3.appendChild(el("p", null, unchecked
+      ? "no drift detected — " + unchecked + " doc" + (unchecked === 1 ? "" : "s") + " not checked"
+      : "no drift detected"));
+  }
+  main.appendChild(s3);
+
+  /* metadata */
+  const f = el("footer", "meta");
+  const pairs = [["analysis_id", run.analysis_id, true], ["config_version", run.config_version],
+                 ["tool_version", run.tool_version], ["created_at", run.created_at]];
+  pairs.forEach(([k, v, sel], i) => {
+    if (i) f.appendChild(document.createTextNode(" · "));
+    f.appendChild(document.createTextNode(k + " "));
+    const b = el("b", sel ? "sel" : null, v);
+    f.appendChild(b);
+  });
+  main.appendChild(f);
+}
+
+function renderHeader() {
+  const pct = Math.max(0, Math.min(100, (rate.remaining / 60) * 100));
+  $("#track").firstElementChild.style.width = pct + "%";
+  $("#track").classList.toggle("low", rate.remaining < 10);
+  $("#rate").textContent = rate.remaining + " / 60";
+  $("#polldot").style.background = paused ? "var(--idle)" : "var(--ok)";
+  $("#pause").textContent = paused ? "resume" : "pause";
+  const cross = apiBase && apiBase.replace(/\/+$/, "") !== location.origin;
+  $("#cors").hidden = !cross;
+  $("#api").classList.toggle("cross", !!cross);
+}
+
+function render() { renderHeader(); renderList(); renderDetail(); }
+
+/* =========================================================
+   DEMO DATA — every state on screen at once, for design review
+   ========================================================= */
+function demo() {
+  const sha = n => n.repeat(40).slice(0, 40);
+  repos = [
+    { repo:"facebook/react",    base:sha("c13b4f8e912a"), state:"changes", count:14, runId:"an-3f9c1a74d2e84bf2a6c0d831e57ab904" },
+    { repo:"vercel/next.js",    base:sha("a1b2c3d4"), state:"analyzing", since: now() - 4000 },
+    { repo:"torvalds/linux",    base:sha("9f8e7d6c"), state:"watching", checked: now() - 12000 },
+    { repo:"honojs/hono",       base:sha("9f8e7d6c"), state:"ok" },
+    { repo:"acme/private-docs", base:sha("deadbeef"), state:"error", code:"REPOSITORY_NOT_FOUND", msg:"Repository not found or is not public" },
+    { repo:"sveltejs/svelte",   base:sha("0badc0de"), state:"error", code:"COMMIT_NOT_FOUND", msg:"Commit not found in repository" },
+    { repo:"apache/airflow",    base:sha("5e6f7a8b"), state:"error", code:"TIMEOUT", msg:"The analysis exceeded its 120s deadline" },
+    { repo:"denoland/deno",     base:sha("1c2d3e4f"), state:"error", code:"WRITE_FAILED", msg:"The run file could not be saved" },
+    { repo:"rust-lang/rust",    base:sha("7a8b9c0d"), state:"rate" },
+    { repo:"golang/go",         base:sha("2b3c4d5e"), state:"watching", paused:true }
+  ].map(r => Object.assign({ branch:null, paused:false, code:null, msg:null, count:0, since:0, checked:0, runId:null }, r));
+
+  rate = { remaining: 23, reset: now() + 41 * 60000 };
+  paused = true;                        // demo data must not be overwritten by a live sweep
+  selected = "facebook/react";
+  result = DEMO_RUN;
+  save(); render();
+}
+
+const DEMO_RUN = {
+  analysis_id:"an-3f9c1a74d2e84bf2a6c0d831e57ab904",
+  repository:"facebook/react",
+  head_commit:"c13b4f8e912ac13b4f8e912ac13b4f8e912ac13b",
+  base_commit:"72d9a86cb78072d9a86cb78072d9a86cb78072d9",
+  config_version:"mapping-v1", tool_version:"1.1.0", status:"SUCCESS", error:null, issues:[],
+  changes:[
+    { path:"docs/README.md", old_path:null, change_type:"ADDED", category:"OTHER" },
+    { path:"docs/learn/escape-hatches.md", old_path:"docs/learn/synchronizing-with-effects.md", change_type:"RENAMED", category:"DESIGN" },
+    { path:"docs/legacy/context.md", old_path:null, change_type:"DELETED", category:"OTHER" },
+    { path:"docs/reference/react/StrictMode.md", old_path:null, change_type:"MODIFIED", category:"SPECIFICATION" },
+    { path:"docs/reference/react/use.md", old_path:null, change_type:"MODIFIED", category:"DOCUMENTATION" },
+    { path:"docs/reference/react/useEffectEvent.md", old_path:null, change_type:"ADDED", category:"DOCUMENTATION" },
+    { path:"docs/reference/rsc/server-components.md", old_path:null, change_type:"ADDED", category:"REQUIREMENT" },
+    { path:"packages/react/package.json", old_path:null, change_type:"MODIFIED", category:"REQUIREMENT" },
+    { path:"packages/react/src/ReactAct.js", old_path:null, change_type:"MODIFIED", category:"IMPLEMENTATION" },
+    { path:"packages/react/src/ReactClient.js", old_path:null, change_type:"MODIFIED", category:"IMPLEMENTATION" },
+    { path:"packages/react/src/ReactHooks.js", old_path:null, change_type:"MODIFIED", category:"IMPLEMENTATION" },
+    { path:"packages/react/src/ReactServer.js", old_path:null, change_type:"MODIFIED", category:"ARCHITECTURE" },
+    { path:"packages/react/src/ReactSharedInternalsClient.js", old_path:null, change_type:"MODIFIED", category:"ARCHITECTURE" },
+    { path:"packages/react/src/__tests__/ReactProfiler-test.js", old_path:null, change_type:"TYPE_CHANGED", category:"SPECIFICATION" }
+  ],
+  skipped:[
+    { path:"docs/static/react-logo.png", reason:"binary file" },
+    { path:"fixtures/bundle/react-dom.production.min.js", reason:"file larger than 1 MB" }
+  ],
+  created_at:"2026-10-17T14:22:08.431Z"
+};
+
+/* =========================================================
+   WIRING
+   ========================================================= */
+$("#addform").onsubmit = ev => {
+  ev.preventDefault();
+  const repo = $("#f-repo").value.trim();
+  const sha  = $("#f-sha").value.trim();
+  const err = m => { $("#f-err").textContent = m; $("#f-err").hidden = false; };
+  $("#f-err").hidden = true;
+  $("#f-repo").classList.remove("bad"); $("#f-sha").classList.remove("bad");
+  if (!RE_REPO.test(repo)) { $("#f-repo").classList.add("bad"); return err("repository must use the format owner/name"); }
+  if (!RE_SHA.test(sha))   { $("#f-sha").classList.add("bad");  return err("commit_id must be a 7-40 character hexadecimal commit SHA"); }
+  if (repos.some(r => r.repo === repo)) { $("#f-repo").classList.add("bad"); return err("already watching " + repo); }
+  add(repo, sha);
+  $("#f-repo").value = ""; $("#f-sha").value = "";
+};
+
+$("#api").oninput = e => { apiBase = e.target.value.trim(); save(); renderHeader(); };
+$("#interval").onchange = () => { schedule(); save(); };
+$("#interval").onclick = e => e.stopPropagation();
+$("#pause").onclick = () => { paused = !paused; save(); renderHeader(); };
+$("#poll").onclick = () => { if (!paused) sweep(); };
+
+$("#rows").onkeydown = e => {
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Enter") return;
+  e.preventDefault();
+  if (!repos.length) return;
+  let i = repos.findIndex(r => r.repo === selected);
+  if (e.key === "Enter") { if (i >= 0) openRepo(repos[i].repo); return; }
+  i = e.key === "ArrowDown" ? Math.min(repos.length - 1, i + 1) : Math.max(0, i - 1);
+  openRepo(repos[i].repo);
+};
+
+load();
+$("#api").value = apiBase || location.origin;
+if (!apiBase) apiBase = "";
+schedule();
+ticker = setInterval(() => { if (repos.some(r => r.state === "analyzing" || r.state === "watching")) renderList(); }, 1000);
+render();
+if (new URLSearchParams(location.search).has("demo")) demo();
+else if (repos.length && !paused) sweep();
+</script>
+</body>
+</html>

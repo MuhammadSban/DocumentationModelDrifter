@@ -1,0 +1,15 @@
+{
+  "rules": [
+    {"pattern": "requirements*.txt", "category": "OTHER"},
+    {"pattern": "docs/**", "category": "DOCUMENTATION"},
+    {"pattern": "*.md", "category": "DOCUMENTATION"},
+    {"pattern": "*.rst", "category": "DOCUMENTATION"},
+    {"pattern": "*.txt", "category": "DOCUMENTATION"},
+    {"pattern": "src/**", "category": "IMPLEMENTATION"},
+    {"pattern": "tests/**", "category": "IMPLEMENTATION"},
+    {"pattern": "*.py", "category": "IMPLEMENTATION"},
+    {"pattern": "*.sh", "category": "IMPLEMENTATION"}
+  ],
+  "fallback": "OTHER",
+  "unsupported": [".ai", ".html", ".lock", ".pdf", ".png", ".svg"]
+}
