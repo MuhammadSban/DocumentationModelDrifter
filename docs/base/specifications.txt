@@ -27,51 +27,46 @@ Q1 COMMON PROBLEM SELECTION
 
 1.1 SELECTED PROBLEM
 
-The users of Documentation Tracker are engineering and compliance teams at general-purpose AI model
-providers, who must keep technical documentation accurate as the model's design and architecture
-change. Current approaches rely on manual reviews and separately maintained documents. These can
-miss changes made in commits and pull requests, and make documentation hard to trace to a
-particular version.
+Users are engineering and compliance teams at general-purpose AI model providers, who must keep
+technical documentation accurate as the design changes. Architecture changes between commits are
+normal, but they happen silently: reviews and separate documents miss them, so the documented
+architecture drifts from the code and people must re-read the code to learn what is true.
 
-Documentation Tracker keeps three machine-readable models of the system's design in the repository,
-next to the code: what parts exist and how they relate (structural), which states the system can
-move through (behavioral), and who is responsible for each part (ownership). A GitHub Action checks
-on every push, read-only, that the code still matches the models. A mismatch is reported for a
-person to resolve. Each check leaves a record linked to its commit, and the history of /models
-records every design change a person accepted.
+Documentation Tracker keeps the architecture documentation as three models next to the code:
+structural (parts and relations), behavioral (states and transitions) and ownership (who may change
+what). On every push and pull request, a read-only check rebuilds the models from the code and
+compares them with the committed ones. A difference means code and documentation disagree, not
+that the code is wrong; a person fixes the code or commits updated models, and that commit records
+who accepted the change. While the check passes, /models describes the code.
 
-This supports the obligation in Article 53(1)(a) of the EU AI Act to keep technical documentation
-current and supply it to authorities on request [1]. Of the content Annex XI requires, the models
-cover the code side of the system's design: architecture (1(d)), the technical means to integrate
-the model (2(a)), and design specifications and key design choices (2(b)) [5]. Training data,
-computational resources and energy use (2(c) to 2(e)) are out of scope. The tool supports keeping
-documentation current; it does not write the documentation or certify compliance. (The specific
-Annex XI items are open, see Q11.)
+This supports Article 53(1)(a) of the EU AI Act: keep technical documentation current and supply it
+on request [1]. The models cover the code side of Annex XI: architecture (1(d)), integration means
+(2(a)), and design specifications and choices (2(b)) [5]; 2(c) to 2(e) are out of scope. The tool
+keeps documentation current; it does not write it or certify compliance. (Items open, see Q11.)
 
 1.2 SELECTION RATIONALE
 
-Documentation Tracker keeps technical documentation current with a focused GitHub workflow,
-combines deterministic checks with human review, leaves significant judgments to people, and
-avoids external LLM costs and confidentiality concerns. It shares a general
-approach with Matt Pocock's code-review skill, which compares code changes against documented
-standards and specifications [2].
+The check gives four things: no silent architecture changes, since each is accepted on record or
+rolled back; models people and agents can trust instead of re-reading code; a short list of
+architectural differences for each pull request review; and accepted models that constrain every
+later change, including an agent's. It is deterministic, leaves decisions to people, needs no
+external LLM, and resembles Matt Pocock's code-review skill, which checks changes against
+documented standards [2].
 
-The project requires real engineering decisions: what facts to extract from code, how to handle
-commit history, how to keep false alerts low, and how to retain traceable evidence. Each team builds
-its own implementation of the shared format, and both are compared on the same labelled commits by
-accuracy, false-alert rate, coverage and execution time.
+The engineering decisions are real: what facts to extract, how to handle history, how to keep
+false alerts low. Both teams implement one shared format and are compared on the same labelled
+commits by accuracy, false-alert rate, coverage and time.
 
-The approach follows MAGE [3]: a model is the smallest representation that answers one engineering
-question, and keeping models and code in step (correspondence) is enforced by a gate rather than by
-hand. For a repository with existing code and settled intent, MAGE's starting move is recover,
-reconcile, govern: generate the models, let people correct them, then check every change against
-them.
+It follows MAGE [3]: each model is the smallest representation that answers one question, and a
+gate keeps model and code in correspondence. The code owns the facts, so models are derived and
+re-derived (2.5). Agreement is not correctness, so a model becomes the standard only after a person
+reviews and commits it, and a difference is investigated before either side changes (3.2, 4.3).
+Drift belongs to finished work, so the pull-request result counts, and the check starts advisory
+(3.2, 4.3). This is MAGE's brownfield path: recover, reconcile, govern (4.3).
 
 1.3 POD AGREEMENT
 
-The pod is Teams 15 and 16. Team 15: Enrique Serrano Cuadrado, Kaan Kanadasi, Muhammad F Shaaban
-and Barshan Bhunia. Team 16 representatives: Anish Paspuleti, Parth Gupta and Venkata Pranay Kumar
-Nookala.
+The pod is Teams 15 and 16. Each team has 4 members. 
 
 Both teams build Documentation Tracker as described here. The course requires one infrastructure
 with separate implementations: "Within a pod, project paths, methods, inputs, responses, and
@@ -87,7 +82,7 @@ Q2 COMMON SCOPE
 2.1 SYSTEM BOUNDARY
 
   Outside: developer (runs drifter init and update locally, commits /models, reviews pull requests)
-  Outside: GitHub Action (runs drifter check on its own checkout on every push)
+  Outside: GitHub Action (runs drifter check on its own checkout on every push and pull request)
   Outside: cross-team tester and other API callers (call the hosted service)
         |
         |  in: repository + commit (code, /models and git history are read at that commit)
@@ -95,7 +90,7 @@ Q2 COMMON SCOPE
   Inside:  drifter, one codebase run by the CLI, the Action and the hosted service:
            GitHub integration -> three generators -> comparison -> verdict
         |
-        |  out: verdict JSON (true or false, differences per model) and, from the CLI, an exit code
+        |  out: the four-field answer (aligned + one list of differences per model) and an exit code
         v
   Outside: the analysed repository, read-only. The tool never writes to it, /models included.
 
@@ -106,12 +101,11 @@ Included scope
 
   * Generate the three models of a repository as canonical JSON (drifter init), and regenerate
     them after an intended change (drifter update). The developer commits them to /models.
-  * On each push, check the code at that commit against the committed /models (drifter check) and
-    return true or false with the differences.
-  * Report every changed file with its change type, as input to the ownership check and the report.
-  * Return results in a shared JSON format: repository, commits, verdict per model, differences and
-    skipped files, so both teams' outputs can be validated automatically.
-  * Keep each check's result as a retrievable record (REQ-04).
+  * On each push and pull request, check the code at that commit against the committed /models
+    (drifter check) and return true or false with the differences per model.
+  * Return the answer in a shared JSON format of four fields, "aligned", "structural",
+    "behavioral" and "ownership", so both teams' outputs can be validated automatically (5.2).
+  * Tie each answer to the commit it checked (REQ-04).
 
 Excluded scope
 --------------
@@ -140,8 +134,9 @@ Operating limits and assumptions
   * Both teams use the common input and output formats in Section 5.
   * Testing uses small repositories provided by the pod.
   * Limits: 120 s per check, 60 s per git call, at most 2 checks at once in the
-    hosted service. Files over 1 MB, binary files and files that are not UTF-8 are skipped and
-    listed. Hidden paths, symlinks and submodules are ignored.
+    hosted service. An in-scope file over 1 MB fails the check (FILE_TOO_LARGE), and a binary or
+    non-UTF-8 in-scope file fails it (PARSE_FAILED); no file is skipped (3.3). Ownership covers
+    every changed path, hidden paths, symlinks and submodules included.
 
 ====================================================================================================
 Q3 COMMON SPECIFICATION
@@ -149,12 +144,14 @@ Q3 COMMON SPECIFICATION
 
 3.1 REQUIREMENTS
 
-REQ-01 - Detect changes
------------------------
+REQ-01 - Read the repository at a commit
+----------------------------------------
 
-Given a Git repository, a commit and an optional base commit, the system shall use read-only
-analysis to list every changed file with its change type. Engineering teams need to know what moved
-before they can judge whether the design moved.
+Given a Git repository, a commit and an optional base commit, the system shall read the code and
+/models at that commit, read-only. A short SHA is expanded to the full one; a SHA that cannot be
+fetched or is ambiguous gives COMMIT_NOT_FOUND, asking for the full SHA. The base defaults to the
+commit's first parent and decides which commits the ownership check judges; for a root commit it
+is null and only that commit is judged. A base given in the request is used as given.
 
 REQ-02 - Flag drift between the code and its models
 ---------------------------------------------------
@@ -162,30 +159,29 @@ REQ-02 - Flag drift between the code and its models
 The system shall regenerate the structural and behavioral models from the code at the commit and
 compare them with the committed /models by element id. It shall check every non-merge commit
 between the base and the commit against the ownership rules. Each difference shall name the model,
-the change (ADDED, REMOVED, MODIFIED or VIOLATION), the element id or path, and the file. For each
-model the verdict also says whether it is empty (3.2). The verdict is true only when all three
-models are aligned. Supports the documentation maintenance obligation in Article 53(1)(a) and the
-design content in Annex XI.
+the change (ADDED, REMOVED, MODIFIED or VIOLATION), the element id or path, and the file. The
+answer is true only when all three lists of differences are empty. Supports the documentation
+maintenance obligation in Article 53(1)(a) and the design content in Annex XI.
 
 REQ-03 - Keep people in charge of accepting drift
 -------------------------------------------------
 
-A false verdict asks a person for a decision and is never resolved by the tool. A person accepts
+A false answer asks a person for a decision and is never resolved by the tool. A person accepts
 drift by committing updated /models; until then the code must be fixed instead. That commit, with
-its author, timestamp and review in the pull request, is the review record. The verdict names the
-commit that last changed /models, so each verdict can be traced to the person who accepted the
-baseline. The system shall not approve or modify code or models on its own. Whether the check
-blocks a merge or only warns is the repository owner's choice.
+its author, timestamp and review in the pull request, is the review record, and the git history of
+/models shows who accepted each baseline. The system shall not approve or modify code or models on
+its own. Intermediate commits may legitimately disagree with the models, so the result that counts
+is the one on the pull request. A repository adopts the check as advisory (warn only) first and
+makes it a required pull-request check once its false-alert rate is acceptable.
 
 REQ-04 - Preserve traceable evidence
 ------------------------------------
 
-Each check shall produce a JSON verdict with the repository, the commits checked, the /models
-commit, the verdict and the differences. The GitHub Action uploads it as a workflow artifact (kept
-90 days by default) and writes it to the job summary. The hosted service saves each verdict it
-produces, retrievable by id until the service restarts. The git history of /models is the durable
-record of every accepted design change. Together these support responses to Commission requests
-under Articles 91 and 53(1)(a).
+Each check shall produce its answer as JSON tied to the commit it checked. The GitHub Action
+uploads it as a workflow artifact (kept 90 days by default) and writes it to the job summary of
+that commit's run. The git history of /models is the durable record of every accepted design
+change. Together these support responses to Commission requests under Articles 91 and 53(1)(a).
+Whether the hosted service also saves answers under an id is open (Q11).
 
 REQ-05 - Handle invalid inputs and incomplete checks explicitly
 ---------------------------------------------------------------
@@ -207,9 +203,8 @@ REQ-07 - Provide deterministic, testable results
 
 Each implementation shall accept requests and return JSON through the common interface in Section
 5. Given the same repository version, /models and tool version, repeated runs shall return
-byte-identical models and an identical verdict and differences. Only the analysis id and the
-creation time may differ. Both teams' implementations shall produce the same models for the same
-commit.
+byte-identical models and a byte-identical answer. Both teams' implementations shall produce the
+same models and the same answer for the same commit.
 
 Categories that do not apply
 ----------------------------
@@ -278,11 +273,9 @@ Differences are reported from the code's side:
   MODIFIED   the same id in both, with different attributes
   VIOLATION  ownership only: a commit changed a file its author does not own
 
-Empty models. For the structural and behavioral models, "empty": true means the committed model
-and the freshly generated one both have no elements, so "aligned" is necessarily true. If only one
-side is empty, the code gained or lost elements: "aligned" is false and the differences list them.
-For ownership, "empty": true means ownership.json has no rules, so every path is open. The flag
-lets a reader tell "true because nothing is modelled" from "true because the code matches".
+Empty models. An empty list of differences means that model matches, including when the
+committed and fresh models both have no elements, or ownership.json has no rules. Whether a model
+describes anything at all is visible in /models itself, not in the answer.
 
 The system model
 ----------------
@@ -303,7 +296,7 @@ The lifecycle of a repository under the tool, drawn in docs/models/behavioral-mo
 
         state Checking {
             [*] --> Fetch
-            Fetch --> Generate: code + diff at head
+            Fetch --> Generate: code + commits at head
             Generate --> Compare: 3 fresh models
             Compare --> [*]
         }
@@ -334,8 +327,8 @@ Q4 ACCEPTANCE CRITERIA
 
 4.1 REQUIREMENT COVERAGE
 
-  * AC-01, REQ-01: On a labelled test repository, the system finds every changed file with the
-    right change type. Checked automatically.
+  * AC-01, REQ-01: A short commit SHA gives the same answer as the full SHA, and an unknown or
+    ambiguous one returns 404 COMMIT_NOT_FOUND. Checked automatically.
   * AC-02, REQ-02: A commit changes what a structural or behavioral model describes without
     updating /models. The verdict is false and names the right model, exact element id and file.
     Checked automatically.
@@ -344,11 +337,10 @@ Q4 ACCEPTANCE CRITERIA
   * AC-04, REQ-03: After a false verdict, the code and /models are unchanged and the tool has made
     no commit. Checked automatically and by inspection.
   * AC-05, REQ-03: Committing updated /models after a false verdict makes the next check true, and
-    the verdict's /models commit gives the person who accepted it and when. Checked automatically.
-  * AC-06, REQ-04: Each check through the hosted service saves a separate JSON record with the
-    repository, commits, /models commit, verdict and differences, and fetching it by id returns it
-    byte for byte while the service runs. Each Action run uploads its verdict as an artifact.
-    Checked automatically.
+    the git history of /models gives the person who accepted it and when. Checked automatically.
+  * AC-06, REQ-04: Each Action run uploads its answer as an artifact of that commit's run. Whether
+    the hosted service also saves answers retrievable by id is on hold (Q11). Checked
+    automatically.
   * AC-07, REQ-05: A request without a commit id returns 400 with a message saying what is missing,
     and no verdict. Checked automatically.
   * AC-08, REQ-05: An unknown repository or commit returns 404 with a message. A commit with no
@@ -357,7 +349,7 @@ Q4 ACCEPTANCE CRITERIA
   * AC-09, REQ-06: The repository is byte-identical before and after a check, and none of its code
     runs. Checked by automated tests and inspection.
   * AC-10, REQ-07: Three runs with the same repository, commit, /models and tool version return
-    byte-identical models and an identical verdict and differences, and generate at the baseline
+    byte-identical models and answers, and generate at the baseline
     returns the committed /models byte for byte on either team's system. Checked automatically.
   * AC-11, REQ-02: A commit by someone who is not an owner of a changed path gives false, naming
     the commit, path, author and owners; the same change by an owner gives true. Checked
@@ -402,7 +394,7 @@ Q5 CROSS TEAM TESTING INTERFACE (TEAM 15 PROPOSAL FOR THE POD)
 
 5.1 INTERFACE CONTRACT
 
-All routes sit under /system.
+Project routes sit under /system; the course's testing routes sit under /test (5.3).
 
   POST /system/generate        REQ-01, REQ-06, REQ-07
     Takes a request (below) and returns the three models for that commit. Writes nothing.
@@ -410,16 +402,15 @@ All routes sit under /system.
 
   POST /system/compare         REQ-01, REQ-02, REQ-04, REQ-05, REQ-07
     Takes a request and checks the code at that commit against the /models committed there.
-    200 with the verdict, which is saved; 400, 404, 422 or 500 with an error body, and nothing
-    saved.
+    200 with the four-field answer (5.2); 400, 404, 422 or 500 with an error body.
 
   GET /system/analysis/{analysis_id}       REQ-04, REQ-07
-    Returns a saved verdict byte for byte. 200, or 404 if the id is unknown. Changes nothing.
+    On hold (Q11): returns a saved answer by id, if the pod keeps saved answers. Changes nothing.
 
   GET /system/health
     Reports that the service is up.
 
-  POST /system/test/setup and GET /system/test/report
+  POST /test/setup and GET /test/report
     The course's system endpoints (docs/base/student-facing-spec.docx.pdf).
 
 Errors are {"code", "message"}:
@@ -428,11 +419,13 @@ Errors are {"code", "message"}:
   404 REPOSITORY_NOT_FOUND     the repository does not exist or is not public
   404 COMMIT_NOT_FOUND         the commit cannot be found
   404 MODELS_NOT_FOUND         compare only: the commit has no /models, or a file in it is missing
-  404 ANALYSIS_NOT_FOUND       no saved verdict has that id
+  404 ANALYSIS_NOT_FOUND       on hold (Q11): no saved answer has that id
   422 INVALID_MODELS           compare only: a file in /models fails its schema
-  422 PARSE_FAILED             an in-scope file cannot be parsed; the message names file and line
+  422 PARSE_FAILED             an in-scope file cannot be parsed, or is binary or not UTF-8; the
+                               message names the file and, for a syntax error, the line
+  422 FILE_TOO_LARGE           an in-scope file is over 1 MB; the message names it
   500 TIMEOUT                  the check ran past its deadline
-  500 WRITE_FAILED             the verdict could not be saved
+  500 WRITE_FAILED             on hold (Q11): the answer could not be saved
   500 INTERNAL_ERROR           anything unforeseen
 
 The 422 codes cover a valid request whose repository content cannot be checked.
@@ -453,40 +446,26 @@ base_commit (default: the commit's first parent).
       "commit_id": "7fd1a60"
     }
 
-A compare response (the verdict). The element id and kind below are illustrative: the id scheme is
-a pod decision.
+A compare response has exactly four fields: "aligned", true only when all three lists are empty,
+and one list of differences per model. Each list is sorted (by element id; ownership by commit,
+then path) and is empty when that model matches. Keys are sorted as in 3.2, so both teams' answers
+for the same commit are byte-identical. The element id and kind below are illustrative: the id
+scheme is a pod decision.
 
     {
-      "analysis_id": "an-<32 hex>",
-      "repository": "owner/name",
-      "head_commit": "<40 hex>",
-      "base_commit": "<40 hex>",
-      "models_commit": "<40 hex, the commit that last changed /models>",
-      "tool_version": "<version>",
       "aligned": false,
-      "models": {
-        "structural": {
-          "aligned": false,
-          "empty": false,
-          "differences": [
-            {"change": "ADDED", "kind": "node", "id": "shop.orders:Order.cancel",
-             "file": "src/shop/orders.py"}
-          ]
-        },
-        "behavioral": {"aligned": true, "empty": true, "differences": []},
-        "ownership":  {"aligned": true, "empty": false, "differences": []}
-      },
-      "changes": [
-        {"path": "src/shop/orders.py", "old_path": null, "change_type": "MODIFIED"}
-      ],
-      "skipped": [],
-      "created_at": "<ISO 8601 UTC with milliseconds and Z>"
+      "behavioral": [],
+      "ownership": [],
+      "structural": [
+        {"change": "ADDED", "file": "src/shop/orders.py", "id": "shop.orders:Order.cancel",
+         "kind": "node"}
+      ]
     }
 
 An ownership difference:
 
-    {"change": "VIOLATION", "commit": "<40 hex>", "path": "src/payments/charge.py",
-     "author": "barshan@example.com", "owners": ["kaan@example.com"]}
+    {"author": "barshan@example.com", "change": "VIOLATION", "commit": "<40 hex>",
+     "owners": ["kaan@example.com"], "path": "src/payments/charge.py"}
 
 A generate response returns {repository, head_commit, tool_version, models: {structural,
 behavioral, ownership}}, each model in the shared format of 3.2.
@@ -528,10 +507,12 @@ Defined by the pod
     since setup.
   * Fixture and expected answers: one public fixture repository with the labelled commits of 4.2,
     and one shared file of expected answers that both testers read, built by both teams (4.2).
-  * What a test checks: per model, "aligned" and "empty"; for each expected difference, its exact
-    element id (or path, for ownership), its change and its file. T-17 checks that generate at the
-    baseline returns models byte for byte equal to the /models committed there, which proves both
-    teams mine the same way.
+  * What a test checks: all four fields of the answer, exactly: "aligned", and in each list the
+    same differences (change, kind, element id or path, file) in the same order. Error tests check
+    the status and the error code. T-17 checks that generate at the baseline returns models byte
+    for byte equal to the /models committed there, which proves both teams mine the same way.
+  * Report contents: each test's entry also carries what the system returned, the four fields or
+    the status and error code, so both teams can see where their implementations disagree.
 
 Proposed test list (to be revised with the labelled cases, see Q11):
 
@@ -542,17 +523,17 @@ Proposed test list (to be revised with the labelled cases, see Q11):
   T-03  compare at L2, adds a function         false; structural ADDED, id + file     AC-02
   T-04  compare at L3, removes an import       false; structural REMOVED, id + file   AC-02
   T-05  compare at L4, adds a state            false; behavioral ADDED, id + file     AC-02
-  T-06  compare at L5, change + new /models    true; models_commit is L5              AC-03, AC-05
+  T-06  compare at L5, change + new /models    true; three empty lists                AC-03, AC-05
   T-07  compare at L6, non-owner edit          false; ownership VIOLATION, its path   AC-11
   T-08  compare at L7, hand-edited model       false; structural ADDED, id + file     AC-02
-  T-09  compare at L2, read changes[]          the changed file and change type       AC-01
-  T-10  GET the T-03 verdict by its id         the same bytes as T-03 returned        AC-06
-  T-11  compare at L2 three times              identical verdicts and differences     AC-10
+  T-09  compare at L2 with a 7-char SHA        the same answer as with the full SHA   AC-01
+  T-10  GET the T-03 answer by its id          on hold (Q11): same bytes as T-03      AC-06
+  T-11  compare at L2 three times              byte-identical answers                 AC-10
   T-12  compare without commit_id              400 INVALID_REQUEST                    AC-07
   T-13  compare on a missing repository        404 REPOSITORY_NOT_FOUND               AC-08
   T-14  compare at L8, unknown commit          404 COMMIT_NOT_FOUND                   AC-08
   T-15  compare at the commit before /models   404 MODELS_NOT_FOUND                   AC-08
-  T-16  GET an unknown analysis id             404 ANALYSIS_NOT_FOUND                 AC-06
+  T-16  GET an unknown analysis id             on hold (Q11): 404 ANALYSIS_NOT_FOUND  AC-06
   T-17  generate at L0                         models byte-equal to /models at L0     AC-10
 
 Component coverage. The pod's components, and the tests that exercise each:
@@ -562,7 +543,7 @@ Component coverage. The pod's components, and the tests that exercise each:
   C3  Behavioral generator           T-05, T-17
   C4  Ownership check                T-07
   C5  Comparison                     T-01 to T-08, T-11
-  C6  Verdict store                  T-10, T-16
+  C6  Answer store (on hold, Q11)    T-10, T-16
   C7  Request validation and errors  T-12 to T-16
 
 System coverage. The pod's criteria are AC-01 to AC-11. AC-04 and AC-09 are checked by
@@ -574,37 +555,40 @@ Q6 MILESTONES FOR PHASES 4 AND 5
 
 6.1 PHASE 4
 
-Capability: generate the three models and check a commit against them.
+Capability: generate the three models, check a commit against them, and test both teams' hosted
+systems against each other.
 
 Artifacts: structural, behavioral and ownership generators; comparison; orchestrator; the drifter
-command line tool (init, update, check); the shared JSON Schemas; the labelled test repository; pod
-agreement on Section 5 and on the model format.
+command line tool (init, update, check); the hosted /system routes in 5.1 at a public URL; the
+tester (/test/setup, /test/run, /test/report) running T-01 to T-17; the shared JSON Schemas; the
+labelled test repository; pod agreement on Section 5 and on the model format.
 
 Uncertainty reduced: whether the models capture design changes people care about without flagging
-noise (Risk 1, 9.1), and whether two implementations of one format agree (Risk 4).
+noise (Risk 1, 9.1), and whether two implementations of one format agree when each team's tester
+grades the other team's system (Risk 4).
 
-Demonstration: run drifter init on the test repository, push L2 and get false naming the new
-function, then push L5 and get true.
+Demonstration: point our tester at Team 16's hosted system and theirs at ours, run the suite, and
+read the reports: T-03 (L2) got false with the new function in "structural", and T-06 (L5) got
+true with three empty lists.
 
-Automated validation: AC-01, AC-02, AC-03, AC-07, AC-08, AC-10, AC-11.
-Requirement coverage: REQ-01, REQ-02, REQ-05, REQ-07.
+Automated validation, run by the tester: AC-01, AC-02, AC-03, AC-05, AC-07, AC-08, AC-10, AC-11.
+Requirement coverage: REQ-01, REQ-02, REQ-03, REQ-05, REQ-07.
 
 6.2 PHASE 5
 
-Capability: the check runs on every push and its record can be found later.
+Capability: the check runs on every push and pull request, and its answer can be found later.
 
-Artifacts: a tagged release that installs with pip and the reusable workflow at that tag; the
-hosted generate and compare routes; the tester running the labelled cases; verdicts saved as
-workflow artifacts and by the hosted service.
+Artifacts: a tagged release that installs with pip and the reusable workflow at that tag; answers
+saved as workflow artifacts; the advisory-first rollout (REQ-03).
 
 Uncertainty reduced: the whole loop works end to end without the tool ever writing to a repository.
 
 Demonstration: on a public repository, push a change that drifts and see a red check; commit
-updated /models and see a green check; open the run's verdict artifact and find, through its
-/models commit, who accepted the change.
+updated /models and see a green check; open the run's answer artifact and find, through the git
+history of /models, who accepted the change.
 
-Automated validation: AC-04, AC-05, AC-06, AC-09, AC-10.
-Requirement coverage: REQ-03, REQ-04, REQ-06, REQ-07.
+Automated validation: AC-04 and AC-09 (also by inspection), and AC-06 once Q11 settles saved
+answers. Requirement coverage: REQ-03, REQ-04, REQ-06.
 
 6.3 SEQUENCING RATIONALE
 
@@ -621,21 +605,21 @@ Q7 TEAM SYSTEM DESIGN
   Piece                          Input -> output
   -----------------------------  ------------------------------------------------------------------
   GitHub integration             repository (public GitHub repo or local checkout), commit, base ->
-                                 files at the commit, the diff, and each non-merge commit's author
-                                 email and changed files
+                                 files at the commit, and each non-merge commit's author email
+                                 and changed paths
   Structural generator           files -> structural.json
   Behavioral generator           files -> behavioral.json
   Ownership generator and check  history -> ownership.json; commits and authors -> violations
   Comparison                     baseline model and fresh model -> differences
-  Orchestrator                   one request -> one verdict; calls the others in order
-  Tester                         labelled commits -> the course's suite report
+  Orchestrator                   one request -> one four-field answer; calls the others in order
+  Tester                         a system's URL -> the course's report, with what each test got
 
 One codebase, three ways to run it, all through the orchestrator:
 
   * The drifter CLI on a developer's machine: init and update write models locally for the
-    developer to review and commit; check prints the verdict and sets the exit code.
-  * The GitHub Action: runs drifter check on its own checkout on every push, uploads the verdict
-    as an artifact and writes it to the job summary.
+    developer to review and commit; check prints the answer and sets the exit code.
+  * The GitHub Action: runs drifter check on its own checkout on every push and pull request,
+    uploads the answer as an artifact and writes it to the job summary.
   * The hosted /system API: serves generate and compare for course testing and other callers.
 
 Generators are pure functions (files in, JSON out): no git, network, clock or randomness. Only the
@@ -654,8 +638,8 @@ deterministic. The tool is not a wrapper around an LLM.
 One infrastructure, separate implementations: both teams share the API, the model format and the
 mining rules, and each writes its own code, parser included (1.3).
 
-Human review is mandatory: only a person can accept drift (REQ-03). What is selectable is how
-strongly the check is enforced in a repository, warn-only or a required check.
+Human review is mandatory: only a person can accept drift (REQ-03). Enforcement starts advisory
+and becomes a required pull-request check once false alerts are low (REQ-03).
 
 The developer writes /models; the tool only reads. Models use stable ids, never line numbers.
 Ownership is a rule check, for the reason given in 3.2.
@@ -685,12 +669,12 @@ Q8 BUILD BUY AND REUSE
 
 8.1 CAPABILITY DECISIONS
 
-  * Change detection: reuse Git. The GitHub integration validates commits, extracts changes and
-    handles failures without running repository code.
+  * Repository access: reuse Git. The GitHub integration resolves commits, reads files and
+    history, and handles failures without running repository code.
   * Model mining: build. Each team writes its own generators to the pod's shared format, with a
     parser of its choice, and maintains its generators and golden tests.
-  * Workflow automation: reuse GitHub Actions. The Action is the main trigger, on every push, and
-    runs the check on its own checkout. Standard runners are free for public
+  * Workflow automation: reuse GitHub Actions. The Action is the main trigger, on every push and
+    pull request, and runs the check on its own checkout. Standard runners are free for public
     repositories.
   * Distribution: reuse pip and GitHub release tags. No PyPI or Marketplace publishing.
   * Team process: reuse OpenSpec [4] for the team's own specs and tickets. Each ticket is an
@@ -724,7 +708,7 @@ Priority 2: behavioral coverage
 -------------------------------
 
 The behavioral model only captures the patterns the pod agrees on. A repository without them gets
-an empty model ("empty": true) whose check is always true. Investigation: run the generators on the
+an empty model whose list of differences is always empty. Investigation: run the generators on the
 fixture repository and on two or three real Python repositories in Phase 4. If most come back
 empty, the pod decides whether to add a broader pattern.
 
@@ -790,6 +774,9 @@ To settle in the pod
   * Path pattern rules for scope.json and ownership.json, identical in both teams.
   * The shared fixture: how the two teams split building the repository and writing the expected
     answers.
+  * Whether the answer carries anything besides its four fields. Saving answers by id
+    (GET /system/analysis/{analysis_id}, ANALYSIS_NOT_FOUND, WRITE_FAILED, AC-06, T-10, T-16) is
+    on hold until this is settled.
 
 To settle in Team 15
 --------------------
@@ -797,6 +784,5 @@ To settle in Team 15
   * Prose documentation and the Annex XI claim (1.1, 2.2): whether prose docs stay out of scope,
     and whether to keep the specific Annex XI items or only the general Art. 53(1)(a) claim.
   * What drifter init proposes as the first ownership.json.
-  * Gate rollout: warn-only first, or a required check from the start.
   * The labelled cases L0 to L8 and the test list built on them (4.2, 5.3), to be revised in a
     separate pass. That pass should also add a parse-failure case for PARSE_FAILED.
