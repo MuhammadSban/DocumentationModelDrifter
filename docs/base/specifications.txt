@@ -618,18 +618,17 @@ Q7 TEAM SYSTEM DESIGN
 
 7.1 ARCHITECTURE AND DATA FLOW
 
-  Piece                          Owner      Input -> output
-  -----------------------------  ---------  --------------------------------------------------------
-  GitHub integration             Kaan       repository (public GitHub repo or local checkout),
-                                            commit, base -> files at the commit, the diff, and each
-                                            non-merge commit's author email and changed files
-  Structural generator           Enrique    files -> structural.json
-  Behavioral generator           Barshan    files -> behavioral.json
-  Ownership generator and check  Muhammad   history -> ownership.json; commits and authors ->
-                                            violations
-  Comparison                     open       baseline model and fresh model -> differences
-  Orchestrator                   open       one request -> one verdict; calls the others in order
-  Tester                         open       labelled commits -> the course's suite report
+  Piece                          Input -> output
+  -----------------------------  ------------------------------------------------------------------
+  GitHub integration             repository (public GitHub repo or local checkout), commit, base ->
+                                 files at the commit, the diff, and each non-merge commit's author
+                                 email and changed files
+  Structural generator           files -> structural.json
+  Behavioral generator           files -> behavioral.json
+  Ownership generator and check  history -> ownership.json; commits and authors -> violations
+  Comparison                     baseline model and fresh model -> differences
+  Orchestrator                   one request -> one verdict; calls the others in order
+  Tester                         labelled commits -> the course's suite report
 
 One codebase, three ways to run it, all through the orchestrator:
 
@@ -799,6 +798,5 @@ To settle in Team 15
     and whether to keep the specific Annex XI items or only the general Art. 53(1)(a) claim.
   * What drifter init proposes as the first ownership.json.
   * Gate rollout: warn-only first, or a required check from the start.
-  * Owners of the comparison, the orchestrator and the tester.
   * The labelled cases L0 to L8 and the test list built on them (4.2, 5.3), to be revised in a
     separate pass. That pass should also add a parse-failure case for PARSE_FAILED.
