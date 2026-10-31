@@ -231,13 +231,14 @@ PARSE_FAILED, so generators may assume every file parses.
   - Comparison: regenerate at the commit, then set difference by element id.
 - **Ownership**
   - Question: Who may change what?
-  - Contents: rules. Each rule is a path pattern and its owners, given as git author emails.
+  - Contents: rules. Each rule is a path pattern and its owners, given as git author emails in
+    lowercase.
     Rules are tried in order and the first match wins. A path no rule matches is open to anyone.
   - Source: drifter init proposes a first file from git history (how, open, see [Q11](#q11-open-decisions)). People
     then correct it by hand, like a GitHub CODEOWNERS file.
   - Comparison: not regenerated per push. Every non-merge commit between the base and the
     checked commit is judged: each file it changes must have, as its git author, one of the
-    owners of that file's path. Co-authors do not count, and bots get no special case (list a
+    owners of that file's path, compared in lowercase. Co-authors do not count, and bots get no special case (list a
     bot's email to allow it). A violation names the commit, the path, the author and the owners.
 
 Why ownership is checked differently: it is mined from history, and history grows with every push,
