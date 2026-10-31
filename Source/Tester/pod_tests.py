@@ -280,14 +280,18 @@ TESTS = [
 ]
 
 
-def run_suite(target_url: str, session_id: str, limit: float | None = None) -> dict:
-    # runs every test once, in order, and returns the suite report of pod-tester.openapi.yml
+def run_suite(target_url: str, session_id: str, limit: float | None = None,
+              on_result: Callable[[dict], None] | None = None) -> dict:
+    # runs every test once, in order, and returns the suite report of pod-tester.openapi.yml;
+    # on_result receives each TestResult entry as soon as it is decided, for a live view of the run
     run = Run(target_url, RUN_LIMIT if limit is None else limit)
     features, health_failure = _features(run)
     results, components, criteria = [], set(), set()
     for test in TESTS:
         result = _run_one(test, run, features, health_failure)
         results.append(result.entry(test.id))
+        if on_result is not None:
+            on_result(results[-1])
         if result.answered and (result.outcome in ("pass", "fail") or result.source == "system"):
             components.update(test.components)
             criteria.update(test.criteria)

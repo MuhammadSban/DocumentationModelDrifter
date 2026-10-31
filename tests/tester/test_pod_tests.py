@@ -32,6 +32,13 @@ def test_target_meeting_the_contract_passes_everything_it_runs(fake):
     assert report["session_id"] == "s1" and report["target_url"] == fake.url
 
 
+def test_each_result_is_handed_over_as_it_is_decided(fake):
+    seen = []
+    report = run_suite(fake.url, "s", on_result=lambda entry: seen.append((len(seen) + 1, entry)))
+    assert [entry for _, entry in seen] == report["results"]
+    assert [n for n, _ in seen] == list(range(1, 34))
+
+
 def test_missing_feature_is_skipped_not_failed(fake):
     fake.features = ["model_drift"]
     got = outcomes(run_suite(fake.url, "s"))

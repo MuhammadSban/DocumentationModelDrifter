@@ -73,6 +73,31 @@ def test_run_and_report_errors(app_url):
     assert post(app_url + "/test/run", {"session_id": "nope"}).status == 404
     assert client.call("GET", app_url + "/test/report").status == 400
     assert client.call("GET", app_url + "/test/report?session_id=nope").status == 404
+    assert client.call("GET", app_url + "/progress").status == 400
+    assert client.call("GET", app_url + "/progress?session_id=nope").status == 404
+
+
+def test_progress_shows_results_while_the_suite_runs(app_url, fake):
+    fake.analyze_delay = 0.1
+    session_id = post(app_url + "/test/setup", {"target_url": fake.url}).body["session_id"]
+    progress_url = f"{app_url}/progress?session_id={session_id}"
+    assert client.call("GET", progress_url).body == {"results": [], "session_id": session_id, "state": "ready"}
+
+    answers = []
+    thread = threading.Thread(target=lambda: answers.append(post(app_url + "/test/run", {"session_id": session_id})))
+    thread.start()
+    partial = {"results": []}
+    for _ in range(200):
+        partial = client.call("GET", progress_url).body
+        if 0 < len(partial["results"]) < 33:
+            break
+        time.sleep(0.05)
+    thread.join(60)
+
+    assert partial["state"] == "running" and 0 < len(partial["results"]) < 33
+    final = client.call("GET", progress_url).body
+    assert final["state"] == "done" and final["results"] == answers[0].body["results"]
+    assert partial["results"] == final["results"][:len(partial["results"])]
 
 
 def test_page_and_catalog(app_url):

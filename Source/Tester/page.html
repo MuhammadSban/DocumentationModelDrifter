@@ -90,7 +90,8 @@
   /* status and summary */
   .status { margin-top: 18px; min-height: 1.5em; color: var(--muted); font-size: 14px; }
   .status.stopped { color: var(--fail); }
-  .status .elapsed { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .status .elapsed, .status b { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .status b { color: var(--text); font-weight: 500; }
   .status a { margin-left: 6px; }
 
   .strip { display: flex; gap: 3px; margin-top: 14px; }
@@ -99,11 +100,11 @@
   .cell:hover { transform: scaleY(1.25); filter: brightness(.92); }
   .cell.pass { background: var(--pass); } .cell.fail { background: var(--fail); }
   .cell.error { background: var(--error); } .cell.skip { background: var(--skip); opacity: .45; }
-  .strip.running .cell { animation: wave 1.4s var(--ease) infinite; animation-delay: calc(var(--i) * 35ms); }
-  .strip.reveal .cell { animation: land .4s var(--ease) both; animation-delay: calc(var(--i) * 16ms); }
+  .strip.running .cell.wait { animation: wave 1.4s var(--ease) infinite; animation-delay: calc(var(--i) * 35ms); }
+  .cell.land { animation: land .4s var(--ease) both; }
+  .cell.skip.land { animation-name: land-skip; }
   @keyframes wave { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
   @keyframes land { from { transform: scaleY(.3); opacity: 0; } to { transform: none; opacity: 1; } }
-  .strip.reveal .cell.skip { animation-name: land-skip; }
   @keyframes land-skip { from { transform: scaleY(.3); opacity: 0; } to { transform: none; opacity: .45; } }
 
   .summary { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
@@ -205,7 +206,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
-    .strip.running .cell { opacity: .6; }
+    .strip.running .cell.wait { opacity: .6; }
   }
 </style>
 </head>
@@ -391,6 +392,10 @@ function targetUrl() {
 let podTests = [];
 let filter = null;
 let ticker = null;
+let poller = null;
+let runCount = 0;
+const cells = {};
+const rows = {};
 
 function setStatus(text, mode = "", ...extra) {
   const status = $("#pod-status");
@@ -405,32 +410,46 @@ function plannedLabel(test) {
   return "";
 }
 
-function renderStrip(results = {}) {
-  const strip = $("#strip");
-  strip.replaceChildren(...podTests.map((test, i) => {
-    const result = results[test.id];
-    const cell = el("button", { type: "button", class: `cell ${result ? result.outcome : "wait"}`, style: `--i:${i}`,
-                                title: `${test.id} ${test.title}`,
-                                "aria-label": `${test.id}, ${result ? result.outcome : "not run"}` });
+function renderStrip() {
+  // draws every test as a waiting cell, in order
+  $("#strip").replaceChildren(...podTests.map((test, i) => {
+    const cell = el("button", { type: "button", class: "cell wait", style: `--i:${i}`,
+                                title: `${test.id} ${test.title}`, "aria-label": `${test.id}, not run` });
     cell.addEventListener("click", () => focusRow(test.id));
+    cells[test.id] = cell;
     return cell;
   }));
 }
 
-function renderRows(results = {}) {
-  const rows = $("#pod-rows");
-  rows.replaceChildren(...podTests.map((test) => {
-    const result = results[test.id];
-    const outcome = el("div", { class: "outcome" }, result ? badge(result.outcome) : badge("wait", "not run"),
-      result && result.source ? el("span", { class: "source", text: `source: ${result.source}` }) : null);
-    return el("tr", { id: `row-${test.id}`, "data-outcome": result ? result.outcome : "wait" },
+function renderRows() {
+  // lists every test as not run, with what the contract plans for it
+  $("#pod-rows").replaceChildren(...podTests.map((test) => {
+    rows[test.id] = el("tr", { id: `row-${test.id}`, "data-outcome": "wait" },
       el("td", { class: "id", text: test.id }),
       el("td", { text: test.title }),
       el("td", { class: "covers", text: `${test.components.join(" ")}, ${test.criteria.join(" ")}` }),
-      el("td", {}, outcome),
-      el("td", { class: result ? "msg" : "msg plan", text: result ? result.message : plannedLabel(test) }));
+      el("td", {}, el("div", { class: "outcome" }, badge("wait", "not run"))),
+      el("td", { class: "msg plan", text: plannedLabel(test) }));
+    return rows[test.id];
   }));
   applyFilter();
+}
+
+function showResult(result, index = 0) {
+  // fills one test's cell and row the moment its outcome is known; index staggers a batch landing together
+  const cell = cells[result.test_id];
+  const row = rows[result.test_id];
+  if (!cell || !row) return;
+  cell.className = `cell ${result.outcome} land`;
+  cell.style.animationDelay = `${index * 16}ms`;
+  cell.setAttribute("aria-label", `${result.test_id}, ${result.outcome}`);
+  row.dataset.outcome = result.outcome;
+  const parts = [badge(result.outcome)];
+  if (result.source) parts.push(el("span", { class: "source", text: `source: ${result.source}` }));
+  row.querySelector(".outcome").replaceChildren(...parts);
+  const message = row.querySelector("td.msg");
+  message.className = "msg";
+  message.textContent = result.message;
 }
 
 function focusRow(id) {
@@ -509,25 +528,42 @@ async function runPod() {
   const target = targetUrl();
   if (!target) return;
   const started = Date.now();
+  const run = ++runCount;
   clearInterval(ticker);
+  clearInterval(poller);
   setRunning(true);
   setFilter(null);
   $("#summary").hidden = true;
-  $("#strip").classList.remove("reveal");
   renderStrip();
   renderRows();
   setStatus(`Setting up a session on ${target}`);
   try {
     const { session_id } = await send("POST", "/tester/test/setup", { target_url: target });
+    const done = el("b", { text: "0" });
     const clock = el("span", { class: "elapsed", text: "0 s" });
-    setStatus(`Running ${SUITE_SIZE} tests against ${target}, each sent once. This can take up to 10 minutes. `, "", clock);
+    setStatus(`Running against ${target}, each test sent once: `, "", done, ` of ${SUITE_SIZE} done, `, clock);
     ticker = setInterval(() => { clock.textContent = elapsed(Date.now() - started); }, 1000);
+    const shown = new Set();
+    const show = (results) => {
+      // paints the results not yet on the page; a poll that lands after a newer run started is dropped
+      if (run !== runCount) return;
+      let index = 0;
+      for (const result of results) {
+        if (shown.has(result.test_id)) continue;
+        shown.add(result.test_id);
+        showResult(result, index++);
+      }
+      done.textContent = shown.size;
+    };
+    poller = setInterval(async () => {
+      try {
+        show((await send("GET", `/tester/progress?session_id=${encodeURIComponent(session_id)}`)).results);
+      } catch { /* a missed poll changes nothing: the run's own answer carries every result */ }
+    }, 1000);
     const report = await send("POST", "/tester/test/run", { session_id });
     clearInterval(ticker);
-    const results = Object.fromEntries(report.results.map((r) => [r.test_id, r]));
-    renderStrip(results);
-    $("#strip").classList.add("reveal");
-    renderRows(results);
+    clearInterval(poller);
+    show(report.results);
     renderSummary(report);
     const link = el("a", { href: `/tester/test/report?session_id=${encodeURIComponent(report.session_id)}`,
                            target: "_blank", rel: "noopener", text: "Open the JSON report" });
@@ -535,6 +571,7 @@ async function runPod() {
               `Session ${report.session_id}.`, "", link);
   } catch (err) {
     clearInterval(ticker);
+    clearInterval(poller);
     setStatus(`Stopped after ${elapsed(Date.now() - started)}. ${err.message}`, "stopped");
   } finally {
     setRunning(false);

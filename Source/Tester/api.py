@@ -1,5 +1,5 @@
 # serves the tester under /tester: the course's POST /test/setup, POST /test/run and GET /test/report
-# (pod-tester.openapi.yml), plus the /tester page, its test catalog and the pytest group runner
+# (pod-tester.openapi.yml), plus the /tester page, its test catalog, its live progress and the pytest group runner
 
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ async def test_setup(request: Request):
         source = body.get("source") if body.get("source") in SOURCES else "system"
         return _error(reply.status, message, source)
     with LOCK:
-        SESSIONS[session_id] = {"report": None, "state": "ready", "target_url": target}
+        SESSIONS[session_id] = {"report": None, "results": [], "state": "ready", "target_url": target}
     return {"session_id": session_id}
 
 
@@ -82,7 +82,9 @@ async def test_run(request: Request):
             return _error(409, f"session {session_id} already ran or is running")
         session["state"] = "running"
     try:
-        report = await run_in_threadpool(pod_tests.run_suite, session["target_url"], session_id)
+        # appends each result to the session as it is decided, so GET /tester/progress can show the run live
+        report = await run_in_threadpool(pod_tests.run_suite, session["target_url"], session_id,
+                                         on_result=session["results"].append)
     except Exception as exc:
         session["state"] = "done"
         return _error(500, f"tester aborted: {type(exc).__name__}: {exc}")
@@ -103,6 +105,17 @@ def test_report(session_id: str | None = None):
     if session["report"] is None:
         return _error(500, "the tester aborted before storing any results")
     return session["report"]
+
+
+@router.get("/progress", include_in_schema=False)
+def progress(session_id: str | None = None):
+    # returns a session's state and the results decided so far, polled by the page during a run
+    if not session_id:
+        return _error(400, "session_id query parameter is required")
+    session = SESSIONS.get(session_id)
+    if session is None:
+        return _error(404, f"session {session_id} is unknown")
+    return {"results": list(session["results"]), "session_id": session_id, "state": session["state"]}
 
 
 @router.get("", include_in_schema=False)
