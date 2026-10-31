@@ -113,11 +113,11 @@ What
 Needs
 Done when
 A
-Align the hosted service to contract 2.4.0: features: [model_drift] in /health, mapping-v1.1.yaml, config_version: mapping-v1.1, unmapped, contract error codes, one skip reason, issues: [], 80 s deadline, one active test session (409 otherwise), durable store, drop the LLM_Shell import, keep one clone per repository and fetch only missing commits, so a full tester run of about 34 analyses fits in 600 s
+Align the hosted service to contract 2.4.0: features: [model_drift] in /health, mapping-v1.1.yaml, config_version: mapping-v1.1, unmapped, contract error codes, one skip reason, issues: [], 80 s deadline, one active test session (409 otherwise), durable store, drop the LLM_Shell import, keep one clone per repository and fetch only missing commits, so a full tester run of about 34 analyses fits in 570 s
 nothing
 all 10 cases of golden-outputs.json match on the nine compared fields; a second /analyze on the same repository runs no new clone
 B
-Tester: /test/setup, /test/run, /test/report; tests as a table of (id, components, criteria, feature, run); the runner reads GET /health once and skips every row whose feature the target does not list, so no test checks features itself; golden comparator; 90 s per call, no retry, 600 s budget
+Tester: /test/setup, /test/run, /test/report; tests as a table of (id, components, criteria, feature, run); the runner reads GET /health once and skips every row whose feature the target does not list, so no test checks features itself; golden comparator; 90 s per call, no retry, stop at 570 s of the 600 s run limit
 nothing
 runs against Team 16's deployed system; report validates against pod-tester.openapi.yml
 C

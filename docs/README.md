@@ -17,8 +17,9 @@ When a diagram and the spec disagree, the spec wins. For anything another team's
 
 ## contract/
 
-The pod contract with Team 16. Both teams' registry rows link it. It follows Team 16's v1.1 package except two deviations: no prose detector is required (Team 15's `issues` is always `[]`), and Team 15 adds the optional `drift`, `drift_error` and `POST /generate`. Each system lists its features in `/health`, and a tester skips, never fails, a test whose feature the target lacks. `contract/pod-contract.md` §9 lists every difference, and §10 says how it changes.
+The pod contract with Team 16. Both teams' registry rows link it. It follows Team 16's v1.1 package with two deviations in behavior: no prose detector is required (Team 15's `issues` is always `[]`), and Team 15 adds the optional `drift`, `drift_error` and `POST /generate`. Each system lists its features in `/health`, and a tester skips, never fails, a test whose feature the target lacks. `contract/pod-contract.md` §9 lists every difference, and §10 says how it changes.
 
+- `contract/spec-v1.1.md` — Team 16's v1.1 specification (their `SPEC.md`), copied unchanged: the prose detector, comparison rules and acceptance criteria the contract cites as "v1.1 SPEC". Its `openapi-system-v1.1.yaml` means `contract/pod-contract.openapi.yml`; the contract wins where they differ.
 - `contract/pod-contract.openapi.yml` — the system API both testers call: shared routes and JSON, plus Team 15's optional additions. Read it before changing a route, a field or an error code.
 - `contract/pod-contract.md` — the testing rules: sessions, fixtures, the test list T-01 to T-33 with the components and criteria each covers, the acceptance criteria, which tests skip and why, limits, retries, errors and how the contract changes. Read it when writing or changing tests or the tester.
 - `contract/pod-tester.openapi.yml` — the tester API and suite report, as the course fixes them. Read it before changing the tester's routes or report.
