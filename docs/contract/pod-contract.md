@@ -19,7 +19,9 @@ v1.1 package (proposed 2026-10-30).
 ## 1. What is shared
 
 This contract follows Team 16's v1.1 package everywhere except two deviations. Neither
-needs any change to Team 16's code.
+changes Team 16's system. Team 16's tester needs two changes: it reads `features` from
+`GET /health` and skips as below (section 4 says what happens when `/health` fails),
+and it accepts `drift` and `drift_error` in an `AnalysisResult`.
 
 1. **No prose detector required.** `issues` is filled by the v1.1 SPEC section 6
    detector on a system that has one (Team 16). On a system without it (Team 15),
@@ -36,8 +38,9 @@ with the message "target does not implement <feature>".
 
 Team 15's `/analyze` runs the model check on every request. A commit with no `/models`
 gives `status: "SUCCESS"`, `drift: null` and
-`drift_error: {"code": "MODELS_NOT_FOUND", ...}`. A drifted commit, beside the shared
-fields:
+`drift_error: {"code": "MODELS_NOT_FOUND", ...}`. `drift` and `drift_error` do not depend
+on `status`: the model check runs even when `status` is `ERROR`. A drifted commit, beside
+the shared fields:
 
 ```json
 "drift": {
@@ -115,7 +118,11 @@ T-01 to T-23 are the shared tests; both testers run them. T-24 to T-33 run only 
 Team 15's tester and are **pending** until section 3's checklist is done; a pending test
 is reported as `skip` with the message "expected answers not yet published".
 
-The tester reads `GET /health` once before the first test. The last two columns say
+The tester reads `GET /health` once before the first test. If it gives no 200 `Health`
+body within 90 s, the target's features are unknown: each test that needs a feature
+(T-18, T-19, T-21, T-24 to T-33) is `error`, with source `communication` when nothing
+answered and `system` otherwise; a pending test stays `skip`, and the other tests run as
+usual. The last two columns say
 what a test does on a system without `prose_detector` or without `model_drift`
 (section 1, Features). No test is expected to fail on either team's system.
 
@@ -159,7 +166,8 @@ T-01 to T-23 they are the lists Team 16's tester already uses.
 | T-33 | `/generate` at L0: every file byte-equal to the committed `/models` (pending) | model fixture | C1 C2 C4 | AC-10 | runs | skip |
 
 The "skip" cells in the last two columns are deviations 1 and 2: Team 15's system has no
-`prose_detector`, and Team 16's has no `model_drift`.
+`prose_detector`, and Team 16's has no `model_drift`. T-22 and T-23 are `skip` on every
+system, with the messages "Phase 5" and "checked by inspection".
 
 Rules for T-24 to T-33:
 
@@ -212,6 +220,10 @@ Both testers use the same lists, so totals match.
 **No retries.** A tester sends each project call once. A call with no response within
 90 s is `error` with source `communication`; the tester does not resend it.
 
+**Run limit.** A tester that reaches its 600 s run limit sends no more calls and returns
+its report with 200: the test in progress is `error` with source `tester`, and each test
+not yet started is `skip`, both with the message "tester run limit reached".
+
 ## 7. Errors
 
 - **Project routes:** `{code, message}`. 400 `INVALID_REQUEST` (never 422); 404
@@ -241,8 +253,9 @@ notes" cell:
 | REQ-02, section 6: every system runs the prose detector | only a system with a prose detector fills `issues` | Team 15's documentation is `/models` |
 | `AnalysisResult` and its parts accept no extra fields | `drift` and `drift_error` are allowed, optional | Team 15's model check |
 | no `/generate` | optional `POST /generate` | T-33 byte-for-byte check |
+| OpenAPI: `unmapped` holds added or modified paths | ADDED, MODIFIED, RENAMED, COPIED or TYPE_CHANGED paths | v1.1 SPEC section 6.1 and golden case c3 already say so |
 | `GET /test/report` lists 400 and 404 | also 409 while preparing | course spec |
-| `Health` has no `features` | optional `features`; absent means `["prose_detector"]` | a tester skips, never fails, what a system does not implement |
+| `Health` has no `features` | optional `features`; absent means `["prose_detector"]`; when `/health` fails, only the tests that need a feature are `error` | a tester skips, never fails, what a system does not implement |
 | acceptance criteria in SPEC section 10 | the same ten, copied word for word into section 5, plus what "doc" means for `model_drift` | the course asks the intra-pod specification to list them |
 | `GET /test/report` sets no minimum length for `session_id` | at least 1 character, as `POST /test/setup` already requires | course spec: session ids are nonempty |
 | no retry rule, no concurrency rule, no numbered test list | sections 2, 4 and 6 | the course asks the pod to define them |

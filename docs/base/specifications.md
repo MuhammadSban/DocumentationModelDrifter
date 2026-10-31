@@ -433,7 +433,8 @@ classification, unmapped, saved results and error codes.
 ### 5.2 How this system's answer appears
 
 The four-field answer of 3.2 is the drift key of every /analyze result. Keys are sorted, and each
-list is sorted (by element id; ownership by commit, then path) and empty when that model matches.
+list is sorted (by element id; ownership by commit SHA, then path, compared as strings) and empty
+when that model matches. An ownership violation's owners are sorted as strings.
 The element id and kind below follow docs/base/structure.md.
 
 ```json
@@ -465,6 +466,9 @@ drift is null and drift_error says why:
 | INVALID_MODELS | a file in /models fails its schema |
 | PARSE_FAILED | an in-scope file cannot be parsed, or is binary or not UTF-8; the message names the file and, for a syntax error, the line |
 | FILE_TOO_LARGE | an in-scope file is over 1 MB; the message names it |
+
+The model check does not depend on status: it also runs when change detection gives status ERROR
+(CHANGE_LIMIT_EXCEEDED), so drift is the same as the CLI's answer for that commit.
 
 HTTP errors are the contract's: 400 INVALID_REQUEST; 404 REPOSITORY_NOT_FOUND, COMMIT_NOT_FOUND,
 ANALYSIS_NOT_FOUND; 500 ANALYSIS_FAILED (including a check past its deadline) and STORAGE_FAILED.
