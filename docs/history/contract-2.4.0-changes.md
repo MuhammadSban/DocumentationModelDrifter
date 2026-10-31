@@ -3,8 +3,8 @@
 Written 2026-10-31 for Teams 15 and 16. History, not instructions: the contract itself is
 `docs/contract/`, and where this file and the contract disagree, the contract wins.
 
-Contract 2.4.0 is proposed and waits for Team 16's agreement; 2.3.0 applies until then
-(contract section 10). This file says what changed since 2.3.0, why, what it means for each
+Contract 2.4.0 is proposed and waits for Team 16's agreement; Team 16 has agreed to no
+version yet (contract section 10). This file says what changed since 2.3.0, why, what it means for each
 team's system and tester, and what changed in Team 15's specification alongside it.
 
 ## The versions compared
@@ -12,7 +12,7 @@ team's system and tester, and what changed in Team 15's specification alongside 
 ```mermaid
 flowchart LR
     V11["Team 16 v1.1 package<br/>SPEC.md, openapi-system-v1.1.yaml,<br/>mapping, goldens<br/>proposed 2026-10-30"]
-    C23["Pod contract 2.3.0<br/>agreed by both teams<br/>2026-10-31"]
+    C23["Pod contract 2.3.0<br/>Team 15 draft, not agreed<br/>2026-10-31"]
     C24["Pod contract 2.4.0<br/>proposed 2026-10-31<br/>pending Team 16"]
     V11 -->|"two deviations:<br/>no prose detector required,<br/>optional drift additions"| C23
     C23 -->|"this file"| C24
@@ -237,7 +237,7 @@ Nothing in `Source/` implements 2.4.0 yet. `docs/base/phase4.md` lists the work;
 
 | File | Change |
 | --- | --- |
-| `docs/base/specifications.md` §1.3, §5.1, [8], Q11 | the contract is 2.4.0, pending Team 16; 2.3.0 was agreed on 2026-10-31 |
+| `docs/base/specifications.md` §1.3, §5.1, [8], Q11 | the contract is 2.4.0, pending Team 16; no version is agreed yet |
 | §4.1 | each AC-01 to AC-10 starts with the pod's check as v1.1 words it ("Pod: …"), then "This system: …"; "doc" means `/models` for this system; AC-11 notes that T-30 lists AC-02 |
 | §5.1 | new: `GET /system/health` lists `["model_drift"]`, so testers skip the prose tests and run the drift tests |
 | §5.2 | ownership sorted by commit SHA, then path, as strings; owners sorted; the model check also runs when `status` is `ERROR` (`CHANGE_LIMIT_EXCEEDED`) |

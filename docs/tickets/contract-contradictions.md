@@ -49,7 +49,7 @@ flowchart LR
   `AnalysisResult` has `additionalProperties: false`.
 - Contract deviation 2: Team 15 adds `drift` and `drift_error`.
 
-Team 16 agreed to deviation 2 in 2.3.0. A tester that validates answers strictly against
+Team 16 has not agreed to deviation 2 yet; 2.4.0 proposes it. A tester that validates answers strictly against
 v1.1 still fails every `/analyze` test on our system.
 
 **Fix.** Ask Team 16 whether their tester validates against their v1.1 schema or against

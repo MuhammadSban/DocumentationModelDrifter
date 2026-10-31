@@ -1,6 +1,6 @@
 # Pod 15/16 contract: testing rules
 
-Version 2.4.0, proposed 2026-10-31 and pending Team 16's agreement; 2.3.0 applies until then (section 10). Both teams' registry rows link this file as the intra-pod
+Version 2.4.0, proposed 2026-10-31 and pending Team 16's agreement (section 10); no earlier version was agreed. Both teams' registry rows link this file as the intra-pod
 specification. The course's `docs/base/student-facing-spec.docx.pdf` wins over every
 file here.
 
@@ -312,8 +312,8 @@ notes" cell:
 
 ## 10. Agreement and changes
 
-Teams 15 and 16 agree to this contract as of version 2.3.0 (2026-10-31); version 2.4.0 is
-proposed and pending Team 16's agreement. Every later change to any file in this folder
+Version 2.4.0 is proposed and pending Team 16's agreement; Team 16 has agreed to no
+version yet. Every later change to any file in this folder
 bumps the version and applies once
 both teams agree to it. `spec-v1.1.md`, `mapping-v1.1.yaml` and `golden-outputs.json`
 change only when Team 16 publishes a new version of them.

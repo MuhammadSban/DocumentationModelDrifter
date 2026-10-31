@@ -71,7 +71,7 @@ paths, methods, inputs, responses, and behavior must match the shared specificat
 their internal implementations." [6] Staff may pair either team's tester with either team's system,
 so both teams build to one contract.
 
-That contract is docs/contract/ (version 2.4.0, pending Team 16's agreement; 2.3.0 was agreed by Teams 15 and 16 on 2026-10-31). It builds
+That contract is docs/contract/ (version 2.4.0, pending Team 16's agreement; no version is agreed yet). It builds
 on Team 16's v1.1 package [7], in which Team 16 checks prose documentation. Team 15 checks models
 instead, which the contract allows through two deviations (5.1). Team 16 builds no models.
 
@@ -425,7 +425,7 @@ inspected for criteria that cannot be decided from responses alone (AC-04, AC-09
 ### 5.1 The pod contract
 
 The cross-team interface is the pod contract in docs/contract/, version 2.4.0, pending Team 16's
-agreement (2.3.0 was agreed on 2026-10-31). It builds on Team 16's v1.1 package [7] and wins over this file for anything
+agreement (no version is agreed yet). It builds on Team 16's v1.1 package [7] and wins over this file for anything
 another team's tester or system sees.
 
 | File | Holds |
@@ -691,8 +691,8 @@ demonstration.
 
 ### 9.2 Risks requiring pod agreement
 
-None open: the pod contract in docs/contract/ settles the interface, the testing contract and the
-fixtures. Later changes follow its section 10.
+Team 16's agreement to the pod contract in docs/contract/, which settles the interface, the
+testing contract and the fixtures; it is pending. Later changes follow its section 10.
 
 ## Q10 References
 
@@ -726,9 +726,9 @@ Proposed 2026-10-31, pending Team 16's agreement.
 
 ## Q11 Open decisions
 
-#### Settled by the pod contract (2026-10-30)
+#### Proposed in the pod contract (pending Team 16's agreement)
 
-- Team 16's agreement to the interface and the testing contract: agreed to docs/contract/ 2.3.0; 2.4.0 pending.
+- Team 16's agreement to the interface and the testing contract: pending; docs/contract/ 2.4.0 is proposed.
 - The shared fixture: Team 16's fixture serves the shared tests; Team 15 builds the model fixture.
 - Saving answers by id: every /analyze result is saved durably and returned by GET
   /system/analysis/{analysis_id}.
