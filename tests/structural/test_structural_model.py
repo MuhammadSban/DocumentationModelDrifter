@@ -66,10 +66,16 @@ def test_shop_example():
     ("src/shop/__init__.py", "shop"),
     ("tool.py", "tool"),
     ("__init__.py", "__init__"),
-    ("src/__init__.py", "__init__"),
+    ("src/__init__.py", "src"),
 ])
 def test_module_ids(path, expected):
     assert module_id(path) == expected
+
+
+def test_src_init_and_root_init_get_distinct_ids():
+    # checks neither node is lost, both ids were once __init__
+    model = generate_structural({"__init__.py": "X=1\n", "src/__init__.py": "Y=1\n"})
+    assert ids(model) == ["__init__", "src"]
 
 
 def test_nested_classes_and_their_methods():

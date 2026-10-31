@@ -52,8 +52,10 @@ def generate_structural(files: dict[str, str]) -> dict:
 
 def module_id(path: str) -> str:
     # turns a repo-relative path into a dotted module name: src/shop/orders.py -> shop.orders,
-    # shop/__init__.py -> shop, and a root __init__.py stays __init__
-    path = path.removeprefix("src/").removesuffix(".py")
+    # shop/__init__.py -> shop, src/__init__.py -> src, and a root __init__.py stays __init__
+    path = path.removesuffix(".py")
+    if path != "src/__init__":
+        path = path.removeprefix("src/")
     path = path.removesuffix("/__init__")
     return path.replace("/", ".")
 
