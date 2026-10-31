@@ -1,6 +1,6 @@
 # Pod 15/16 contract: testing rules
 
-Version 2.4.0, 2026-10-31. Both teams' registry rows link this file as the intra-pod
+Version 2.4.0, proposed 2026-10-31 and pending Team 16's agreement; 2.3.0 applies until then (section 10). Both teams' registry rows link this file as the intra-pod
 specification. The course's `docs/base/student-facing-spec.docx.pdf` wins over every
 file here.
 
@@ -140,7 +140,7 @@ T-01 to T-23 they are the lists Team 16's tester already uses.
 | T-14 | Retrieve saved analysis | c1: GET equals the POST body | C1 C6 | AC-06 | runs | runs |
 | T-15 | Unknown analysis_id | 404 `ANALYSIS_NOT_FOUND` | C1 C6 | AC-06 AC-08 | runs | runs |
 | T-16 | Distinct, durable run files | c2 twice: two ids, both read back | C1 C2 C3 C5 C6 | AC-06 | runs | runs |
-| T-17 | Five-run repeatability | c4 and c1, five runs each: identical compared fields, and identical `drift` and `drift_error` when present | C1 C2 C3 C5 | AC-10 | runs | runs |
+| T-17 | Five-run repeatability | c4 and c1, five runs each: identical compared fields | C1 C2 C3 C5 | AC-10 | runs | runs |
 | T-18 | Missing mapped documentation finding | c8: `MISSING_DOCUMENTATION` | C4 | AC-02 | skip | runs |
 | T-19 | Unchanged mapped documentation finding | c1: `OUTDATED_DOCUMENTATION`, `UNDOCUMENTED_SYMBOL` | C4 | AC-02 | skip | runs |
 | T-20 | Code and documentation updated together | c7: `issues: []` | C4 | AC-03 | runs | runs |
@@ -177,23 +177,23 @@ Both testers use the same lists, so totals match.
 - **Components (7):** C1 interface, C2 fetch and resolve, C3 diff and classify, C4
   detector (Team 16's prose detector, Team 15's model check), C5 result builder and
   persistence, C6 retrieval, C7 review workflow (Phase 5).
-- **Criteria (10):** the acceptance criteria below. They follow v1.1 SPEC section 10;
-  "documentation" means prose files for a system with `prose_detector` and `/models` for
-  a system with `model_drift`. The tests that exercise each one are those listing it in
-  section 4.
+- **Criteria (10):** v1.1 SPEC section 10, copied word for word below without its
+  Requirement column. For a system with `model_drift`, "doc" means `/models` and a
+  finding means a drift difference. The tests that exercise each criterion are those
+  listing it in section 4.
 
-| AC | Criterion |
-| --- | --- |
-| AC-01 | Every changed path between base and head is reported in `changes` or `skipped` exactly as the expected answer says. |
-| AC-02 | A code change that its documentation does not reflect is flagged. |
-| AC-03 | A change that its documentation already reflects is not flagged. |
-| AC-04 | The system flags but never accepts or edits documentation: every new finding is `PENDING_REVIEW`. |
-| AC-05 | Only an authorized person accepts what was flagged, and the record shows who and when (Phase 5). |
-| AC-06 | Every result is saved once under its own id and read back unchanged, also after a restart; two runs give two distinct ids. |
-| AC-07 | Invalid input (missing `commit_id`, malformed JSON, bad repository format, wrongly typed field) returns 400 `INVALID_REQUEST` with a message and no result. |
-| AC-08 | A missing repository, commit or `analysis_id` returns 404, and a check that cannot finish is never reported as a success. |
-| AC-09 | The repository is read-only and untrusted: unchanged after a check, none of its code runs, no credentials in responses or logs. |
-| AC-10 | Repeated runs with the same inputs give identical compared fields. |
+| AC | Check | Golden / fixture |
+|---|---|---|
+| AC-01 | `changes` and `skipped` equal golden | all cases |
+| AC-02 | Missing and outdated docs flagged | c8, c1 |
+| AC-03 | Code and doc updated together gives no finding | c7 |
+| AC-04 | Every finding is PENDING_REVIEW | any case with issues |
+| AC-05 | Authorized review decisions | Phase 5 |
+| AC-06 | Two runs give distinct ids; GET returns each unchanged, including after a restart | c2 |
+| AC-07 | Missing commit_id, malformed JSON, bad repository format, wrong type → 400 INVALID_REQUEST | n/a |
+| AC-08 | Nonexistent repo/commit → 404; unknown analysis_id → 404; mapping problem → saved ERROR | n/a |
+| AC-09 | Repository unchanged, no code executed, no credentials in logs | inspection, Phase 5 |
+| AC-10 | Five runs of c4 and of c1 give identical significant fields, including identical finding_ids | c4, c1 |
 
 - **What counts:** a component or criterion is covered when at least one executed test
   (outcome `pass`, `fail` or `error`, not `skip`) lists it in section 4.
@@ -243,13 +243,14 @@ notes" cell:
 | no `/generate` | optional `POST /generate` | T-33 byte-for-byte check |
 | `GET /test/report` lists 400 and 404 | also 409 while preparing | course spec |
 | `Health` has no `features` | optional `features`; absent means `["prose_detector"]` | a tester skips, never fails, what a system does not implement |
-| acceptance criteria in SPEC section 10 | the same ten, in section 5, worded for both kinds of documentation | the course asks the intra-pod specification to list them |
-| `session_id` has no length limits | `POST /test/setup` caps it at 200 characters; `GET /test/report` requires at least 1 | rejects empty or oversized ids; testers send UUIDs |
+| acceptance criteria in SPEC section 10 | the same ten, copied word for word into section 5, plus what "doc" means for `model_drift` | the course asks the intra-pod specification to list them |
+| `GET /test/report` sets no minimum length for `session_id` | at least 1 character, as `POST /test/setup` already requires | course spec: session ids are nonempty |
 | no retry rule, no concurrency rule, no numbered test list | sections 2, 4 and 6 | the course asks the pod to define them |
 
 ## 10. Agreement and changes
 
-Teams 15 and 16 agree to this contract as of version 2.4.0 (2026-10-31). Every later
-change to any file in this folder bumps the version (2.4.0 → 2.5.0) and applies once
+Teams 15 and 16 agree to this contract as of version 2.3.0 (2026-10-31); version 2.4.0 is
+proposed and pending Team 16's agreement. Every later change to any file in this folder
+bumps the version and applies once
 both teams agree to it. `mapping-v1.1.yaml` and `golden-outputs.json` change only when
 Team 16 publishes a new version of them.

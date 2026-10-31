@@ -395,7 +395,7 @@ components:
       type: object
       required: [session_id]
       properties:
-        session_id: {type: string, minLength: 1, maxLength: 200}
+        session_id: {type: string, minLength: 1}
         setup: {type: object, description: 'Pod setup data: always {}'}
 
     SessionId:
