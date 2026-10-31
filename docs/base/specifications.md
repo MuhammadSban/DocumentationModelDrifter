@@ -213,16 +213,20 @@ legal-compliance certification are excluded.
 /models holds four files: structural.json, behavioral.json, ownership.json and scope.json.
 
 The model format is Team 15's: only Team 15's system reads and writes /models, so the pod contract
-leaves it to this specification. The JSON Schemas, element kinds, id scheme and mining rules are
-still open ([Q11](#q11-open-decisions)).
+leaves it to this specification. Both generators take the in-scope files as a dict of path to
+text. The orchestrator parses every in-scope file once before any generator runs and stops with
+PARSE_FAILED, so generators may assume every file parses.
 
 - **Structural**
   - Question: What exists, and how do the parts relate?
-  - Contents: to be decided in this specification (open, see [Q11](#q11-open-decisions)).
+  - Contents: modules, classes, functions and methods as nodes; imports, inheritance and calls
+    between them as edges. The format, kinds and id scheme are in docs/base/structure.md; where it
+    disagrees with this file, this file wins.
   - Comparison: regenerate at the commit, then set difference by element id.
 - **Behavioral**
   - Question: What may happen, and in what order?
-  - Contents: to be decided in this specification (open, see [Q11](#q11-open-decisions)).
+  - Contents: at least states and the transitions between them. Kind names, id scheme, mining
+    rules and the JSON Schema are open (see [Q11](#q11-open-decisions)).
   - Comparison: regenerate at the commit, then set difference by element id.
 - **Ownership**
   - Question: Who may change what?
@@ -383,12 +387,17 @@ Starting set of labelled cases (to be revised, see [Q11](#q11-open-decisions)):
 | L-pre | Python code, no /models yet | no verdict: MODELS_NOT_FOUND |
 | L0 | init on the fixture repo; /models committed | true |
 | L1 | comments and whitespace only | true |
-| L2 | adds one function | false: structural, 1 ADDED node |
-| L3 | removes one import | false: structural, 1 REMOVED edge |
-| L4 | adds a state and a transition into it | false: behavioral, 1 ADDED state and 1 ADDED transition |
+| L2 | adds one function | false: structural, 1 ADDED function |
+| L3 | removes one import | false: structural, 1 REMOVED imports |
+| L4 | adds a state and a transition into it | false: behavioral, 1 ADDED state and 1 ADDED transition (kind names per the behavioral format) |
 | L5 | L2's change plus updated /models in the same commit | true |
 | L6 | a non-owner edits an owned path | false: ownership, 1 violation |
-| L7 | a hand edit removes a call from structural.json that the code still makes | false: structural, 1 ADDED edge |
+| L7 | a hand edit removes a call from structural.json that the code still makes | false: structural, 1 ADDED calls |
+
+Each count must be exactly 1, so the fixture follows three rules. L2's new function calls no
+code of the repository, or calls edges would be added too. L3 removes an import of a module of
+the repository that nothing calls through; an import of an external library is not in the model.
+L7's call is to a function of the repository.
 
 ### 4.3 Independent evaluation
 
@@ -427,7 +436,7 @@ classification, unmapped, saved results and error codes.
 
 The four-field answer of 3.2 is the drift key of every /analyze result. Keys are sorted, and each
 list is sorted (by element id; ownership by commit, then path) and empty when that model matches.
-The element id and kind below are illustrative; the id scheme is open ([Q11](#q11-open-decisions)).
+The element id and kind below follow docs/base/structure.md.
 
 ```json
 "drift": {
@@ -436,7 +445,7 @@ The element id and kind below are illustrative; the id scheme is open ([Q11](#q1
   "ownership": [],
   "structural": [
     {"change": "ADDED", "file": "src/shop/orders.py", "id": "shop.orders:Order.cancel",
-     "kind": "node"}
+     "kind": "method"}
   ]
 },
 "drift_error": null
@@ -542,7 +551,7 @@ generators, comparison, gate and review loop stay.
 | Comparison | baseline model and fresh model -> differences |
 | Change detection | base and head -> changes, skipped and unmapped, classified by the pod's mapping-v1.1.yaml (hosted service only) |
 | Result store | one /analyze result -> a saved run, durable across restarts (hosted service only) |
-| Orchestrator | one request -> one four-field answer, and in the hosted service one /analyze result with it as drift; calls the others in order |
+| Orchestrator | one request -> one four-field answer, and in the hosted service one /analyze result with it as drift; parses every in-scope file once (PARSE_FAILED), then calls the others in order |
 | Tester | a system's URL -> the course's report, with what each test got |
 
 One codebase, three ways to run it, all through the orchestrator:
@@ -702,9 +711,10 @@ Agreed 2026-10-31.
 
 #### To settle in Team 15
 
-- Structural and behavioral contents: element kinds, id scheme, mining rules and the JSON
-  Schemas. The id scheme comes first: the model fixture and model-golden-outputs.json depend on
-  it.
+- Behavioral contents: kind names, id scheme, mining rules and the JSON Schema; it must hold at
+  least states and transitions (3.2). The id scheme comes first: the model fixture and
+  model-golden-outputs.json depend on it. Structural is settled in docs/base/structure.md, except
+  its JSON Schema.
 - Path pattern rules for scope.json and ownership.json.
 - The Annex XI claim (1.1): whether to keep the specific Annex XI items or only the general
   Art. 53(1)(a) claim.

@@ -12,6 +12,7 @@ When a diagram and the spec disagree, the spec wins. For anything another team's
 
 - `base/specifications.md` — the top-level specification: purpose, requirements, acceptance criteria and the four-field answer. Read it before changing behavior, the API or the models. Q11 lists the decisions still open. Its §5 explains how this design meets the pod contract in `contract/`.
 - `base/phase4.md` — the Phase 4 build plan: the alignment check against Team 16's package, the plugin seam for the model generators, build steps A to G and the open questions. A plan, not a source of truth: where it disagrees with the spec or the contract, they win.
+- `base/structure.md` — the structural model's format: the generator's input, node and edge kinds, the id scheme and an example. Read it before changing the structural generator. The spec wins where they disagree.
 - `base/student-facing-spec.docx.pdf` — the course's cross-team testing rules. Read it when writing or changing tests or the tester.
 
 ## contract/
