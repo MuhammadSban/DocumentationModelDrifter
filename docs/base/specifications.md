@@ -71,7 +71,7 @@ paths, methods, inputs, responses, and behavior must match the shared specificat
 their internal implementations." [6] Staff may pair either team's tester with either team's system,
 so both teams build to one contract.
 
-That contract is docs/contract/ (version 2.3.0), agreed by Teams 15 and 16 on 2026-10-31. It builds
+That contract is docs/contract/ (version 2.4.0), agreed by Teams 15 and 16 on 2026-10-31. It builds
 on Team 16's v1.1 package [7], in which Team 16 checks prose documentation. Team 15 checks models
 instead, which the contract allows through two deviations (5.1). Team 16 builds no models.
 
@@ -410,7 +410,7 @@ inspected for criteria that cannot be decided from responses alone (AC-04, AC-09
 
 ### 5.1 The pod contract
 
-The cross-team interface is the pod contract in docs/contract/, version 2.3.0, agreed by Teams 15
+The cross-team interface is the pod contract in docs/contract/, version 2.4.0, agreed by Teams 15
 and 16 on 2026-10-31. It builds on Team 16's v1.1 package [7] and wins over this file for anything
 another team's tester or system sees.
 
@@ -428,6 +428,9 @@ Two deviations from v1.1 let this design meet the contract (contract section 9):
    prose documentation, so its issues is always [].
 2. Optional model-drift additions. This system adds drift and drift_error to every /analyze
    result and serves POST /generate. Testers never require them.
+
+GET /system/health lists "features": ["model_drift"], so testers skip the prose tests and run
+the drift tests (contract section 1).
 
 Everything else in the contract this system follows as written, including change detection,
 classification, unmapped, saved results and error codes.
@@ -488,7 +491,8 @@ The pod's drift tests T-24 to T-33 (contract section 4) run the labelled cases o
 hosted service and compare the whole drift object with the expected answer; T-33 checks
 /generate at L0 byte for byte. T-17 also checks that drift is byte-identical across repeated runs.
 The shared tests T-01 to T-23 check change detection, classification, saved results and errors.
-Against this system, T-18, T-19 and T-21 (prose findings) fail by design (deviation 1).
+Against this system, T-18, T-19 and T-21 (prose findings) are skipped: its GET /system/health
+lists features ["model_drift"] and not prose_detector (deviation 1, contract section 1).
 
 ## Q6 Milestones for phases 4 and 5
 
@@ -696,14 +700,14 @@ repository.
 [7] Team 16. "Documentation Tracker: Pod 15/16 Shared Specification v1.1" (SPEC.md,
 openapi-system-v1.1.yaml, mapping-v1.1.yaml, golden-outputs.json). Proposed 2026-10-30.
 
-[8] Teams 15 and 16. "Pod 15/16 contract", version 2.3.0. docs/contract/ in this repository.
+[8] Teams 15 and 16. "Pod 15/16 contract", version 2.4.0. docs/contract/ in this repository.
 Agreed 2026-10-31.
 
 ## Q11 Open decisions
 
 #### Settled by the pod contract (2026-10-30)
 
-- Team 16's agreement to the interface and the testing contract: agreed, docs/contract/ 2.3.0.
+- Team 16's agreement to the interface and the testing contract: agreed, docs/contract/ 2.4.0.
 - The shared fixture: Team 16's fixture serves the shared tests; Team 15 builds the model fixture.
 - Saving answers by id: every /analyze result is saved durably and returned by GET
   /system/analysis/{analysis_id}.

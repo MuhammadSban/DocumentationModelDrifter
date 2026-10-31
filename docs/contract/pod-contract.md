@@ -1,6 +1,6 @@
 # Pod 15/16 contract: testing rules
 
-Version 2.4.0, proposed 2026-10-31 (2.3.0 applies until both teams agree, section 10). Both teams' registry rows link this file as the intra-pod
+Version 2.4.0, 2026-10-31. Both teams' registry rows link this file as the intra-pod
 specification. The course's `docs/base/student-facing-spec.docx.pdf` wins over every
 file here.
 
@@ -249,7 +249,7 @@ notes" cell:
 
 ## 10. Agreement and changes
 
-Teams 15 and 16 agree to this contract as of version 2.3.0 (2026-10-31). Every later
-change to any file in this folder bumps the version (2.3.0 → 2.4.0) and applies once
+Teams 15 and 16 agree to this contract as of version 2.4.0 (2026-10-31). Every later
+change to any file in this folder bumps the version (2.4.0 → 2.5.0) and applies once
 both teams agree to it. `mapping-v1.1.yaml` and `golden-outputs.json` change only when
 Team 16 publishes a new version of them.
