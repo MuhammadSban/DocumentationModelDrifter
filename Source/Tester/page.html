@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drifter Tester</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e3e3de;
+    --accent: #2f5bd3; --pass: #1f7a3d; --pass-bg: #e3f3e8; --fail: #b3261e; --fail-bg: #fbe4e2;
+    --error: #9a5b00; --error-bg: #fbefd9; --skip: #5f6368; --skip-bg: #ececea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --panel: #1f1f1d; --text: #ecece8; --muted: #a0a09a; --line: #34342f;
+      --accent: #8aa8ff; --pass: #7fd39a; --pass-bg: #1d3325; --fail: #ff9a90; --fail-bg: #3d1f1d;
+      --error: #f2c06b; --error-bg: #3a2d14; --skip: #b7b7b0; --skip-bg: #2c2c29;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 0; }
+  p.lead { color: var(--muted); margin: 0 0 28px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+            padding: 20px; margin-bottom: 20px; }
+  .head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+  select, input[type=url] { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+                            border-radius: 6px; padding: 6px 8px; }
+  input[type=url] { flex: 1 1 260px; min-width: 0; }
+  button { font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0; border-radius: 6px;
+           padding: 7px 14px; cursor: pointer; }
+  @media (prefers-color-scheme: dark) { button { color: #10131c; } }
+  button:disabled { opacity: .55; cursor: progress; }
+  .status { color: var(--muted); font-size: 14px; margin-top: 10px; min-height: 1.5em; }
+  .cov { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--muted); margin-top: 6px; }
+  .cov b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .table { overflow-x: auto; margin-top: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); padding: 6px 8px; }
+  td { border-bottom: 1px solid var(--line); padding: 7px 8px; vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.id { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+  td.msg { color: var(--muted); word-break: break-word; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 1px 9px;
+           white-space: nowrap; }
+  .pass { color: var(--pass); background: var(--pass-bg); }
+  .fail { color: var(--fail); background: var(--fail-bg); }
+  .error { color: var(--error); background: var(--error-bg); }
+  .skip, .waiting { color: var(--skip); background: var(--skip-bg); }
+  .groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+  .groups section { margin: 0; }
+  .note { font-size: 13px; color: var(--muted); }
+  code { font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Drifter tester</h1>
+  <p class="lead">Runs the pod's tests T-01 to T-33 against a system, and this repository's pytest tests.</p>
+
+  <section id="pod">
+    <div class="head">
+      <h2>Pod tests</h2>
+      <span class="note">From <code>docs/contract/pod-contract.md</code> §4</span>
+    </div>
+    <div class="controls">
+      <label for="target">Target</label>
+      <select id="target"></select>
+      <input id="custom" type="url" placeholder="https://host/system" hidden>
+      <button id="run-pod">Run pod tests</button>
+    </div>
+    <div class="status" id="pod-status"></div>
+    <div class="cov" id="pod-cov"></div>
+    <div class="table">
+      <table>
+        <thead><tr><th>Test</th><th>Title</th><th>Outcome</th><th>Message</th></tr></thead>
+        <tbody id="pod-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="groups" id="groups"></div>
+</main>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+
+function el(tag, attrs = {}, ...children) {
+  // builds an element, setting text through textContent so messages are never parsed as HTML
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (key === "text") node.textContent = value; else node.setAttribute(key, value);
+  }
+  for (const child of children) node.append(child);
+  return node;
+}
+
+function badge(outcome, label) {
+  return el("span", { class: `badge ${outcome}`, text: label || outcome });
+}
+
+async function send(method, url, body) {
+  // returns the parsed JSON answer, throwing the test-route message on a non-2xx status
+  const options = { method, headers: { "Content-Type": "application/json" } };
+  if (body !== undefined) options.body = JSON.stringify(body);
+  const response = await fetch(url, options);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(`${response.status}: ${data.message || "request failed"}`);
+  return data;
+}
+
+function plannedLabel(test) {
+  if (test.skip) return test.skip;
+  if (test.pending) return "pending";
+  if (test.feature) return `needs ${test.feature}`;
+  return "";
+}
+
+function renderPod(tests, results = {}) {
+  const rows = $("#pod-rows");
+  rows.replaceChildren();
+  for (const test of tests) {
+    const result = results[test.id];
+    const outcome = result ? badge(result.outcome) : badge("waiting", "not run");
+    const message = result ? result.message + (result.source ? ` (source: ${result.source})` : "")
+                           : plannedLabel(test);
+    rows.append(el("tr", {},
+      el("td", { class: "id", text: test.id }),
+      el("td", { text: test.title }),
+      el("td", {}, outcome),
+      el("td", { class: "msg", text: message })));
+  }
+}
+
+function renderCoverage(coverage) {
+  const box = $("#pod-cov");
+  box.replaceChildren();
+  const parts = [["Components", coverage.component], ["Criteria", coverage.system], ["Code lines", coverage.code]];
+  for (const [name, measure] of parts) {
+    const value = measure.covered === null ? "unavailable" : `${measure.covered} / ${measure.total}`;
+    box.append(el("span", { title: measure.basis }, `${name}: `, el("b", { text: value })));
+  }
+}
+
+function setupTargets(team16) {
+  const select = $("#target");
+  const here = `${location.origin}/system`;
+  select.append(el("option", { value: here, text: `This server, Team 15 (${here})` }));
+  const option = el("option", { value: team16, text: team16 ? `Team 16 (${team16})` : "Team 16 (URL not set yet)" });
+  if (!team16) option.disabled = true;
+  select.append(option, el("option", { value: "custom", text: "Other URL" }));
+  select.addEventListener("change", () => { $("#custom").hidden = select.value !== "custom"; });
+}
+
+async function runPod(tests) {
+  const button = $("#run-pod");
+  const status = $("#pod-status");
+  const target = $("#target").value === "custom" ? $("#custom").value.trim() : $("#target").value;
+  button.disabled = true;
+  $("#pod-cov").replaceChildren();
+  renderPod(tests);
+  try {
+    status.textContent = "Setting up a session on the target...";
+    const { session_id } = await send("POST", "/tester/test/setup", { target_url: target });
+    status.textContent = `Running 33 tests in session ${session_id}. This can take up to 10 minutes.`;
+    const report = await send("POST", "/tester/test/run", { session_id });
+    const results = Object.fromEntries(report.results.map((r) => [r.test_id, r]));
+    renderPod(tests, results);
+    renderCoverage(report.coverage);
+    const counts = {};
+    for (const r of report.results) counts[r.outcome] = (counts[r.outcome] || 0) + 1;
+    status.textContent = `Session ${session_id} against ${report.target_url}: ` +
+      ["pass", "fail", "error", "skip"].map((o) => `${counts[o] || 0} ${o}`).join(", ");
+  } catch (err) {
+    status.textContent = `Stopped: ${err.message}`;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function addGroup(group) {
+  const status = el("div", { class: "status", text: `Runs pytest on tests/${group.key}.` });
+  const rows = el("tbody");
+  const button = el("button", { text: "Run" });
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    status.textContent = "Running...";
+    rows.replaceChildren();
+    try {
+      const answer = await send("POST", `/tester/unit/${group.key}`);
+      for (const test of answer.tests) {
+        rows.append(el("tr", {}, el("td", {}, badge(test.outcome)),
+          el("td", { class: "msg" }, el("div", { text: test.name }), test.message ? el("div", { text: test.message }) : "")));
+      }
+      status.textContent = answer.summary || "Done.";
+    } catch (err) {
+      status.textContent = `Stopped: ${err.message}`;
+    } finally {
+      button.disabled = false;
+    }
+  });
+  $("#groups").append(el("section", {},
+    el("div", { class: "head" }, el("h2", { text: group.title }), button),
+    status,
+    el("div", { class: "table" }, el("table", {}, rows))));
+}
+
+(async () => {
+  try {
+    const catalog = await send("GET", "/tester/catalog");
+    setupTargets(catalog.team16_url);
+    renderPod(catalog.pod);
+    $("#run-pod").addEventListener("click", () => runPod(catalog.pod));
+    catalog.unit_groups.forEach(addGroup);
+  } catch (err) {
+    $("#pod-status").textContent = `Could not load the test list: ${err.message}`;
+  }
+})();
+</script>
+</body>
+</html>

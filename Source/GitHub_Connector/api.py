@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 from GitHub_Connector import course, runs
+from Tester import api as tester
 from GitHub_Connector.analysis import analyze
 from GitHub_Connector.schemas import (
     AnalysisError,
@@ -121,3 +122,5 @@ def console() -> FileResponse:
 
 router.include_router(course.router)
 app.include_router(router)
+# serves the tester beside the system in one app (phase4.md Q7); course.py counts only this package's lines
+app.include_router(tester.router)
