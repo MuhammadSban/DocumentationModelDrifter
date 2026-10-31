@@ -32,11 +32,11 @@ Diagrams of the planned system, exported from the Phase 4 overview page.
 
 - `models/who-talks-to-what.png` — the developer, GitHub and a tester reach one drifter core through the CLI, the GitHub Action (Phase 5) and the hosted service, which serves the pod contract's routes and adds change detection and a result store; the repository is only read. Read it first to understand the system.
 - `models/behavioral-model.png` — lifecycle of a repository under the tool: init proposes the models, a person commits them, and each push ends Aligned, Drifted or Failed. The Mermaid source in spec §3.2 is the text version. Only structural and behavioral are regenerated; ownership is checked against its rules (spec §3.2).
-- `models/one-check.png` — one check step by step, from request to four-field answer, with the HTTP error or no-verdict code each step can return, and what the hosted service adds. Read it when working on the orchestrator or errors.
-- `models/models-folder.png` — the four files in `/models` and what each holds. Element kinds and ids shown are illustrative; the real format is set in the spec, not in the pod contract.
+- `models/one-check.png` — one check step by step, from request to four-field answer, with the HTTP error or no-verdict code each step can return, and what the hosted service adds. The orchestrator parses every in-scope file once, before the generators. Read it when working on the orchestrator or errors.
+- `models/models-folder.png` — the four files in `/models` and what each holds. Structural follows `base/structure.md`; behavioral names are illustrative until its format is settled (spec Q11), as are the scope and ownership pattern rules.
 - `models/comparison.png` — how differences are decided: set difference by id for structural and behavioral (ADDED, REMOVED, MODIFIED), a rule check per commit for ownership (VIOLATION).
-- `models/four-field-answer.png` — test T-26: the four-field answer as the `drift` key of `POST /system/analyze`, how a tester compares it with `contract/model-golden-outputs.json`, and when the test passes, fails or is skipped.
-- `models/cross-team-test.png` — one cross-team test session as `contract/pod-contract.md` defines it: tester and system routes, the T-01 to T-33 loop over both fixtures, and the report.
+- `models/four-field-answer.png` — test T-26: the four-field answer as the `drift` key of `POST /system/analyze`, how a tester compares it with `contract/model-golden-outputs.json`, and when the test passes, fails or is skipped (skipped when `GET /health` does not list `model_drift`).
+- `models/cross-team-test.png` — one cross-team test session as `contract/pod-contract.md` defines it: tester and system routes, the one `GET /health` read of `features` before the first test, the T-01 to T-33 loop over both fixtures with feature skips, and the report.
 - `models/research-evidence.png` — Team 15's tool research: what runs at runtime, what only serves tests, what is rejected. Team 15's choices, not the pod contract.
 
 ## history/
