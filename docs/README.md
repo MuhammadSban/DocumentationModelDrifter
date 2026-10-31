@@ -4,6 +4,8 @@ Purpose: keep a repository's architecture documentation (the three models in `/m
 
 `CONTEXT.md` at the repository root is the glossary: the terms the spec and code use, such as drift, accepting drift and acceptance criterion.
 
+`adr/` holds architecture decision records: why a hard-to-reverse choice was made. Read them before reversing one.
+
 When a diagram and the spec disagree, the spec wins. For anything another team's tester or system sees (routes, JSON, tests), `contract/` wins over the spec. The course's `base/student-facing-spec.docx.pdf` wins over all of them.
 
 ## base/
