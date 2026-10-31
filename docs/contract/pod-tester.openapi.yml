@@ -124,10 +124,10 @@ components:
               description: Copied from the system's GET /test/report
               allOf: [{$ref: '#/components/schemas/CoverageMeasure'}]
             component:
-              description: Components C1 to C7 exercised by an executed test (pod-contract.md section 5)
+              description: Components C1 to C7 exercised by a test the target answered (pod-contract.md section 5)
               allOf: [{$ref: '#/components/schemas/CoverageMeasure'}]
             system:
-              description: Criteria AC-01 to AC-10 exercised by an executed test (pod-contract.md section 5)
+              description: Criteria AC-01 to AC-10 exercised by a test the target answered (pod-contract.md section 5)
               allOf: [{$ref: '#/components/schemas/CoverageMeasure'}]
 
     TestResult:

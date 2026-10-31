@@ -370,8 +370,9 @@ is this system's own and counts as AC-02.
 
 Team 15 builds one small, controlled Git repository, MuhammadSban/doc-tracker-model-fixtures, with
 labelled commits and a manually defined expected verdict per model. Its expected answers are
-published in docs/contract/model-golden-outputs.json, pending until the repository and the id
-scheme exist (contract section 3). The repository stays fixed so results reproduce. Invalid requests
+published in docs/contract/model-golden-outputs.json in two groups (contract section 3): L-pre's
+once the repository exists, L0 to L7's once the formats of all four model files are settled,
+because L0 commits all four. The repository stays fixed so results reproduce. Invalid requests
 and unknown commits are tested by the pod's shared tests on Team 16's fixture
 (ParthGupta06/doc-tracker-fixtures).
 
@@ -494,7 +495,7 @@ Exit codes of drifter check, which the GitHub Action passes or fails on:
 The pod's drift tests T-24 to T-33 (contract section 4) run in both teams' testers. They run the
 labelled cases of 4.2 against the hosted service and compare the whole drift object with the expected answer; T-33 checks
 /generate at L0 byte for byte, except ownership.json, which people correct by hand (3.2). Team 15's own tests check that drift is byte-identical across
-repeated runs.
+repeated runs. T-32 is published first, since it needs only L-pre (4.2).
 T-01 to T-23 check change detection, classification, saved results and errors.
 Against this system, T-18 to T-21 (prose findings) are skipped: its GET /system/health
 lists features ["model_drift"] and not prose_detector (deviation 1, contract section 1).
@@ -723,8 +724,8 @@ Proposed 2026-10-31, pending Team 16's agreement.
 #### To settle in Team 15
 
 - Behavioral contents: kind names, id scheme, mining rules and the JSON Schema; it must hold at
-  least states and transitions (3.2). The id scheme comes first: the model fixture and
-  model-golden-outputs.json depend on it. Structural is settled in docs/base/structure.md, except
+  least states and transitions (3.2). It comes first, with the path pattern rules below: the
+  fixture commits L0 to L7, and so T-24 to T-31 and T-33, depend on them; only T-32 does not. Structural is settled in docs/base/structure.md, except
   its JSON Schema.
 - Path pattern rules for scope.json and ownership.json.
 - The Annex XI claim (1.1): whether to keep the specific Annex XI items or only the general

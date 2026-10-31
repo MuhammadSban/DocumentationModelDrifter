@@ -144,5 +144,4 @@ These improve cross-testing but do not resolve a contradiction:
   load, the way both systems load `mapping-v1.1.yaml`.
 - **A 2×2 agreement check.** Before each phase demo, run both testers against both systems;
   per test, both testers must give the same outcome on the same system.
-- **Early T-32.** Publish its expected answer first; it needs only the L-pre commit.
 - **T-22 and T-23 for Phase 5.** Specify review decisions so T-22 can run.

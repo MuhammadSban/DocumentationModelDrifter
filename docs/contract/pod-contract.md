@@ -64,16 +64,18 @@ also after the system restarts or is redeployed.
 - System setup takes `{"session_id": "...", "setup": {}}`. Project requests do not carry
   the session id.
 - **One active session at a time**, so sessions cannot interfere (course spec, session
-  state and concurrency). A session is active for 700 s after its system setup: tester
-  setup (90 s) plus tester run (600 s), rounded up. System setup answers 409 for a
-  session id that already exists, and for a new id while another session is active.
-- Code coverage counts the lines run since the active session's setup, so it covers only
-  that session's requests.
+  state and concurrency). System setup answers 409 for a session id that already exists,
+  and for a new id while another session is active. A session stays active until the
+  next setup is accepted. A new setup is accepted once the active session's
+  `GET /test/report` has been read (the tester's last call, course spec), or 700 s after
+  the active session's setup: tester setup (90 s) plus tester run (600 s), rounded up.
+- Code coverage counts the lines run while the session is active, so it covers only that
+  session's requests. Its report stays readable after the next session starts.
 - **No resets and no cleanup:** the fixture repositories are public, fixed and only read.
 - **After an interruption:** a restart clears sessions and tester reports (saved
   analysis results stay). The tester then starts a new session; it never reuses an id.
   Without a restart, the new session's setup answers 409 until the earlier session's
-  700 s have passed.
+  report is read or its 700 s have passed.
 
 ## 3. Fixtures and expected answers
 
@@ -110,20 +112,27 @@ Commits of the model fixture, oldest first:
 | L6 | a non-owner edits an owned path | pending |
 | L7 | a hand edit removes a call from `structural.json` that the code still makes | pending |
 
-**Checklist when the model fixture exists** (Team 15; a daily scheduled check reminds
-us once the repository appears):
+**Publishing the expected answers** (Team 15; a daily scheduled check reminds us once
+the repository appears). The drift tests are published in two groups, each once the
+commits its tests use are fixed for good:
 
-- [ ] Team 15's specification fixes the element id scheme (its open question Q11).
-- [ ] Fill the SHA column above.
-- [ ] Add `model-golden-outputs.json` with the expected answer for each of T-24 to T-33.
-- [ ] Remove "pending" from T-24 to T-33 in section 4.
+| Group | Tests | Commits used | Can be fixed when |
+| --- | --- | --- | --- |
+| 1 | T-32 | L-pre, which has no `/models` | the repository exists |
+| 2 | T-24 to T-31, T-33 | L0 to L7, which commit all four model files | Team 15's specification settles the behavioral format and the scope and ownership rules (its open question Q11); the structural format is settled |
+
+For each group:
+
+- [ ] Fill the SHAs of the commits its tests use in the table above.
+- [ ] Add its tests' expected answers to `model-golden-outputs.json`.
+- [ ] Remove "pending" from its tests in section 4.
 - [ ] Bump the version (section 10).
 
 ## 4. Test list
 
 Both testers run every test, T-01 to T-33, so each tester checks both systems' detectors.
-T-24 to T-33 are **pending** until section 3's checklist is done; a pending test is
-reported as `skip` with the message "expected answers not yet published".
+T-24 to T-33 are **pending** until their group is published (section 3); a pending test
+is reported as `skip` with the message "expected answers not yet published".
 
 The tester reads `GET /health` once before the first test. If it gives no 200 `Health`
 body within 90 s, the target's features are unknown: each test that needs a feature
@@ -212,8 +221,10 @@ Both testers use the same lists, so totals match.
 | AC-09 | Repository unchanged, no code executed, no credentials in logs | inspection, Phase 5 |
 | AC-10 | Five runs of c4 and of c1 give identical significant fields, including identical finding_ids | c4, c1 |
 
-- **What counts:** a component or criterion is covered when at least one executed test
-  (outcome `pass`, `fail` or `error`, not `skip`) lists it in section 4.
+- **What counts:** a component or criterion is covered when at least one test that sent
+  its project calls and got an answer from the target lists it in section 4: outcome
+  `pass` or `fail`, or `error` with source `system`. A test covers nothing when it is
+  `skip`, `error` because `/health` failed (section 4), or `error` with any other source.
 - **Code coverage** comes from the system's `GET /test/report`; `null` counts with a
   basis when unavailable, never 0.
 
@@ -254,7 +265,8 @@ notes" cell:
 
 > No authentication; public GitHub repositories only. Limits: tester setup 90 s, tester
 > run 600 s, system setup 90 s, 90 s per project call. One session at a time: a new
-> system setup answers 409 for 700 s after the last one. Spec: docs/contract/pod-contract.md.
+> system setup answers 409 until the last session's /test/report is read, or for 700 s
+> after its setup. Spec: docs/contract/pod-contract.md.
 
 ## 9. Differences from Team 16's v1.1 package, in one place
 
@@ -263,7 +275,7 @@ notes" cell:
 | REQ-02, section 6: every system runs the prose detector | only a system with a prose detector fills `issues` | Team 15's documentation is `/models` |
 | `AnalysisResult` and its parts accept no extra fields | `drift` and `drift_error` are allowed, optional | Team 15's model check |
 | no `/generate` | optional `POST /generate` | T-33 byte-for-byte check |
-| system setup answers 409 for an existing session id | also 409 while another session is active (700 s after its setup) | course spec: prevent interference between sessions |
+| system setup answers 409 for an existing session id | also 409 while another session is active (until its report is read, at most 700 s after its setup) | course spec: prevent interference between sessions |
 | OpenAPI: `unmapped` holds added or modified paths | ADDED, MODIFIED, RENAMED, COPIED or TYPE_CHANGED paths | v1.1 SPEC section 6.1 and golden case c3 already say so |
 | `GET /test/report` lists 400 and 404 | also 409 while preparing | course spec |
 | `Health` has no `features` | optional `features`; absent means `["prose_detector"]`; when `/health` fails, only the tests that need a feature are `error` | a tester skips, never fails, what a system does not implement |
