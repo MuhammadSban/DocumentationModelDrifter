@@ -1,0 +1,10 @@
+# describes the service on Railway, built from the Dockerfile; mount a volume at /app/runs so saved results survive redeploys
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/system/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

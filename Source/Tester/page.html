@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Drifter tester</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eceef2; --panel: #ffffff; --raised: #f5f6f8; --text: #15181e; --muted: #5d6471; --faint: #9199a6;
+    --line: #dfe2e8; --line-strong: #c7ccd5;
+    --accent: #2447b8; --accent-ink: #ffffff; --accent-soft: #e6ebfa;
+    --pass: #157347; --pass-bg: #dbf2e4; --fail: #c0271c; --fail-bg: #fbe2df;
+    --error: #a35800; --error-bg: #fdebd1; --skip: #6b7280; --skip-bg: #e6e8ed; --wait: #d5d9e0;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --ease: cubic-bezier(.2, 0, 0, 1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #171b21; --raised: #1d2229; --text: #e8ebf0; --muted: #9aa3b2; --faint: #6b7483;
+      --line: #2a3039; --line-strong: #3a424d;
+      --accent: #8fb0ff; --accent-ink: #0f1216; --accent-soft: #1f2a45;
+      --pass: #5fd08a; --pass-bg: #163421; --fail: #ff8a7e; --fail-bg: #3d1c19;
+      --error: #f0b35b; --error-bg: #3a2a10; --skip: #a6adba; --skip-bg: #262b33; --wait: #2b313a;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans);
+         -webkit-font-smoothing: antialiased; }
+  main { max-width: 1080px; margin: 0 auto; padding: 36px 16px 72px; }
+  h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -.01em; }
+  h1 { font-size: 26px; }
+  h2 { font-size: 17px; }
+  h3 { font-size: 15px; }
+  p { margin: 0; }
+  code { font: 500 .92em var(--mono); }
+  a { color: var(--accent); }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+  .top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; margin-bottom: 24px; }
+  .top p { color: var(--muted); }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px 24px;
+           margin-bottom: 20px; }
+  .panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+  .note { font-size: 13px; color: var(--muted); }
+
+  /* buttons */
+  .primary, .secondary {
+    display: inline-flex; align-items: center; gap: 8px; border-radius: 7px; padding: 8px 16px; font-weight: 600;
+    white-space: nowrap; transition: background .12s var(--ease), transform .12s var(--ease), opacity .12s;
+  }
+  .primary { background: var(--accent); color: var(--accent-ink); border: 1px solid transparent; }
+  .primary:hover:not(:disabled) { filter: brightness(1.08); }
+  .secondary { background: var(--panel); color: var(--text); border: 1px solid var(--line-strong); font-weight: 500; }
+  .secondary:hover:not(:disabled) { background: var(--raised); }
+  .primary:active:not(:disabled), .secondary:active:not(:disabled) { transform: translateY(1px); }
+  .primary:disabled, .secondary:disabled { opacity: .6; cursor: progress; }
+  .spin { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent;
+          border-radius: 50%; animation: turn .8s linear infinite; }
+  @keyframes turn { to { transform: rotate(360deg); } }
+
+  /* target picker */
+  .target { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+  .target > span { color: var(--muted); font-size: 14px; }
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 7px; overflow: hidden;
+         background: var(--raised); }
+  .seg input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .seg label { padding: 7px 14px; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer;
+               border-right: 1px solid var(--line); transition: background .12s var(--ease), color .12s; }
+  .seg label:last-child { border-right: 0; }
+  .seg label:hover { color: var(--text); }
+  .seg input:checked + label { background: var(--panel); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .seg input:disabled + label { color: var(--faint); cursor: not-allowed; }
+  #custom { flex: 1 1 260px; min-width: 0; font: 14px var(--mono); color: var(--text); background: var(--panel);
+            border: 1px solid var(--line-strong); border-radius: 7px; padding: 7px 10px; }
+  #custom::placeholder { color: var(--faint); }
+  #custom.bad { border-color: var(--fail); }
+  .target .primary { margin-left: auto; }
+  .where { width: 100%; font: 13px var(--mono); color: var(--muted); word-break: break-all; margin-top: -2px; }
+
+  /* status and summary */
+  .status { margin-top: 18px; min-height: 1.5em; color: var(--muted); font-size: 14px; }
+  .status.stopped { color: var(--fail); }
+  .status .elapsed, .status b { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .status b { color: var(--text); font-weight: 500; }
+  .status a { margin-left: 6px; }
+
+  .strip { display: flex; gap: 3px; margin-top: 14px; }
+  .cell { flex: 1 1 0; min-width: 5px; height: 26px; padding: 0; border: 0; border-radius: 4px; background: var(--wait);
+          cursor: pointer; transition: transform .15s var(--ease), filter .15s; }
+  .cell:hover { transform: scaleY(1.25); filter: brightness(.92); }
+  .cell.pass { background: var(--pass); } .cell.fail { background: var(--fail); }
+  .cell.error { background: var(--error); } .cell.skip { background: var(--skip); opacity: .45; }
+  .strip.running .cell.wait { animation: wave 1.4s var(--ease) infinite; animation-delay: calc(var(--i) * 35ms); }
+  .cell.land { animation: land .4s var(--ease) both; }
+  .cell.skip.land { animation-name: land-skip; }
+  @keyframes wave { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+  @keyframes land { from { transform: scaleY(.3); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes land-skip { from { transform: scaleY(.3); opacity: 0; } to { transform: none; opacity: .45; } }
+
+  .summary { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+             gap: 14px 32px; margin-top: 16px; }
+  .counts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 10px; border-radius: 999px;
+          border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 14px;
+          transition: background .12s var(--ease), border-color .12s; }
+  .chip b { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--wait); }
+  .chip.pass i { background: var(--pass); } .chip.fail i { background: var(--fail); }
+  .chip.error i { background: var(--error); } .chip.skip i { background: var(--skip); }
+  .chip.zero { color: var(--faint); }
+  .chip.zero i { opacity: .35; }
+  .chip:hover:not(.zero) { border-color: var(--line-strong); background: var(--raised); }
+  .chip[aria-pressed="true"] { border-color: currentColor; }
+  .chip.pass[aria-pressed="true"] { background: var(--pass-bg); color: var(--pass); }
+  .chip.fail[aria-pressed="true"] { background: var(--fail-bg); color: var(--fail); }
+  .chip.error[aria-pressed="true"] { background: var(--error-bg); color: var(--error); }
+  .chip.skip[aria-pressed="true"] { background: var(--skip-bg); color: var(--skip); }
+
+  .meters { display: grid; grid-template-columns: auto auto minmax(90px, 160px); gap: 6px 12px; align-items: center;
+            font-size: 13px; }
+  .meters .name { color: var(--muted); }
+  .meters .val { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .meters .val.na { color: var(--faint); font-family: var(--sans); }
+  .bar { height: 6px; border-radius: 3px; background: var(--wait); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px;
+           transition: width .6s var(--ease); }
+
+  .filter-note { display: flex; align-items: center; gap: 10px; margin-top: 16px; font-size: 13px; color: var(--muted); }
+  .filter-note button { border: 0; background: none; color: var(--accent); padding: 0; font-weight: 500; }
+
+  /* tables */
+  .table-wrap { overflow-x: auto; margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  #pod table { table-layout: fixed; min-width: 640px; }
+  #pod col.c-id { width: 62px; } #pod col.c-title { width: 29%; } #pod col.c-covers { width: 150px; }
+  #pod col.c-outcome { width: 118px; }
+  th { text-align: left; font-size: 12.5px; font-weight: 500; color: var(--muted); padding: 8px 10px;
+       border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px;
+       overflow-wrap: anywhere; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr { transition: background .12s; }
+  tbody tr:hover { background: var(--raised); }
+  tbody tr.hit { animation: flash 1.4s var(--ease); }
+  @keyframes flash { 0%, 35% { background: var(--accent-soft); } 100% { background: transparent; } }
+  td.id { font: 500 13px var(--mono); white-space: nowrap; }
+  td.covers { font: 12px/1.5 var(--mono); color: var(--muted); white-space: nowrap; }
+  td.msg { font: 13px/1.5 var(--mono); color: var(--muted); word-break: break-word; }
+  td.msg.plan { font-family: var(--sans); font-size: 13px; color: var(--faint); }
+  .outcome { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; line-height: 1; border-radius: 999px;
+           padding: 4px 9px; white-space: nowrap; }
+  .badge.pass { color: var(--pass); background: var(--pass-bg); }
+  .badge.fail { color: var(--fail); background: var(--fail-bg); }
+  .badge.error { color: var(--error); background: var(--error-bg); }
+  .badge.skip { color: var(--skip); background: var(--skip-bg); }
+  .badge.wait { color: var(--faint); background: var(--raised); font-weight: 500; }
+  .source { font: 11px var(--mono); color: var(--faint); white-space: nowrap; }
+  @media (max-width: 760px) {
+    td.covers, th.covers { display: none; }
+    #pod table { table-layout: auto; }
+    #pod col.c-id, #pod col.c-title, #pod col.c-covers, #pod col.c-outcome { width: auto; }
+  }
+
+  /* pytest groups */
+  .group { border-top: 1px solid var(--line); }
+  .group:first-of-type { margin-top: 16px; }
+  .grow { display: grid; grid-template-columns: 28px 1fr auto auto; align-items: center; gap: 12px; padding: 12px 0; }
+  .toggle { width: 28px; height: 28px; border: 0; background: none; color: var(--muted); border-radius: 6px;
+            display: grid; place-items: center; }
+  .toggle:hover { background: var(--raised); color: var(--text); }
+  .toggle:disabled { color: var(--faint); cursor: default; background: none; }
+  .toggle svg { transition: transform .18s var(--ease); }
+  .toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+  .gname { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-width: 0; }
+  .gname code { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .gsum { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--muted);
+          justify-content: flex-end; }
+  .gsum .chip { padding: 2px 9px 2px 8px; font-size: 13px; cursor: default; }
+  .gsum .stopped { color: var(--fail); }
+  .glist { padding: 0 0 14px 40px; }
+  .glist table { font-size: 13px; }
+  .glist td { padding: 6px 10px; font-size: 13px; }
+  .glist td.name { font: 13px var(--mono); word-break: break-all; }
+  .glist td.name span { color: var(--faint); }
+  .glist td.msg { white-space: pre-wrap; }
+  @media (max-width: 600px) {
+    .grow { grid-template-columns: 28px 1fr auto; }
+    .grow > .toggle { grid-row: 1; grid-column: 1; }
+    .gname { grid-row: 1; grid-column: 2; }
+    .grow > .secondary { grid-row: 1; grid-column: 3; }
+    .gsum { grid-row: 2; grid-column: 2 / -1; justify-content: flex-start; }
+    .glist { padding-left: 0; }
+    .panel { padding: 18px 16px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .strip.running .cell.wait { opacity: .6; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <h1>Drifter tester</h1>
+    <p>Runs the pod's tests T-01 to T-33 against a system, and this repository's pytest tests.</p>
+  </header>
+
+  <section class="panel" id="pod" aria-labelledby="pod-title">
+    <div class="panel-head">
+      <h2 id="pod-title">Pod tests</h2>
+      <span class="note">Contract 2.4.0, <code>docs/contract/pod-contract.md</code> §4</span>
+    </div>
+    <form class="target" id="target-form" novalidate>
+      <span>Target</span>
+      <div class="seg" id="targets" role="radiogroup" aria-label="Target system"></div>
+      <input id="custom" type="url" placeholder="https://host/system" aria-label="Other system URL"
+             autocomplete="url" spellcheck="false" hidden>
+      <button type="submit" class="primary" id="run-pod"><span>Run 33 tests</span></button>
+      <p class="where" id="where"></p>
+    </form>
+    <p class="status" id="pod-status" aria-live="polite"></p>
+    <div class="strip" id="strip" aria-label="Outcome of each test, in order"></div>
+    <div class="summary" id="summary" hidden>
+      <div class="counts" id="counts" aria-label="Outcome counts, click one to filter the table"></div>
+      <div class="meters" id="meters" aria-label="Coverage"></div>
+    </div>
+    <div class="filter-note" id="filter-note" hidden></div>
+    <div class="table-wrap">
+      <table>
+        <colgroup><col class="c-id"><col class="c-title"><col class="c-covers"><col class="c-outcome"><col></colgroup>
+        <thead><tr><th>Test</th><th>Title</th><th class="covers">Covers</th><th>Outcome</th><th>Message</th></tr></thead>
+        <tbody id="pod-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="unit" aria-labelledby="unit-title">
+    <div class="panel-head">
+      <div>
+        <h2 id="unit-title">Repository tests</h2>
+        <p class="note">Each group runs pytest on one folder under <code>tests/</code> on this server.</p>
+      </div>
+      <button type="button" class="secondary" id="run-all">Run all groups</button>
+    </div>
+    <div id="groups"></div>
+  </section>
+</main>
+
+<script>
+const $ = (sel, root = document) => root.querySelector(sel);
+const OUTCOMES = ["pass", "fail", "error", "skip"];
+const SUITE_SIZE = 33;
+
+function el(tag, attrs = {}, ...children) {
+  // builds an element; text goes through textContent so messages are never parsed as HTML, false drops an attribute
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (key === "text") node.textContent = value;
+    else if (value === false || value === null || value === undefined) continue;
+    else node.setAttribute(key, value === true ? "" : value);
+  }
+  for (const child of children) if (child !== null && child !== undefined && child !== "") node.append(child);
+  return node;
+}
+
+function chevron() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", "14"); svg.setAttribute("height", "14"); svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M6 3.5 10.5 8 6 12.5"); path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "currentColor"); path.setAttribute("stroke-width", "1.8");
+  path.setAttribute("stroke-linecap", "round"); path.setAttribute("stroke-linejoin", "round");
+  svg.append(path);
+  return svg;
+}
+
+function badge(outcome, label) {
+  return el("span", { class: `badge ${outcome}`, text: label || outcome });
+}
+
+function chip(outcome, count, extra = {}) {
+  return el(extra.type ? "button" : "span", { class: `chip ${outcome}${count ? "" : " zero"}`, ...extra },
+    el("i"), el("b", { text: count }), ` ${outcome}`);
+}
+
+function elapsed(ms) {
+  if (ms < 10000) return `${(ms / 1000).toFixed(1)} s`;
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function countBy(results) {
+  const counts = Object.fromEntries(OUTCOMES.map((o) => [o, 0]));
+  for (const r of results) counts[r.outcome] = (counts[r.outcome] || 0) + 1;
+  return counts;
+}
+
+const remember = {
+  // keeps the last target choice in this browser; storage can be missing or blocked, so every call is guarded
+  get(key) { try { return localStorage.getItem(`tester.${key}`); } catch { return null; } },
+  set(key, value) { try { localStorage.setItem(`tester.${key}`, value); } catch { /* ignored */ } },
+};
+
+async function send(method, url, body) {
+  // returns the parsed JSON answer, throwing the test-route message on a non-2xx status
+  const options = { method, headers: { "Content-Type": "application/json" } };
+  if (body !== undefined) options.body = JSON.stringify(body);
+  const response = await fetch(url, options);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const source = data.source ? ` (source: ${data.source})` : "";
+    throw new Error(`${response.status}: ${data.message || "request failed"}${source}`);
+  }
+  return data;
+}
+
+/* ---------- target picker ---------- */
+
+const targets = { here: `${location.origin}/system`, team16: "", custom: "custom" };
+
+function setupTargets(team16) {
+  targets.team16 = team16;
+  const box = $("#targets");
+  const choices = [
+    ["here", "This server"],
+    ["team16", "Team 16"],
+    ["custom", "Other URL"],
+  ];
+  for (const [key, label] of choices) {
+    const input = el("input", { type: "radio", name: "target", id: `target-${key}`, value: key,
+                                disabled: key === "team16" && !team16 });
+    const tag = el("label", { for: `target-${key}`, text: label,
+                              title: key === "team16" && !team16 ? "Team 16 has not shared a URL yet" : false });
+    input.addEventListener("change", onTargetChange);
+    box.append(input, tag);
+  }
+  const saved = remember.get("target");
+  const initial = saved && !$(`#target-${saved}`)?.disabled ? saved : "here";
+  $(`#target-${initial}`).checked = true;
+  $("#custom").value = remember.get("custom") || "";
+  $("#custom").addEventListener("input", () => { $("#custom").classList.remove("bad"); remember.set("custom", $("#custom").value); showWhere(); });
+  onTargetChange();
+}
+
+function chosenKey() {
+  return $("#targets input:checked")?.value || "here";
+}
+
+function onTargetChange() {
+  const key = chosenKey();
+  remember.set("target", key);
+  const custom = $("#custom");
+  custom.hidden = key !== "custom";
+  if (key === "custom") custom.focus();
+  showWhere();
+}
+
+function showWhere() {
+  // shows the URL the run will call, so the segmented choice is never a mystery
+  const key = chosenKey();
+  const url = key === "custom" ? $("#custom").value.trim() : targets[key];
+  $("#where").textContent = key === "custom" ? (url ? `Calls ${url}` : "") : `Calls ${url}`;
+}
+
+function targetUrl() {
+  // returns the base URL to test, or null after pointing at the empty custom field
+  const key = chosenKey();
+  if (key !== "custom") return targets[key];
+  const url = $("#custom").value.trim();
+  if (/^https?:\/\/[^\s?#@]+$/.test(url)) return url;
+  $("#custom").classList.add("bad");
+  $("#custom").focus();
+  setStatus("Enter a system base URL such as https://host/system, with no query or fragment.", "stopped");
+  return null;
+}
+
+/* ---------- pod tests ---------- */
+
+let podTests = [];
+let filter = null;
+let ticker = null;
+let poller = null;
+let runCount = 0;
+const cells = {};
+const rows = {};
+
+function setStatus(text, mode = "", ...extra) {
+  const status = $("#pod-status");
+  status.className = `status ${mode}`.trim();
+  status.replaceChildren(text, ...extra);
+}
+
+function plannedLabel(test) {
+  if (test.skip) return `skips: ${test.skip}`;
+  if (test.pending) return "skips until the expected answers are published";
+  if (test.feature) return `runs only when /health lists ${test.feature}`;
+  return "";
+}
+
+function renderStrip() {
+  // draws every test as a waiting cell, in order
+  $("#strip").replaceChildren(...podTests.map((test, i) => {
+    const cell = el("button", { type: "button", class: "cell wait", style: `--i:${i}`,
+                                title: `${test.id} ${test.title}`, "aria-label": `${test.id}, not run` });
+    cell.addEventListener("click", () => focusRow(test.id));
+    cells[test.id] = cell;
+    return cell;
+  }));
+}
+
+function renderRows() {
+  // lists every test as not run, with what the contract plans for it
+  $("#pod-rows").replaceChildren(...podTests.map((test) => {
+    rows[test.id] = el("tr", { id: `row-${test.id}`, "data-outcome": "wait" },
+      el("td", { class: "id", text: test.id }),
+      el("td", { text: test.title }),
+      el("td", { class: "covers", text: `${test.components.join(" ")}, ${test.criteria.join(" ")}` }),
+      el("td", {}, el("div", { class: "outcome" }, badge("wait", "not run"))),
+      el("td", { class: "msg plan", text: plannedLabel(test) }));
+    return rows[test.id];
+  }));
+  applyFilter();
+}
+
+function showResult(result, index = 0) {
+  // fills one test's cell and row the moment its outcome is known; index staggers a batch landing together
+  const cell = cells[result.test_id];
+  const row = rows[result.test_id];
+  if (!cell || !row) return;
+  cell.className = `cell ${result.outcome} land`;
+  cell.style.animationDelay = `${index * 16}ms`;
+  cell.setAttribute("aria-label", `${result.test_id}, ${result.outcome}`);
+  row.dataset.outcome = result.outcome;
+  const parts = [badge(result.outcome)];
+  if (result.source) parts.push(el("span", { class: "source", text: `source: ${result.source}` }));
+  row.querySelector(".outcome").replaceChildren(...parts);
+  const message = row.querySelector("td.msg");
+  message.className = "msg";
+  message.textContent = result.message;
+}
+
+function focusRow(id) {
+  // jumps from a strip cell to its row and flashes it
+  const row = $(`#row-${id}`);
+  if (!row) return;
+  if (filter && row.dataset.outcome !== filter) setFilter(null);
+  row.scrollIntoView({ block: "center", behavior: "smooth" });
+  row.classList.remove("hit");
+  void row.offsetWidth;
+  row.classList.add("hit");
+}
+
+function setFilter(outcome) {
+  filter = filter === outcome ? null : outcome;
+  for (const button of document.querySelectorAll("#counts .chip")) {
+    button.setAttribute("aria-pressed", String(button.dataset.outcome === filter));
+  }
+  applyFilter();
+}
+
+function applyFilter() {
+  let shown = 0;
+  for (const row of $("#pod-rows").children) {
+    const visible = !filter || row.dataset.outcome === filter;
+    row.hidden = !visible;
+    shown += visible;
+  }
+  const note = $("#filter-note");
+  note.hidden = !filter;
+  if (filter) {
+    const clear = el("button", { type: "button", text: `Show all ${podTests.length}` });
+    clear.addEventListener("click", () => setFilter(null));
+    note.replaceChildren(`Showing the ${shown} ${filter} ${shown === 1 ? "test" : "tests"}.`, clear);
+  }
+}
+
+function renderSummary(report) {
+  const counts = countBy(report.results);
+  const box = $("#counts");
+  box.replaceChildren(...OUTCOMES.map((outcome) => {
+    const button = chip(outcome, counts[outcome], { type: "button", "aria-pressed": "false", "data-outcome": outcome,
+                                                     disabled: !counts[outcome] });
+    button.addEventListener("click", () => setFilter(outcome));
+    return button;
+  }));
+  const meters = $("#meters");
+  meters.replaceChildren();
+  const parts = [["Components", report.coverage.component], ["Criteria", report.coverage.system],
+                 ["Code lines", report.coverage.code]];
+  for (const [name, measure] of parts) {
+    const known = measure.covered !== null && measure.total;
+    const fill = el("i");
+    meters.append(
+      el("span", { class: "name", text: name, title: measure.basis }),
+      el("span", { class: known ? "val" : "val na", text: known ? `${measure.covered} / ${measure.total}` : "unavailable",
+                   title: measure.basis }),
+      el("div", { class: "bar", title: measure.basis }, fill));
+    if (known) requestAnimationFrame(() => { fill.style.width = `${(100 * measure.covered) / measure.total}%`; });
+  }
+  $("#summary").hidden = false;
+}
+
+function setRunning(running) {
+  const button = $("#run-pod");
+  button.disabled = running;
+  button.replaceChildren(...(running ? [el("span", { class: "spin", "aria-hidden": "true" }), el("span", { text: "Running" })]
+                                     : [el("span", { text: $("#summary").hidden ? `Run ${SUITE_SIZE} tests` : "Run again" })]));
+  for (const input of document.querySelectorAll("#targets input, #custom")) {
+    if (!(input.id === "target-team16" && !targets.team16)) input.disabled = running;
+  }
+  $("#strip").classList.toggle("running", running);
+}
+
+async function runPod() {
+  const target = targetUrl();
+  if (!target) return;
+  const started = Date.now();
+  const run = ++runCount;
+  clearInterval(ticker);
+  clearInterval(poller);
+  setRunning(true);
+  setFilter(null);
+  $("#summary").hidden = true;
+  renderStrip();
+  renderRows();
+  setStatus(`Setting up a session on ${target}`);
+  try {
+    const { session_id } = await send("POST", "/tester/test/setup", { target_url: target });
+    const done = el("b", { text: "0" });
+    const clock = el("span", { class: "elapsed", text: "0 s" });
+    setStatus(`Running against ${target}, each test sent once: `, "", done, ` of ${SUITE_SIZE} done, `, clock);
+    ticker = setInterval(() => { clock.textContent = elapsed(Date.now() - started); }, 1000);
+    const shown = new Set();
+    const show = (results) => {
+      // paints the results not yet on the page; a poll that lands after a newer run started is dropped
+      if (run !== runCount) return;
+      let index = 0;
+      for (const result of results) {
+        if (shown.has(result.test_id)) continue;
+        shown.add(result.test_id);
+        showResult(result, index++);
+      }
+      done.textContent = shown.size;
+    };
+    poller = setInterval(async () => {
+      try {
+        show((await send("GET", `/tester/progress?session_id=${encodeURIComponent(session_id)}`)).results);
+      } catch { /* a missed poll changes nothing: the run's own answer carries every result */ }
+    }, 1000);
+    const report = await send("POST", "/tester/test/run", { session_id });
+    clearInterval(ticker);
+    clearInterval(poller);
+    show(report.results);
+    renderSummary(report);
+    const link = el("a", { href: `/tester/test/report?session_id=${encodeURIComponent(report.session_id)}`,
+                           target: "_blank", rel: "noopener", text: "Open the JSON report" });
+    setStatus(`${report.results.length} tests ran against ${report.target_url} in ${elapsed(Date.now() - started)}. ` +
+              `Session ${report.session_id}.`, "", link);
+  } catch (err) {
+    clearInterval(ticker);
+    clearInterval(poller);
+    setStatus(`Stopped after ${elapsed(Date.now() - started)}. ${err.message}`, "stopped");
+  } finally {
+    setRunning(false);
+  }
+}
+
+/* ---------- pytest groups ---------- */
+
+const groupRunners = [];
+
+function addGroup(group) {
+  const listId = `list-${group.key}`;
+  const toggle = el("button", { type: "button", class: "toggle", "aria-expanded": "false", "aria-controls": listId,
+                                "aria-label": `Show the ${group.title}`, disabled: true }, chevron());
+  const summary = el("div", { class: "gsum", text: "Not run yet" });
+  const run = el("button", { type: "button", class: "secondary", text: "Run" });
+  const rows = el("tbody");
+  const list = el("div", { class: "glist", id: listId, hidden: true }, el("table", {}, rows));
+  toggle.addEventListener("click", () => {
+    const open = list.hidden;
+    list.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
+  });
+
+  async function runGroup() {
+    run.disabled = true;
+    run.replaceChildren(el("span", { class: "spin", "aria-hidden": "true" }), "Running");
+    summary.replaceChildren(`Running pytest on tests/${group.key}`);
+    rows.replaceChildren();
+    try {
+      const answer = await send("POST", `/tester/unit/${group.key}`);
+      const counts = countBy(answer.tests);
+      summary.replaceChildren(
+        ...OUTCOMES.filter((o) => counts[o]).map((o) => chip(o, counts[o])),
+        el("span", { text: answer.summary || (answer.tests.length ? "" : "no tests") }));
+      for (const test of answer.tests) {
+        const [module, name] = test.name.includes("::") ? test.name.split(/::(.*)/s) : ["", test.name];
+        rows.append(el("tr", {},
+          el("td", {}, badge(test.outcome)),
+          el("td", { class: "name" }, module ? el("span", { text: `${module}::` }) : null, name),
+          el("td", { class: "msg", text: test.message || "" })));
+      }
+      const hasRows = answer.tests.length > 0;
+      toggle.disabled = !hasRows;
+      list.hidden = !hasRows;
+      toggle.setAttribute("aria-expanded", String(hasRows));
+    } catch (err) {
+      summary.replaceChildren(el("span", { class: "stopped", text: `Stopped: ${err.message}` }));
+    } finally {
+      run.disabled = false;
+      run.replaceChildren("Run");
+    }
+  }
+  run.addEventListener("click", runGroup);
+  groupRunners.push(runGroup);
+
+  $("#groups").append(el("article", { class: "group" },
+    el("div", { class: "grow" }, toggle,
+      el("div", { class: "gname" }, el("h3", { text: group.title }), el("code", { text: `tests/${group.key}` })),
+      summary, run),
+    list));
+}
+
+async function runAllGroups() {
+  const button = $("#run-all");
+  button.disabled = true;
+  try {
+    for (const runGroup of groupRunners) await runGroup();
+  } finally {
+    button.disabled = false;
+  }
+}
+
+/* ---------- start ---------- */
+
+(async () => {
+  try {
+    const catalog = await send("GET", "/tester/catalog");
+    podTests = catalog.pod;
+    setupTargets(catalog.team16_url);
+    renderStrip();
+    renderRows();
+    setStatus("Pick a target and run. Each test is sent once; a run can take up to 10 minutes against a remote system.");
+    $("#target-form").addEventListener("submit", (event) => { event.preventDefault(); runPod(); });
+    catalog.unit_groups.forEach(addGroup);
+    $("#run-all").addEventListener("click", runAllGroups);
+  } catch (err) {
+    setStatus(`Could not load the test list: ${err.message}`, "stopped");
+  }
+})();
+</script>
+</body>
+</html>
