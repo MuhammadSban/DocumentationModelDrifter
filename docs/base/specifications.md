@@ -367,7 +367,7 @@ meets it. AC-11 is this system's own and counts as AC-02.
   Checked automatically.
 - AC-11, REQ-02: A commit by someone who is not an owner of a changed path gives false, naming
   the commit, path, author and owners; the same change by an owner gives true. Checked
-  automatically. The pod's coverage reports count it as AC-02 (contract section 5).
+  automatically. The pod's coverage reports count it as AC-02 (T-30 lists AC-02).
 
 ### 4.2 Test data and expected outputs
 

@@ -1,6 +1,6 @@
 # Pod 15/16 contract: testing rules
 
-Version 2.3.0, 2026-10-31. Both teams' registry rows link this file as the intra-pod
+Version 2.4.0, proposed 2026-10-31 (2.3.0 applies until both teams agree, section 10). Both teams' registry rows link this file as the intra-pod
 specification. The course's `docs/base/student-facing-spec.docx.pdf` wins over every
 file here.
 
@@ -28,6 +28,12 @@ needs any change to Team 16's code.
 2. **Optional model-drift additions.** Team 15's `AnalysisResult` adds `drift` and
    `drift_error`, and Team 15 serves `POST /generate`. A tester never requires them.
 
+**Features.** A system names what it implements in `GET /health` as `features`:
+`prose_detector` (deviation 1) and `model_drift` (deviation 2). A system without the
+field is treated as `["prose_detector"]`, as in v1.1. A tester never fails a system for
+lacking a feature it does not list: each test that needs a missing feature is `skip`
+with the message "target does not implement <feature>".
+
 Team 15's `/analyze` runs the model check on every request. A commit with no `/models`
 gives `status: "SUCCESS"`, `drift: null` and
 `drift_error: {"code": "MODELS_NOT_FOUND", ...}`. A drifted commit, beside the shared
@@ -39,7 +45,7 @@ fields:
   "behavioral": [],
   "ownership": [],
   "structural": [
-    {"change": "ADDED", "file": "src/shop/orders.py", "id": "shop.orders:Order.cancel", "kind": "node"}
+    {"change": "ADDED", "file": "src/shop/orders.py", "id": "shop.orders:Order.cancel", "kind": "method"}
   ]
 },
 "drift_error": null
@@ -74,7 +80,7 @@ compared: `analysis_id`, `repository` casing, `tool_version`, `created_at`,
 `explanation`, `drift`, `drift_error`.
 
 **`issues` is judged only in T-18 to T-21.** T-01 to T-17 compare every other field
-above, so a system without a prose detector (deviation 1) fails only the detector tests.
+above, so they run the same on every system.
 
 **`model-golden-outputs.json`** uses the same layout as `golden-outputs.json`: one entry
 per case with `case`, `request` and `expected`, where `expected` holds `drift` and
@@ -109,10 +115,14 @@ T-01 to T-23 are the shared tests; both testers run them. T-24 to T-33 run only 
 Team 15's tester and are **pending** until section 3's checklist is done; a pending test
 is reported as `skip` with the message "expected answers not yet published".
 
+The tester reads `GET /health` once before the first test. The last two columns say
+what a test does on a system without `prose_detector` or without `model_drift`
+(section 1, Features). No test is expected to fail on either team's system.
+
 Components and criteria per test are what counts toward coverage (section 5). For
 T-01 to T-23 they are the lists Team 16's tester already uses.
 
-| Test | Title | Golden case or request | Components | Criteria | Without prose detector | Without drift additions |
+| Test | Title | Golden case or request | Components | Criteria | Without `prose_detector` | Without `model_drift` |
 | --- | --- | --- | --- | --- | --- | --- |
 | T-01 | Implementation-only change, default base | c1-impl-only | C1 C2 C3 C5 | AC-01 | runs | runs |
 | T-02 | Added, modified and deleted files | c2-add-mod-del | C1 C2 C3 C5 | AC-01 | runs | runs |
@@ -131,10 +141,10 @@ T-01 to T-23 they are the lists Team 16's tester already uses.
 | T-15 | Unknown analysis_id | 404 `ANALYSIS_NOT_FOUND` | C1 C6 | AC-06 AC-08 | runs | runs |
 | T-16 | Distinct, durable run files | c2 twice: two ids, both read back | C1 C2 C3 C5 C6 | AC-06 | runs | runs |
 | T-17 | Five-run repeatability | c4 and c1, five runs each: identical compared fields, and identical `drift` and `drift_error` when present | C1 C2 C3 C5 | AC-10 | runs | runs |
-| T-18 | Missing mapped documentation finding | c8: `MISSING_DOCUMENTATION` | C4 | AC-02 | **fails** | runs |
-| T-19 | Unchanged mapped documentation finding | c1: `OUTDATED_DOCUMENTATION`, `UNDOCUMENTED_SYMBOL` | C4 | AC-02 | **fails** | runs |
+| T-18 | Missing mapped documentation finding | c8: `MISSING_DOCUMENTATION` | C4 | AC-02 | skip | runs |
+| T-19 | Unchanged mapped documentation finding | c1: `OUTDATED_DOCUMENTATION`, `UNDOCUMENTED_SYMBOL` | C4 | AC-02 | skip | runs |
 | T-20 | Code and documentation updated together | c7: `issues: []` | C4 | AC-03 | runs | runs |
-| T-21 | New findings start PENDING_REVIEW | the findings of T-18 and T-19 | C4 C5 | AC-04 | **fails** | runs |
+| T-21 | New findings start PENDING_REVIEW | the findings of T-18 and T-19 | C4 C5 | AC-04 | skip | runs |
 | T-22 | Authorized and unauthorized review decisions | Phase 5 | C7 | AC-05 | skip | skip |
 | T-23 | Read-only analysis, no repository code execution | inspection | C2 | AC-09 | skip | skip |
 | T-24 | `/analyze` at L0: `aligned: true`, three empty lists (pending) | model fixture | C1 C2 C3 C4 C5 | AC-03 | runs | skip |
@@ -148,28 +158,43 @@ T-01 to T-23 they are the lists Team 16's tester already uses.
 | T-32 | `/analyze` at L-pre: `drift: null`, `drift_error.code` `MODELS_NOT_FOUND` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-08 | runs | skip |
 | T-33 | `/generate` at L0: every file byte-equal to the committed `/models` (pending) | model fixture | C1 C2 C4 | AC-10 | runs | skip |
 
-The "fails" cells are the expected result of deviation 1 against Team 15's system, not
-a bug. The "skip" cells in the last column are deviation 2 against Team 16's system.
+The "skip" cells in the last two columns are deviations 1 and 2: Team 15's system has no
+`prose_detector`, and Team 16's has no `model_drift`.
 
 Rules for T-24 to T-33:
 
 - **What is compared:** T-24 to T-31 compare the whole `drift` object with the expected
   one (same keys, same differences, same order) and require `drift_error: null`.
   T-32 compares `drift` and `drift_error.code`. T-33 compares each file text exactly.
-- **Skip:** when the response has no `drift` key, or `/generate` answers 404, the test is
-  `skip` with the message "target does not implement the optional drift additions".
+- **Skip:** when the system does not list `model_drift` (section 1, Features).
 - **Otherwise** the course outcomes apply: a 5xx is `error` with source `system`, a
   timeout is `error` with source `communication`.
 
 ## 5. Coverage
 
-Both testers use the same lists (v1.1 SPEC section 10), so totals match.
+Both testers use the same lists, so totals match.
 
 - **Components (7):** C1 interface, C2 fetch and resolve, C3 diff and classify, C4
   detector (Team 16's prose detector, Team 15's model check), C5 result builder and
   persistence, C6 retrieval, C7 review workflow (Phase 5).
-- **Criteria (10):** AC-01 to AC-10 as in v1.1 SPEC section 10. Team 15's AC-11
-  (ownership) counts as AC-02.
+- **Criteria (10):** the acceptance criteria below. They follow v1.1 SPEC section 10;
+  "documentation" means prose files for a system with `prose_detector` and `/models` for
+  a system with `model_drift`. The tests that exercise each one are those listing it in
+  section 4.
+
+| AC | Criterion |
+| --- | --- |
+| AC-01 | Every changed path between base and head is reported in `changes` or `skipped` exactly as the expected answer says. |
+| AC-02 | A code change that its documentation does not reflect is flagged. |
+| AC-03 | A change that its documentation already reflects is not flagged. |
+| AC-04 | The system flags but never accepts or edits documentation: every new finding is `PENDING_REVIEW`. |
+| AC-05 | Only an authorized person accepts what was flagged, and the record shows who and when (Phase 5). |
+| AC-06 | Every result is saved once under its own id and read back unchanged, also after a restart; two runs give two distinct ids. |
+| AC-07 | Invalid input (missing `commit_id`, malformed JSON, bad repository format, wrongly typed field) returns 400 `INVALID_REQUEST` with a message and no result. |
+| AC-08 | A missing repository, commit or `analysis_id` returns 404, and a check that cannot finish is never reported as a success. |
+| AC-09 | The repository is read-only and untrusted: unchanged after a check, none of its code runs, no credentials in responses or logs. |
+| AC-10 | Repeated runs with the same inputs give identical compared fields. |
+
 - **What counts:** a component or criterion is covered when at least one executed test
   (outcome `pass`, `fail` or `error`, not `skip`) lists it in section 4.
 - **Code coverage** comes from the system's `GET /test/report`; `null` counts with a
@@ -217,6 +242,8 @@ notes" cell:
 | `AnalysisResult` and its parts accept no extra fields | `drift` and `drift_error` are allowed, optional | Team 15's model check |
 | no `/generate` | optional `POST /generate` | T-33 byte-for-byte check |
 | `GET /test/report` lists 400 and 404 | also 409 while preparing | course spec |
+| `Health` has no `features` | optional `features`; absent means `["prose_detector"]` | a tester skips, never fails, what a system does not implement |
+| acceptance criteria in SPEC section 10 | the same ten, in section 5, worded for both kinds of documentation | the course asks the intra-pod specification to list them |
 | `session_id` has no length limits | `POST /test/setup` caps it at 200 characters; `GET /test/report` requires at least 1 | rejects empty or oversized ids; testers send UUIDs |
 | no retry rule, no concurrency rule, no numbered test list | sections 2, 4 and 6 | the course asks the pod to define them |
 

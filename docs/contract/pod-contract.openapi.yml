@@ -3,7 +3,7 @@
 openapi: 3.1.1
 info:
   title: Documentation Tracker System (Pod 15/16)
-  version: 2.3.0
+  version: 2.4.0
   description: >
     Project API and course testing endpoints of the Documentation Tracker pod.
     Paths are relative to a team's registered system base URL. Testing rules
@@ -160,6 +160,13 @@ components:
         tool_version: {type: string}
         config_version: {type: string, examples: [mapping-v1.1]}
         storage: {type: string, description: 'Informational, for example local or github'}
+        features:
+          type: array
+          items: {type: string, enum: [prose_detector, model_drift]}
+          description: >
+            Optional parts this system implements (pod-contract.md section 1). Absent
+            means [prose_detector]. A tester skips, never fails, a test whose feature
+            is not listed.
 
     AnalysisRequest:
       type: object

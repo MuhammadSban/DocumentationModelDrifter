@@ -5,7 +5,7 @@
 openapi: 3.1.1
 info:
   title: Documentation Tracker Tester (Pod 15/16)
-  version: 2.3.0
+  version: 2.4.0
   description: >
     A tester runs the pod's test list against one target system and reports results
     and coverage. Paths are relative to a team's registered tester base URL.
