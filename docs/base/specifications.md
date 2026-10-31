@@ -286,7 +286,7 @@ stateDiagram-v2
     state Checking {
         [*] --> Fetch
         Fetch --> Generate: code + commits at head
-        Generate --> Compare: 3 fresh models
+        Generate --> Compare: 2 fresh models + ownership rules
         Compare --> [*]
     }
 
