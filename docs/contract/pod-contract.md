@@ -4,43 +4,26 @@ Version 2.4.0, proposed 2026-10-31 and pending Team 16's agreement; 2.3.0 applie
 specification. The course's `docs/base/student-facing-spec.docx.pdf` wins over every
 file here.
 
-**For graders.** Team 15's system has no prose detector, by design (section 1, deviation
-1): its `issues` is always `[]`, and its `GET /health` lists `features: ["model_drift"]`.
-So against `golden-outputs.json` it differs only in `issues`, on the cases that expect
-findings: `c1-impl-only`, `c2-add-mod-del`, `c8-missing-doc` and
-`c0-to-c3-explicit-base`. It also adds `drift` and `drift_error`, which are not
-compared. Compare everything else as section 3 says.
-
 | File (this folder) | Holds |
 | --- | --- |
 | `pod-contract.md` | testing rules: sessions, fixtures, test list, coverage, limits, errors, changes |
-| `spec-v1.1.md` | Team 16's v1.1 specification: requirements, pipeline, prose detector, fixture, comparison rules, acceptance criteria |
 | `pod-contract.openapi.yml` | the system API: routes, fields, enums, status codes |
 | `pod-tester.openapi.yml` | the tester API and suite report, as fixed by the course |
 | `mapping-v1.1.yaml` | shared classification rules, skip allowlist and code-to-doc mappings, loaded at runtime |
 | `golden-outputs.json` | expected answers for the 10 cases on Team 16's fixture |
 | `model-golden-outputs.json` | expected answers for T-24 to T-33 (pending, see section 3) |
 
-`spec-v1.1.md` (the package's `SPEC.md`), `mapping-v1.1.yaml` and `golden-outputs.json`
-are byte-identical copies from Team 16's v1.1 package (proposed 2026-10-30). "v1.1 SPEC"
-in this folder means `spec-v1.1.md`. In it, read `openapi-system-v1.1.yaml` as
-`pod-contract.openapi.yml`; where the two differ, this contract wins (section 9).
+`mapping-v1.1.yaml` and `golden-outputs.json` are byte-identical copies from Team 16's
+v1.1 package (proposed 2026-10-30).
 
 ## 1. What is shared
 
-This contract follows Team 16's v1.1 package with two deviations in behavior, below;
-section 9 lists every difference. Team 16's system needs one change, section 2's
-one-session rule. Team 16's tester needs seven changes:
-
-- It reads `features` from `GET /health` once and skips as below.
-- When `/health` fails, it marks only the tests that need a feature `error` (section 4).
-- It accepts `drift` and `drift_error` in an `AnalysisResult`.
-- It runs T-24 to T-33 against `model-golden-outputs.json` as each group is published
-  (sections 3 and 4).
-- It reports T-22 and T-23 as `skip` with the messages in section 4.
-- It counts coverage only from tests the target answered (section 5).
-- It keeps to section 6's limits: 110 s for system setup, 15 s for the system's
-  `GET /test/report`, and a stop at 570 s of the 600 s run.
+This contract follows Team 16's v1.1 package everywhere except two deviations. Neither
+changes Team 16's system; section 2's one-session rule is the one change it needs.
+Team 16's tester needs three changes: it reads `features` from
+`GET /health` and skips as below (section 4 says what happens when `/health` fails), it
+accepts `drift` and `drift_error` in an `AnalysisResult`, and it runs T-24 to T-33
+against `model-golden-outputs.json` once that file is published (section 3).
 
 1. **No prose detector required.** `issues` is filled by the v1.1 SPEC section 6
    detector on a system that has one (Team 16). On a system without it (Team 15),
@@ -82,17 +65,17 @@ also after the system restarts or is redeployed.
   the session id.
 - **One active session at a time**, so sessions cannot interfere (course spec, session
   state and concurrency). System setup answers 409 for a session id that already exists,
-  and for a new id while another session is active (message "another test session is
-  active", source `system`). A session stays active until the next setup is accepted. A new setup is accepted once the active session's
-  `GET /test/report` has been read (the tester's last call, course spec), or 720 s after
-  the active session's setup: tester setup (120 s) plus tester run (600 s).
+  and for a new id while another session is active. A session stays active until the
+  next setup is accepted. A new setup is accepted once the active session's
+  `GET /test/report` has been read (the tester's last call, course spec), or 700 s after
+  the active session's setup: tester setup (90 s) plus tester run (600 s), rounded up.
 - Code coverage counts the lines run while the session is active, so it covers only that
   session's requests. Its report stays readable after the next session starts.
 - **No resets and no cleanup:** the fixture repositories are public, fixed and only read.
 - **After an interruption:** a restart clears sessions and tester reports (saved
   analysis results stay). The tester then starts a new session; it never reuses an id.
   Without a restart, the new session's setup answers 409 until the earlier session's
-  report is read or its 720 s have passed.
+  report is read or its 700 s have passed.
 
 ## 3. Fixtures and expected answers
 
@@ -129,13 +112,14 @@ Commits of the model fixture, oldest first:
 | L6 | a non-owner edits an owned path | pending |
 | L7 | a hand edit removes an `inherits` edge from `structural.json` that the code still makes | pending |
 
-**Publishing the expected answers** (Team 15). The drift tests are published in two groups, each once the
+**Publishing the expected answers** (Team 15; a daily scheduled check reminds us once
+the repository appears). The drift tests are published in two groups, each once the
 commits its tests use are fixed for good:
 
 | Group | Tests | Commits used | Can be fixed when |
 | --- | --- | --- | --- |
 | 1 | T-32 | L-pre, which has no `/models` | the repository exists |
-| 2 | T-24 to T-31, T-33 | L0 to L7, which commit all four model files | Team 15's specification settles the behavioral format and the scope rules (its open question Q11); the structural format is settled |
+| 2 | T-24 to T-31, T-33 | L0 to L7, which commit all four model files | Team 15's specification settles the behavioral format and the scope and ownership rules (its open question Q11); the structural format is settled |
 
 For each group:
 
@@ -154,8 +138,9 @@ The tester reads `GET /health` once before the first test. If it gives no 200 `H
 body within 90 s, the target's features are unknown: each test that needs a feature
 (T-18 to T-21, T-24 to T-33) is `error`, with source `communication` when nothing
 answered and `system` otherwise; a pending test stays `skip`, and the other tests run as
-usual. The last two columns say what a test does on a system without `prose_detector` or
-without `model_drift` (section 1, Features). No test is expected to fail on either team's system.
+usual. The last two columns say
+what a test does on a system without `prose_detector` or without `model_drift`
+(section 1, Features). No test is expected to fail on either team's system.
 
 Components and criteria per test are what counts toward coverage (section 5). For
 T-01 to T-23 they are the lists Team 16's tester already uses.
@@ -247,29 +232,17 @@ Both testers use the same lists, so totals match.
 
 | Limit | Seconds |
 | --- | --- |
-| Tester setup (includes system setup and a cold start of the target) | 120 |
+| Tester setup (includes a cold start of the target) | 90 |
 | Tester run | 600 |
 | System setup | 90 |
 | One project call, including Team 15's model check | 90 |
-| Tester's wait for system setup, inside tester setup | 110 |
-| Tester's read of the system's `GET /test/report` | 15 |
-
-With no answer from system setup within 110 s, tester setup answers 500 with source
-`communication`. With no answer from the system's `GET /test/report` within 15 s, or an
-error, the report's code coverage is `null` with a basis that says why.
 
 **No retries.** A tester sends each project call once. A call with no response within
 90 s is `error` with source `communication`; the tester does not resend it.
 
-**Run limit.** At 570 s into its run, 30 s inside the 600 s limit, a tester aborts, as
-the course spec defines an abort: it abandons the call in progress, sends no more project
-calls, still reads the system's `GET /test/report` for code coverage (which also frees the
-system for the next session, section 2), stores the available results and answers
-`POST /test/run` with 500, `{"message": "tester run limit reached", "source": "tester"}`,
-within the registered limit. In the stored report the test in progress is `error` with
-source `tester`, and each test not yet started is `skip`, both with the message "tester
-run limit reached". The tester's own `GET /test/report` returns that report; the session
-cannot run again (409).
+**Run limit.** A tester that reaches its 600 s run limit sends no more calls and returns
+its report with 200: the test in progress is `error` with source `tester`, and each test
+not yet started is `skip`, both with the message "tester run limit reached".
 
 ## 7. Errors
 
@@ -290,9 +263,9 @@ cannot run again (409).
 Both teams' "Intra-pod specification URL" links this file. Team 15's "Access / run
 notes" cell:
 
-> No authentication; public GitHub repositories only. Limits: tester setup 120 s, tester
+> No authentication; public GitHub repositories only. Limits: tester setup 90 s, tester
 > run 600 s, system setup 90 s, 90 s per project call. One session at a time: a new
-> system setup answers 409 until the last session's /test/report is read, or for 720 s
+> system setup answers 409 until the last session's /test/report is read, or for 700 s
 > after its setup. Spec: docs/contract/pod-contract.md.
 
 ## 9. Differences from Team 16's v1.1 package, in one place
@@ -302,7 +275,7 @@ notes" cell:
 | REQ-02, section 6: every system runs the prose detector | only a system with a prose detector fills `issues` | Team 15's documentation is `/models` |
 | `AnalysisResult` and its parts accept no extra fields | `drift` and `drift_error` are allowed, optional | Team 15's model check |
 | no `/generate` | optional `POST /generate` | T-33 byte-for-byte check |
-| system setup answers 409 for an existing session id | also 409 while another session is active (until its report is read, at most 720 s after its setup) | course spec: prevent interference between sessions |
+| system setup answers 409 for an existing session id | also 409 while another session is active (until its report is read, at most 700 s after its setup) | course spec: prevent interference between sessions |
 | OpenAPI: `unmapped` holds added or modified paths | ADDED, MODIFIED, RENAMED, COPIED or TYPE_CHANGED paths | v1.1 SPEC section 6.1 and golden case c3 already say so |
 | `GET /test/report` lists 400 and 404 | also 409 while preparing | course spec |
 | `Health` has no `features` | optional `features`; absent means `["prose_detector"]`; when `/health` fails, only the tests that need a feature are `error` | a tester skips, never fails, what a system does not implement |
@@ -315,5 +288,5 @@ notes" cell:
 Teams 15 and 16 agree to this contract as of version 2.3.0 (2026-10-31); version 2.4.0 is
 proposed and pending Team 16's agreement. Every later change to any file in this folder
 bumps the version and applies once
-both teams agree to it. `spec-v1.1.md`, `mapping-v1.1.yaml` and `golden-outputs.json`
-change only when Team 16 publishes a new version of them.
+both teams agree to it. `mapping-v1.1.yaml` and `golden-outputs.json` change only when
+Team 16 publishes a new version of them.

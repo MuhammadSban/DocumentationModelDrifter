@@ -1,5 +1,5 @@
 # Pod contract for Teams 15 and 16: the system API both teams' testers call.
-# Built on Team 16's v1.1 package with two deviations in behavior (pod-contract.md section 1); section 9 lists every difference.
+# Built on Team 16's v1.1 package; the two deviations are explained in pod-contract.md sections 1 and 9.
 openapi: 3.1.1
 info:
   title: Documentation Tracker System (Pod 15/16)
@@ -122,7 +122,7 @@ paths:
           description: Invalid request
           content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
         '409':
-          description: session_id already exists, or another session is active, with message "another test session is active" (pod-contract.md section 2)
+          description: session_id already exists, or another session is active (pod-contract.md section 2)
           content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
         '500':
           description: Preparation failed, source "system"
@@ -149,9 +149,6 @@ paths:
           description: >
             Preparation still in progress. Required by the course spec, although
             Team 16's v1.1 file leaves it out.
-          content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
-        '500':
-          description: Coverage could not be read, source "system"
           content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
 
 components:
@@ -357,10 +354,10 @@ components:
       required: [author, change, commit, owners, path]
       additionalProperties: false
       properties:
-        author: {type: string, description: Git author email in lowercase}
+        author: {type: string, description: Git author email}
         change: {type: string, const: VIOLATION}
         commit: {type: string, description: Full 40-character SHA}
-        owners: {type: array, items: {type: string}, description: "The matching rule's owners, as lowercase emails sorted as strings; the author is compared with them in lowercase"}
+        owners: {type: array, items: {type: string}, description: "The matching rule's owners, sorted as strings"}
         path: {type: string}
 
     DriftError:
