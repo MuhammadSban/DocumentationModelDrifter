@@ -119,7 +119,7 @@ commits its tests use are fixed for good:
 | Group | Tests | Commits used | Can be fixed when |
 | --- | --- | --- | --- |
 | 1 | T-32 | L-pre, which has no `/models` | the repository exists |
-| 2 | T-24 to T-31, T-33 | L0 to L7, which commit all four model files | Team 15's specification settles the behavioral format and the scope and ownership rules (its open question Q11); the structural format is settled |
+| 2 | T-24 to T-31, T-33 | L0 to L7, which commit all four model files | Team 15's specification settles the behavioral format and the scope rules (its open question Q11); the structural format is settled |
 
 For each group:
 
