@@ -110,7 +110,7 @@ Commits of the model fixture, oldest first:
 | L4 | adds a state and a transition into it | pending |
 | L5 | L2's kind of change plus updated `/models` in the same commit | pending |
 | L6 | a non-owner edits an owned path | pending |
-| L7 | a hand edit removes a call from `structural.json` that the code still makes | pending |
+| L7 | a hand edit removes an `inherits` edge from `structural.json` that the code still makes | pending |
 
 **Publishing the expected answers** (Team 15; a daily scheduled check reminds us once
 the repository appears). The drift tests are published in two groups, each once the

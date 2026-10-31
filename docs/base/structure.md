@@ -96,8 +96,12 @@ These are the possible kinds of nodes:
 
 - without `.py`, 
 - with `/` turned into `.`,
-- with a leading `src/` dropped, and
+- with a leading `src/` dropped from files below it (`src/__init__.py` itself is `src`), and
 - with a trailing `.__init__` dropped, so a package's `__init__.py` has the package's id (`src/shop/__init__.py` is `shop`).
+
+A root-level `__init__.py` is `__init__`. Only `src/` is dropped: code under any other folder keeps it in its id (`Source/pkg/mod.py` is `Source.pkg.mod`), so its imports of `pkg.mod` do not become edges.
+
+No two files share a module id. The one clash these rules leave, a root `src.py` beside `src/__init__.py`, is not supported.
 
 **Class, function and method** ids are `<module>:<qualified name>`, for example `shop.orders:Order.cancel`.
 
@@ -113,9 +117,10 @@ These are the possible kinds of edges:
 | --- | --- |
 | `imports` | a module imports another module of this repository |
 | `inherits` | a class inherits from another class of this repository |
-| `calls` | a function or method calls a function or class of this repository |
 
-Links to external libraries are dropped. 
+Calls are not edges in `schema_version` 1. Adding them is `schema_version` 2, and it changes every committed `structural.json`, the model fixture's included.
+
+Links to external libraries are dropped. A base class from outside the repository, such as `ValueError` or `enum.Enum`, gives no `inherits` edge, so changing `class E(ValueError)` to `class E(Exception)` is not drift.
 
 `nodes` and `edges` are each sorted by `id`. 
 
@@ -125,18 +130,11 @@ There are no line numbers, so moving code is not a change.
 
 ### Example
 
-For the input above, `models/structural.json` is:
+For the input above, `models/structural.json` is below. `Order.cancel`'s call to `payments.charge` gives no edge.
 
 ```json
 {
   "edges": [
-    {
-      "file": "src/shop/orders.py",
-      "id": "calls:shop.orders:Order.cancel->shop.payments:charge",
-      "kind": "calls",
-      "source": "shop.orders:Order.cancel",
-      "target": "shop.payments:charge"
-    },
     {
       "file": "src/shop/orders.py",
       "id": "imports:shop.orders->shop.models",

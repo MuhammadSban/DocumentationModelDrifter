@@ -220,8 +220,8 @@ PARSE_FAILED, so generators may assume every file parses.
 
 - **Structural**
   - Question: What exists, and how do the parts relate?
-  - Contents: modules, classes, functions and methods as nodes; imports, inheritance and calls
-    between them as edges. The format, kinds and id scheme are in docs/base/structure.md; where it
+  - Contents: modules, classes, functions and methods as nodes; imports and inheritance between
+    them as edges (calls are not modelled in schema_version 1). The format, kinds and id scheme are in docs/base/structure.md; where it
     disagrees with this file, this file wins.
   - Comparison: regenerate at the commit, then set difference by element id.
 - **Behavioral**
@@ -390,12 +390,12 @@ Starting set of labelled cases (to be revised, see [Q11](#q11-open-decisions)):
 | L4 | adds a state and a transition into it | false: behavioral, 1 ADDED state and 1 ADDED transition (kind names per the behavioral format) |
 | L5 | L2's change plus updated /models in the same commit | true |
 | L6 | a non-owner edits an owned path | false: ownership, 1 violation |
-| L7 | a hand edit removes a call from structural.json that the code still makes | false: structural, 1 ADDED calls |
+| L7 | a hand edit removes an inherits edge from structural.json that the code still makes | false: structural, 1 ADDED inherits |
 
-Each count must be exactly 1, and every other list empty, so the fixture follows five rules.
-L2's new function calls no code of the repository, or calls edges would be added too. L3 removes
-an import of a module of the repository that nothing calls through; an import of an external
-library is not in the model. L7's call is to a function of the repository. L4 adds its state and
+Each count must be exactly 1, and every other list empty, so the fixture follows five rules. Its
+code sits under src/, so module ids carry no folder prefix (docs/base/structure.md). L3 removes
+an import of a module of the repository; an import of an external library is not in the model.
+L7's base class is a class of the repository; an external one gives no edge. L4 adds its state and
 transition without adding a module, class, function, method, import, inheritance or call, so the
 structural model does not change. Every commit L0 to L7 except L6 is made by an owner of every
 path it changes, under the ownership.json committed at L0, so only L6 gives a violation.
@@ -727,7 +727,8 @@ Proposed 2026-10-31, pending Team 16's agreement.
   least states and transitions (3.2). It comes first, with the path pattern rules below: the
   fixture commits L0 to L7, and so T-24 to T-31 and T-33, depend on them; only T-32 does not. Structural is settled in docs/base/structure.md, except
   its JSON Schema.
-- Path pattern rules for scope.json and ownership.json.
+- Path pattern rules for scope.json and ownership.json, including whether scope.json names source
+  roots besides src/ (structure.md drops only src/ from module ids).
 - The Annex XI claim (1.1): whether to keep the specific Annex XI items or only the general
   Art. 53(1)(a) claim.
 - What drifter init proposes as the first ownership.json.
