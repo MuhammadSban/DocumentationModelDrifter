@@ -1,12 +1,12 @@
 # Docs map
 
-Purpose: keep a repository's architecture documentation (the three models in `/models`) in step with its code. See `base/specifications.txt` §1.1–1.2.
+Purpose: keep a repository's architecture documentation (the three models in `/models`) in step with its code. See `base/specifications.md` §1.1–1.2.
 
 When a diagram and the spec disagree, the spec wins. For anything another team's tester or system sees (routes, JSON, tests), `contract/` wins over the spec. The course's `base/student-facing-spec.docx.pdf` wins over all of them.
 
 ## base/
 
-- `base/specifications.txt` — the top-level specification: purpose, requirements, acceptance criteria and the four-field answer. Read it before changing behavior, the API or the models. Q11 lists the decisions still open. Its §5 explains how this design meets the pod contract in `contract/`.
+- `base/specifications.md` — the top-level specification: purpose, requirements, acceptance criteria and the four-field answer. Read it before changing behavior, the API or the models. Q11 lists the decisions still open. Its §5 explains how this design meets the pod contract in `contract/`.
 - `base/student-facing-spec.docx.pdf` — the course's cross-team testing rules. Read it when writing or changing tests or the tester.
 
 ## contract/
@@ -35,4 +35,4 @@ Diagrams of the planned system, exported from the Phase 4 overview page.
 
 ## history/
 
-- `history/phase2-changes.txt` — history, not instructions: what changed from Phase 2 and v1. Read it only for course reports; never build from it.
+- `history/phase2-changes.md` — history, not instructions: what changed from Phase 2 and v1. Read it only for course reports; never build from it.
