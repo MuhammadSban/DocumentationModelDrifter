@@ -319,51 +319,50 @@ with the facts in the models.
 
 AC-01 to AC-10 have the pod's numbers and meanings (v1.1 SPEC section 10, copied word for word in
 contract section 5). Each criterion first gives the pod's check, then "This system:" says how this
-system meets it; for this system "doc" means /models and a finding means a drift difference. AC-11 is this system's own and counts as AC-02.
+system meets it; for this system "doc" means /models and a finding means a drift difference. AC-11
+is this system's own and counts as AC-02.
 
 - AC-01, REQ-01: Pod: changes and skipped equal golden, all cases (T-01 to T-07). This system: a
-  short commit SHA also gives the same answer as the full SHA, and an unknown or ambiguous one returns 404
-  COMMIT_NOT_FOUND. Checked automatically.
+  short commit SHA also gives the same answer as the full SHA, and an unknown or ambiguous one
+  returns 404 COMMIT_NOT_FOUND. Checked automatically.
 - AC-02, REQ-02: Pod: missing and outdated docs flagged (c8, c1; T-18, T-19). This system: the
-  documentation is /models. A commit changes what a structural or behavioral model describes
-  without updating /models. The verdict is false and names the right model, exact element id and
-  file. Checked automatically.
-- AC-03, REQ-02 and REQ-07: Pod: code and doc updated together gives no finding (c7; T-20).
-  This system: a commit changes only comments and whitespace, or changes the code together with
-  matching updated /models. The verdict is true. Checked automatically.
-- AC-04, REQ-03: Pod: every finding is PENDING_REVIEW (T-21). This system: what it flags also
-  waits for a person; after a false verdict, the code and /models are unchanged and the tool
-  has made no commit. Checked automatically and by inspection.
-- AC-05, REQ-03: Pod: authorized review decisions, Phase 5 (T-22). This system: only a person
-  allowed to do so accepts flagged drift, and the record shows who and when. Accepting means
-  committing updated /models, so write access to the repository is that permission. Committing updated /models after a false verdict makes the next check true,
-  and the git history of /models gives the person who accepted it and when. Checked
-  automatically by Team 15's own tests.
-- AC-06, REQ-04: Pod: two runs give distinct ids; GET returns each unchanged, including after a
-  restart (c2; T-14 to T-16). This system: each Action run
-  also uploads its answer as an artifact of that commit's run. The hosted service saves every
-  /analyze result, and GET /analysis/{analysis_id} returns it unchanged, also after a restart.
+  documentation is /models. A commit changes what a structural or behavioral model describes without
+  updating /models. The verdict is false and names the right model, exact element id and file.
   Checked automatically.
+- AC-03, REQ-02 and REQ-07: Pod: code and doc updated together gives no finding (c7; T-20). This
+  system: a commit changes only comments and whitespace, or changes the code together with matching
+  updated /models. The verdict is true. Checked automatically.
+- AC-04, REQ-03: Pod: every finding is PENDING_REVIEW (T-21). This system: what it flags also waits
+  for a person; after a false verdict, the code and /models are unchanged and the tool has made no
+  commit. Checked automatically and by inspection.
+- AC-05, REQ-03: Pod: authorized review decisions, Phase 5 (T-22). This system: only a person
+  allowed to do so accepts flagged drift. Accepting means committing updated /models, so write
+  access to the repository is that permission. Committing updated /models after a false verdict
+  makes the next check true, and the git history of /models gives the person who accepted it and
+  when. Checked automatically by Team 15's own tests.
+- AC-06, REQ-04: Pod: two runs give distinct ids; GET returns each unchanged, including after a
+  restart (c2; T-14 to T-16). This system: each Action run also uploads its answer as an artifact of
+  that commit's run. The hosted service saves every /analyze result, and GET /analysis/{analysis_id}
+  returns it unchanged, also after a restart. Checked automatically.
 - AC-07, REQ-05: Pod: missing commit_id, malformed JSON, bad repository format, wrong type → 400
-  INVALID_REQUEST (T-08 to T-11). This system: a request without a commit id returns 400 with a message saying what is
-  missing, and no verdict. Checked automatically.
+  INVALID_REQUEST (T-08 to T-11). This system: a request without a commit id returns 400 with a
+  message saying what is missing, and no verdict. Checked automatically.
 - AC-08, REQ-05: Pod: nonexistent repo/commit → 404; unknown analysis_id → 404; mapping problem →
-  saved ERROR (T-12, T-13, T-15). This system: an unknown repository or commit
-  returns 404 with a message. A commit with no /models, or an in-scope file that cannot be
-  parsed, gives no verdict, never true or false: drift is null with a drift_error code in the
-  hosted service, and exit code 2 in the CLI. Checked automatically.
+  saved ERROR (T-12, T-13, T-15). This system: an unknown repository or commit returns 404 with a
+  message. A commit with no /models, or an in-scope file that cannot be parsed, gives no verdict,
+  never true or false: drift is null with a drift_error code in the hosted service, and exit code 2
+  in the CLI. Checked automatically.
 - AC-09, REQ-06: Pod: repository unchanged, no code executed, no credentials in logs (inspection,
   Phase 5; T-23). This system: the repository is byte-identical before and after a check, none of
   its code runs, and no credentials appear in responses or logs. Checked by automated tests and
   inspection.
 - AC-10, REQ-07: Pod: five runs of c4 and of c1 give identical significant fields, including
-  identical finding_ids (T-17). This system: five runs with the same repository, commit, /models
-  and tool version also return byte-identical models and answers (Team 15's own tests), and
-  generate at the baseline returns the committed /models byte for byte (pod test T-33).
-  Checked automatically.
-- AC-11, REQ-02: A commit by someone who is not an owner of a changed path gives false, naming
-  the commit, path, author and owners; the same change by an owner gives true. Checked
-  automatically. The pod's coverage reports count it as AC-02 (T-30 lists AC-02).
+  identical finding_ids (T-17). This system: five runs with the same repository, commit, /models and
+  tool version also return byte-identical models and answers (Team 15's own tests), and generate at
+  the baseline returns the committed /models byte for byte (pod test T-33). Checked automatically.
+- AC-11, REQ-02: A commit by someone who is not an owner of a changed path gives false, naming the
+  commit, path, author and owners; the same change by an owner gives true. Checked automatically.
+  The pod's coverage reports count it as AC-02 (T-30 lists AC-02).
 
 ### 4.2 Test data and expected outputs
 

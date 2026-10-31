@@ -193,7 +193,7 @@ three implementations of one rule; the tester's byte-for-byte comparison makes a
 Recommendation: core diffs. It also means the spec's table (ADDED, REMOVED, MODIFIED) is coded once. Teammates keep full control of what an element is and what its id looks like.
 Q2 Who parses the Python files
 The decision. Structural and behavioral generators both read Python source. Either the core reads, checks and parses each file once and hands the plugins the result, or each plugin opens and parses files itself.
-Why it matters. The spec fixes three failures that must happen before any model is built: a file over 1 MB gives FILE_TOO_LARGE, a binary or non-UTF-8 file gives PARSE_FAILED, and a syntax error gives PARSE_FAILED with the file and line (spec §5.2, one-check diagram). It also says no file may be skipped, because a skipped file would show up as fake REMOVED drift (spec §3.3). If each plugin parses, both must raise the same error, in the same order, with the same message, or T-17's repeatability and the CLI's exit code 2 become inconsistent.
+Why it matters. The spec fixes three failures that must happen before any model is built: a file over 1 MB gives FILE_TOO_LARGE, a binary or non-UTF-8 file gives PARSE_FAILED, and a syntax error gives PARSE_FAILED with the file and line (spec §5.2, one-check diagram). It also says no file may be skipped, because a skipped file would show up as fake REMOVED drift (spec §3.3). If each plugin parses, both must raise the same error, in the same order, with the same message, or repeatability (AC-10) and the CLI's exit code 2 become inconsistent.
 Option
 Plugin receives
 Cost
