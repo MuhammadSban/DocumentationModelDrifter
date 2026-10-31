@@ -30,7 +30,7 @@ def run_group(group: str) -> dict:
         report = Path(tmp) / "report.xml"
         try:
             proc = subprocess.run(
-                [sys.executable, "-m", "pytest", str(folder), "-q", "-p", "no:cacheprovider",
+                [sys.executable, "-m", "pytest", str(folder), "-q", "-p", "no:cacheprovider", "--color=no",
                  f"--junitxml={report}"],
                 cwd=REPO_ROOT, capture_output=True, text=True, timeout=TIMEOUT,
                 env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
