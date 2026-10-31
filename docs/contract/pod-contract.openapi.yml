@@ -249,7 +249,7 @@ components:
         drift_error:
           description: >
             Optional (Team 15). Why drift is null; null when drift has a verdict.
-            status stays SUCCESS either way.
+            drift_error never changes status.
           oneOf:
             - {$ref: '#/components/schemas/DriftError'}
             - {type: 'null'}

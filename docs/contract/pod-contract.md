@@ -253,6 +253,7 @@ Both testers use the same lists, so totals match.
 | One project call, including Team 15's model check | 90 |
 | Tester's wait for system setup, inside tester setup | 110 |
 | Tester's read of the system's `GET /test/report` | 15 |
+| Tester's read of the system's `GET /health`, once per run (section 4) | 90 |
 
 With no answer from system setup within 110 s, tester setup answers 500 with source
 `communication`. With no answer from the system's `GET /test/report` within 15 s, or an
@@ -287,13 +288,15 @@ cannot run again (409).
 
 ## 8. Registry and access
 
-Both teams' "Intra-pod specification URL" links this file. Team 15's "Access / run
-notes" cell:
+Both teams' "Intra-pod specification URL" links this file:
+<https://github.com/MuhammadSban/DocumentationModelDrifter/blob/contract-2.4.0/docs/contract/pod-contract.md>.
+Team 15's "Access / run notes" cell:
 
 > No authentication; public GitHub repositories only. Limits: tester setup 120 s, tester
 > run 600 s, system setup 90 s, 90 s per project call. One session at a time: a new
 > system setup answers 409 until the last session's /test/report is read, or for 720 s
-> after its setup. Spec: docs/contract/pod-contract.md.
+> after its setup. Spec:
+> https://github.com/MuhammadSban/DocumentationModelDrifter/blob/contract-2.4.0/docs/contract/pod-contract.md
 
 ## 9. Differences from Team 16's v1.1 package, in one place
 
@@ -304,7 +307,7 @@ notes" cell:
 | no `/generate` | optional `POST /generate` | T-33 byte-for-byte check |
 | system setup answers 409 for an existing session id | also 409 while another session is active (until its report is read, at most 720 s after its setup) | course spec: prevent interference between sessions |
 | OpenAPI: `unmapped` holds added or modified paths | ADDED, MODIFIED, RENAMED, COPIED or TYPE_CHANGED paths | v1.1 SPEC section 6.1 and golden case c3 already say so |
-| `GET /test/report` lists 400 and 404 | also 409 while preparing | course spec |
+| `GET /test/report` lists 400 and 404 | also 409 while preparing, and 500 (source `system`) when coverage cannot be read | course spec: 409 for reports not ready, 500 for service failures |
 | `Health` has no `features` | optional `features`; absent means `["prose_detector"]`; when `/health` fails, only the tests that need a feature are `error` | a tester skips, never fails, what a system does not implement |
 | acceptance criteria in SPEC section 10 | the same ten, copied word for word into section 5, plus what "doc" means for `model_drift` | the course asks the intra-pod specification to list them |
 | `GET /test/report` sets no minimum length for `session_id` | at least 1 character, as `POST /test/setup` already requires | course spec: session ids are nonempty |
