@@ -39,6 +39,11 @@ Diagrams of the planned system, exported from the Phase 4 overview page.
 - `models/cross-team-test.png` — one cross-team test session as `contract/pod-contract.md` defines it: tester and system routes, the T-01 to T-33 loop over both fixtures, and the report. The tester reads `/health` once first and skips each test whose feature the target does not list.
 - `models/research-evidence.png` — Team 15's tool research: what runs at runtime, what only serves tests, what is rejected. Team 15's choices, not the pod contract.
 
+## tickets/
+
+- `tickets/contract-contradictions.md` — open work: each place where the contract, the spec, the diagrams, the course PDF or Team 16's v1.1 package disagree, with a fix, a check that closes it, and an owner. A ticket whose check passes moves to the file's closed table.
+
 ## history/
 
 - `history/phase2-changes.md` — history, not instructions: what changed from Phase 2 and v1. Read it only for course reports; never build from it.
+- `history/contract-2.4.0-changes.md` — what changed from contract 2.3.0 to 2.4.0, what it means for each team's system and tester, and the matching spec changes. Send it to Team 16 with the contract; the contract wins where they differ.

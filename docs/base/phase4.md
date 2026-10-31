@@ -42,7 +42,7 @@ spec §4.2 already fixes element kinds in the expected answers (L2 "node", L3 an
 spec §3.2 vs §4.2
 teammates
 treat these four kind names as constraints on their formats, or revise §4.2 with them
-Status 2026-10-31: #2 and #3 are fixed in the spec (§4.1 now uses the pod's AC meanings, see CONTEXT.md); #4 and #5 are fixed in contract 2.3.0, agreed with Team 16; #1 is Team 16's to fix; #6 is fixed for structural (spec §4.2 uses the kinds in structure.md) and waits on the behavioral format for L4. Contract 2.4.0 is proposed and pending Team 16's agreement: §1's example kind becomes "method", tests skip instead of failing on a missing feature (T-18, T-19, T-21 on our system), and §5 lists the acceptance criteria.
+Status 2026-10-31: #2 and #3 are fixed in the spec (§4.1 now uses the pod's AC meanings, see CONTEXT.md); #4 and #5 are fixed in contract 2.3.0, agreed with Team 16; #1 is Team 16's to fix and is recorded in contract §9; #6 is fixed for structural (spec §4.2 uses the kinds in structure.md) and waits on the behavioral format for L4. Contract 2.4.0 is proposed and pending Team 16's agreement: §1's example kind becomes "method", tests skip instead of failing on a missing feature (T-18, T-19, T-21 on our system), and §5 lists the acceptance criteria.
 Not a mismatch but a gap: our current GitHub_Connector does not meet either OpenAPI file (see Inputs). That is the main risk to a working tester run with Team 16, and it is ours to fix.
 Inputs and starting point
 The spec (§3.2, §5.2, §6.1, §7.1) fixes what each piece must output; the contract (§3, §4, §6) fixes how it is tested. What already exists in the repo covers only the git reading.
@@ -55,14 +55,14 @@ four-field answer; drift_error codes; drift stays null with status: SUCCESS; CLI
 spec §7.1
 generators are pure (no git, clock, network); only the GitHub integration runs git; one orchestrator behind CLI, Action and hosted service
 contract §4
-T-24 to T-31 compare the whole drift object including order; T-32 compares drift and drift_error.code; T-33 compares four file texts byte for byte
+T-24 to T-31 compare the whole drift object including order; T-32 compares drift and drift_error.code; T-33 compares three file texts byte for byte (structural, behavioral, scope; not ownership)
 contract §6
 90 s per project call, 600 s per tester run, no retries
 pod-tester.openapi.yml
 tester routes /test/setup, /test/run, /test/report and the suite report shape
 What exists today in Source/GitHub_Connector (v1, built for an LLM prose check):
 • Reusable: fetch.py (clone, resolve short SHA, first parent, diff, read blobs, timeouts), runs.py (write-once run files), course.py (system /test/setup and /test/report with line coverage), api.py routing.
-• Not contract 2.4.0: no features in /health; imports LLM_Shell, which is not in the repo, so the app cannot start; classifies with path_rules.json instead of mapping-v1.1.yaml; config_version is a hash, not mapping-v1.1; no unmapped; error codes TIMEOUT, WRITE_FAILED, LLM_UNAVAILABLE instead of ANALYSIS_FAILED, STORAGE_FAILED; skip reasons beyond UNSUPPORTED_FILE_TYPE; deadline 120 s, not 90 s; run files are lost on redeploy; the console path points at Source/Frontend, which is now Frontend_Archive.
+• Not contract 2.4.0: no features in /health; imports LLM_Shell, which is not in the repo, so the app cannot start; classifies with path_rules.json instead of mapping-v1.1.yaml; config_version is a hash, not mapping-v1.1; no unmapped; error codes TIMEOUT, WRITE_FAILED, LLM_UNAVAILABLE instead of ANALYSIS_FAILED, STORAGE_FAILED; skip reasons beyond UNSUPPORTED_FILE_TYPE; deadline 120 s, not 80 s; run files are lost on redeploy; the console path points at Source/Frontend, which is now Frontend_Archive.
 • Missing entirely: generators, comparison, orchestrator, CLI, /generate, the tester, tests, packaging.
 Architecture: one seam for the teammates
 The core never looks inside a model. Each model is a plugin the teammates write; the core only asks it four things, so their format can change without touching the core, the CLI, the service or the tester.
@@ -113,7 +113,7 @@ What
 Needs
 Done when
 A
-Align the hosted service to contract 2.4.0: features: [model_drift] in /health, mapping-v1.1.yaml, config_version: mapping-v1.1, unmapped, contract error codes, one skip reason, issues: [], 90 s deadline, durable store, drop the LLM_Shell import, keep one clone per repository and fetch only missing commits, so a full tester run of about 34 analyses fits in 600 s
+Align the hosted service to contract 2.4.0: features: [model_drift] in /health, mapping-v1.1.yaml, config_version: mapping-v1.1, unmapped, contract error codes, one skip reason, issues: [], 80 s deadline, one active test session (409 otherwise), durable store, drop the LLM_Shell import, keep one clone per repository and fetch only missing commits, so a full tester run of about 34 analyses fits in 600 s
 nothing
 all 10 cases of golden-outputs.json match on the nine compared fields; a second /analyze on the same repository runs no new clone
 B
@@ -147,7 +147,7 @@ Tests
 Needs
 Against our system
 Against Team 16
-T-01 to T-16, T-20
+T-01 to T-16
 A
 pass
 pass
@@ -155,7 +155,7 @@ T-17 (five runs)
 A
 pass
 pass
-T-18, T-19, T-21 (prose findings)
+T-18 to T-21 (prose findings)
 none
 skip (no prose_detector)
 pass
@@ -209,7 +209,7 @@ all three errors duplicated
 Recommendation: core parses once with ast. It is in the standard library, never imports or runs the code (REQ-06), and halves the parse time, which helps the 90 s limit. The middle option is a fine fallback if a teammate needs another parser.
 Q3 Who owns scope.json and the path pattern rules
 The decision. Three things match file paths against patterns: classification by mapping-v1.1.yaml (contract), scope.json (which files feed the generators) and ownership.json (who owns a path). Spec Q11 lists "path pattern rules for scope.json and ownership.json" as still open. The question is whether that belongs to the teammates with their formats, or to the core.
-Why it matters. scope.json is not a model; it is input to all generators, and it is one of the four files /generate must reproduce byte for byte (T-33). Ownership rules are judged by the core's checker (step D), so the core must understand the pattern syntax. If patterns mean different things in different files, src/** could match in classification but not in ownership.
+Why it matters. scope.json is not a model; it is input to all generators, and it is one of the three files /generate must reproduce byte for byte (T-33). Ownership rules are judged by the core's checker (step D), so the core must understand the pattern syntax. If patterns mean different things in different files, src/** could match in classification but not in ownership.
 Option
 Who decides
 Cost
@@ -246,7 +246,7 @@ Option
 Work
 Cost
 Fix in place (recommended)
-remove the LLM call; swap path_rules.json for mapping-v1.1.yaml; add unmapped; rename error codes; one skip reason; 90 s deadline; durable store
+remove the LLM call; swap path_rules.json for mapping-v1.1.yaml; add unmapped; rename error codes; one skip reason; 80 s deadline; durable store
 keeps tested code (fetch.py clone, short SHA, timeouts; runs.py write-once; course.py coverage); some v1 comments and settings become stale
 Rewrite from the v1.1 SPEC
 new service built from Team 16's §5 pipeline
@@ -283,7 +283,7 @@ clean coverage and resources; one more deploy and URL to keep alive
 Recommendation: same app, as long as coverage counts only the system package (it already lists packages explicitly). Switch to a separate service if a 600 s tester run slows our own checks.
 Q8 When to change the contract for the mismatches
 The decision. The Alignment check found six mismatches. Two are in our spec only (AC-10 "three runs", AC meanings). Others touch docs/contract/, and contract §10 says any change there bumps the version and needs Team 16's agreement.
-Why it matters. Each contract bump costs a round of agreement with Team 16. The model goldens will force a bump to 2.3.0 anyway (contract §3 checklist).
+Why it matters. Each contract bump costs a round of agreement with Team 16. The model goldens will force a version bump anyway (contract §3 checklist).
 Option
 When
 Cost

@@ -122,7 +122,7 @@ paths:
           description: Invalid request
           content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
         '409':
-          description: session_id already exists
+          description: session_id already exists, or another session is active (pod-contract.md section 2)
           content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
         '500':
           description: Preparation failed, source "system"

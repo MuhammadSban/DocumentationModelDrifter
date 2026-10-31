@@ -3,7 +3,7 @@
 Team 15's top-level specification: requirements and acceptance criteria. The pod contract is
 docs/contract/.
 
-Last revised 2026-10-30.
+Last revised 2026-10-31.
 
 ## How to read this file
 
@@ -13,7 +13,7 @@ Names. Documentation Tracker is the pod's shared product. DocumentationModelDrif
 implementation of it. Its command line tool is called drifter.
 
 Which document wins. This file is Team 15's top-level specification: requirements and acceptance
-criteria. Specs under openspec/specs/ refine one piece each and cite the REQ and AC ids they serve.
+criteria. Specs under openspec/specs/ (none yet) refine one piece each and cite the REQ and AC ids they serve.
 When the two disagree, this file is corrected first and the piece spec follows. For anything another
 team's tester or system sees (routes, JSON, tests), the pod contract in docs/contract/ wins over
 this file (Section 5). The course's docs/base/student-facing-spec.docx.pdf wins over both.
@@ -136,8 +136,9 @@ Outside: the analysed repository, read-only. The tool never writes to it, /model
   release pins its parser and Python version.
 - Both teams use the pod contract (Section 5).
 - Testing uses small public fixture repositories (4.2).
-- Limits: 90 s per check (the pod's limit per project call), 60 s per git call, at most 2 checks
-  at once in the hosted service. An in-scope file over 1 MB fails the check (FILE_TOO_LARGE),
+- Limits: 80 s per check, under the pod's 90 s limit per project call, so a check past its
+  deadline answers 500 before the caller gives up; 60 s per git call; at most 2 checks at once
+  in the hosted service (7.3). An in-scope file over 1 MB fails the check (FILE_TOO_LARGE),
   and a binary or non-UTF-8 in-scope file fails it (PARSE_FAILED); no file is skipped (3.3).
   Ownership covers every changed path, hidden paths, symlinks and submodules included.
 
@@ -359,7 +360,8 @@ is this system's own and counts as AC-02.
 - AC-10, REQ-07: Pod: five runs of c4 and of c1 give identical significant fields, including
   identical finding_ids (T-17). This system: five runs with the same repository, commit, /models and
   tool version also return byte-identical models and answers (Team 15's own tests), and generate at
-  the baseline returns the committed /models byte for byte (pod test T-33). Checked automatically.
+  the baseline returns the committed structural.json, behavioral.json and scope.json byte for byte
+  (pod test T-33). Checked automatically.
 - AC-11, REQ-02: A commit by someone who is not an owner of a changed path gives false, naming the
   commit, path, author and owners; the same change by an owner gives true. Checked automatically.
   The pod's coverage reports count it as AC-02 (T-30 lists AC-02).
@@ -389,10 +391,13 @@ Starting set of labelled cases (to be revised, see [Q11](#q11-open-decisions)):
 | L6 | a non-owner edits an owned path | false: ownership, 1 violation |
 | L7 | a hand edit removes a call from structural.json that the code still makes | false: structural, 1 ADDED calls |
 
-Each count must be exactly 1, so the fixture follows three rules. L2's new function calls no
-code of the repository, or calls edges would be added too. L3 removes an import of a module of
-the repository that nothing calls through; an import of an external library is not in the model.
-L7's call is to a function of the repository.
+Each count must be exactly 1, and every other list empty, so the fixture follows five rules.
+L2's new function calls no code of the repository, or calls edges would be added too. L3 removes
+an import of a module of the repository that nothing calls through; an import of an external
+library is not in the model. L7's call is to a function of the repository. L4 adds its state and
+transition without adding a module, class, function, method, import, inheritance or call, so the
+structural model does not change. Every commit L0 to L7 except L6 is made by an owner of every
+path it changes, under the ownership.json committed at L0, so only L6 gives a violation.
 
 ### 4.3 Independent evaluation
 
@@ -486,12 +491,12 @@ Exit codes of drifter check, which the GitHub Action passes or fails on:
 
 ### 5.3 Tests that exercise this design
 
-The pod's drift tests T-24 to T-33 (contract section 4) run the labelled cases of 4.2 against the
-hosted service and compare the whole drift object with the expected answer; T-33 checks
-/generate at L0 byte for byte. Team 15's own tests check that drift is byte-identical across
+The pod's drift tests T-24 to T-33 (contract section 4) run in both teams' testers. They run the
+labelled cases of 4.2 against the hosted service and compare the whole drift object with the expected answer; T-33 checks
+/generate at L0 byte for byte, except ownership.json, which people correct by hand (3.2). Team 15's own tests check that drift is byte-identical across
 repeated runs.
-The shared tests T-01 to T-23 check change detection, classification, saved results and errors.
-Against this system, T-18, T-19 and T-21 (prose findings) are skipped: its GET /system/health
+T-01 to T-23 check change detection, classification, saved results and errors.
+Against this system, T-18 to T-21 (prose findings) are skipped: its GET /system/health
 lists features ["model_drift"] and not prose_detector (deviation 1, contract section 1).
 
 ## Q6 Milestones for phases 4 and 5
@@ -595,7 +600,9 @@ Ownership is a rule check, for the reason given in 3.2.
 The service has no accounts, no login and no job queue, and the repository holds the models. Its
 one piece of state is the result store, which keeps every /analyze result durably. It runs at
 most 2 checks at once, stops each check at its deadline, and reports that it is up at
-GET /system/health.
+GET /system/health. A third check waits for a free slot within its own deadline, and gets 500
+ANALYSIS_FAILED if the deadline passes while it waits; waiting in the request is not a job queue.
+System setup allows one active test session at a time (contract section 2).
 
 Two measures show whether the check is useful: how often drift is accepted (updated /models)
 rather than fixed in the code, and the false-alert rate on labelled no-drift commits.
@@ -607,7 +614,7 @@ Postmortems use precision and recall on planted changes.
 - The labelled cases in 4.2, run locally, in CI and by the tester against the deployed service.
 - A determinism test: the same commit gives byte-identical /models on Linux and on Windows.
 - The pod's drift tests T-24 to T-33, including generate at the fixture baseline matching the
-  committed /models byte for byte (T-33).
+  committed structural.json, behavioral.json and scope.json byte for byte (T-33).
 - A test that runs all 10 cases of the pod's golden-outputs.json against the system.
 - Tiny fixture repositories built with git init in tests, with scripted authors for ownership.
 

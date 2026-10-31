@@ -19,9 +19,11 @@ v1.1 package (proposed 2026-10-30).
 ## 1. What is shared
 
 This contract follows Team 16's v1.1 package everywhere except two deviations. Neither
-changes Team 16's system. Team 16's tester needs two changes: it reads `features` from
-`GET /health` and skips as below (section 4 says what happens when `/health` fails),
-and it accepts `drift` and `drift_error` in an `AnalysisResult`.
+changes Team 16's system; section 2's one-session rule is the one change it needs.
+Team 16's tester needs three changes: it reads `features` from
+`GET /health` and skips as below (section 4 says what happens when `/health` fails), it
+accepts `drift` and `drift_error` in an `AnalysisResult`, and it runs T-24 to T-33
+against `model-golden-outputs.json` once that file is published (section 3).
 
 1. **No prose detector required.** `issues` is filled by the v1.1 SPEC section 6
    detector on a system that has one (Team 16). On a system without it (Team 15),
@@ -61,13 +63,17 @@ also after the system restarts or is redeployed.
 
 - System setup takes `{"session_id": "...", "setup": {}}`. Project requests do not carry
   the session id.
-- **Concurrent sessions are allowed.** System setup answers 409 only for a session id
-  that already exists.
-- Code coverage counts lines run since setup and is credited to the most recently
-  set-up session. Run one suite at a time for accurate numbers.
+- **One active session at a time**, so sessions cannot interfere (course spec, session
+  state and concurrency). A session is active for 700 s after its system setup: tester
+  setup (90 s) plus tester run (600 s), rounded up. System setup answers 409 for a
+  session id that already exists, and for a new id while another session is active.
+- Code coverage counts the lines run since the active session's setup, so it covers only
+  that session's requests.
 - **No resets and no cleanup:** the fixture repositories are public, fixed and only read.
 - **After an interruption:** a restart clears sessions and tester reports (saved
   analysis results stay). The tester then starts a new session; it never reuses an id.
+  Without a restart, the new session's setup answers 409 until the earlier session's
+  700 s have passed.
 
 ## 3. Fixtures and expected answers
 
@@ -87,7 +93,8 @@ above, so they run the same on every system.
 
 **`model-golden-outputs.json`** uses the same layout as `golden-outputs.json`: one entry
 per case with `case`, `request` and `expected`, where `expected` holds `drift` and
-`drift_error` (and, for T-33, the four file texts).
+`drift_error` (and, for T-33, the texts of `structural.json`, `behavioral.json` and
+`scope.json`).
 
 Commits of the model fixture, oldest first:
 
@@ -114,13 +121,13 @@ us once the repository appears):
 
 ## 4. Test list
 
-T-01 to T-23 are the shared tests; both testers run them. T-24 to T-33 run only in
-Team 15's tester and are **pending** until section 3's checklist is done; a pending test
-is reported as `skip` with the message "expected answers not yet published".
+Both testers run every test, T-01 to T-33, so each tester checks both systems' detectors.
+T-24 to T-33 are **pending** until section 3's checklist is done; a pending test is
+reported as `skip` with the message "expected answers not yet published".
 
 The tester reads `GET /health` once before the first test. If it gives no 200 `Health`
 body within 90 s, the target's features are unknown: each test that needs a feature
-(T-18, T-19, T-21, T-24 to T-33) is `error`, with source `communication` when nothing
+(T-18 to T-21, T-24 to T-33) is `error`, with source `communication` when nothing
 answered and `system` otherwise; a pending test stays `skip`, and the other tests run as
 usual. The last two columns say
 what a test does on a system without `prose_detector` or without `model_drift`
@@ -150,7 +157,7 @@ T-01 to T-23 they are the lists Team 16's tester already uses.
 | T-17 | Five-run repeatability | c4 and c1, five runs each: identical compared fields | C1 C2 C3 C5 | AC-10 | runs | runs |
 | T-18 | Missing mapped documentation finding | c8: `MISSING_DOCUMENTATION` | C4 | AC-02 | skip | runs |
 | T-19 | Unchanged mapped documentation finding | c1: `OUTDATED_DOCUMENTATION`, `UNDOCUMENTED_SYMBOL` | C4 | AC-02 | skip | runs |
-| T-20 | Code and documentation updated together | c7: `issues: []` | C4 | AC-03 | runs | runs |
+| T-20 | Code and documentation updated together | c7: `issues: []` | C4 | AC-03 | skip | runs |
 | T-21 | New findings start PENDING_REVIEW | the findings of T-18 and T-19 | C4 C5 | AC-04 | skip | runs |
 | T-22 | Authorized and unauthorized review decisions | Phase 5 | C7 | AC-05 | skip | skip |
 | T-23 | Read-only analysis, no repository code execution | inspection | C2 | AC-09 | skip | skip |
@@ -163,7 +170,7 @@ T-01 to T-23 they are the lists Team 16's tester already uses.
 | T-30 | `/analyze` at L6: one ownership `VIOLATION` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
 | T-31 | `/analyze` at L7: one structural `ADDED` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
 | T-32 | `/analyze` at L-pre: `drift: null`, `drift_error.code` `MODELS_NOT_FOUND` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-08 | runs | skip |
-| T-33 | `/generate` at L0: every file byte-equal to the committed `/models` (pending) | model fixture | C1 C2 C4 | AC-10 | runs | skip |
+| T-33 | `/generate` at L0: `structural.json`, `behavioral.json` and `scope.json` byte-equal to the committed `/models` (pending) | model fixture | C1 C2 C4 | AC-10 | runs | skip |
 
 The "skip" cells in the last two columns are deviations 1 and 2: Team 15's system has no
 `prose_detector`, and Team 16's has no `model_drift`. T-22 and T-23 are `skip` on every
@@ -173,7 +180,9 @@ Rules for T-24 to T-33:
 
 - **What is compared:** T-24 to T-31 compare the whole `drift` object with the expected
   one (same keys, same differences, same order) and require `drift_error: null`.
-  T-32 compares `drift` and `drift_error.code`. T-33 compares each file text exactly.
+  T-32 compares `drift` and `drift_error.code`. T-33 compares the text of those three
+  files exactly; `ownership.json` is not compared, because people correct it by hand
+  after `drifter init` proposes it (Team 15's specification, section 3.2).
 - **Skip:** when the system does not list `model_drift` (section 1, Features).
 - **Otherwise** the course outcomes apply: a 5xx is `error` with source `system`, a
   timeout is `error` with source `communication`.
@@ -244,7 +253,8 @@ Both teams' "Intra-pod specification URL" links this file. Team 15's "Access / r
 notes" cell:
 
 > No authentication; public GitHub repositories only. Limits: tester setup 90 s, tester
-> run 600 s, system setup 90 s, 90 s per project call. Spec: docs/contract/pod-contract.md.
+> run 600 s, system setup 90 s, 90 s per project call. One session at a time: a new
+> system setup answers 409 for 700 s after the last one. Spec: docs/contract/pod-contract.md.
 
 ## 9. Differences from Team 16's v1.1 package, in one place
 
@@ -253,6 +263,7 @@ notes" cell:
 | REQ-02, section 6: every system runs the prose detector | only a system with a prose detector fills `issues` | Team 15's documentation is `/models` |
 | `AnalysisResult` and its parts accept no extra fields | `drift` and `drift_error` are allowed, optional | Team 15's model check |
 | no `/generate` | optional `POST /generate` | T-33 byte-for-byte check |
+| system setup answers 409 for an existing session id | also 409 while another session is active (700 s after its setup) | course spec: prevent interference between sessions |
 | OpenAPI: `unmapped` holds added or modified paths | ADDED, MODIFIED, RENAMED, COPIED or TYPE_CHANGED paths | v1.1 SPEC section 6.1 and golden case c3 already say so |
 | `GET /test/report` lists 400 and 404 | also 409 while preparing | course spec |
 | `Health` has no `features` | optional `features`; absent means `["prose_detector"]`; when `/health` fails, only the tests that need a feature are `error` | a tester skips, never fails, what a system does not implement |
