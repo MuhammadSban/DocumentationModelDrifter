@@ -5,7 +5,7 @@
 openapi: 3.1.1
 info:
   title: Documentation Tracker Tester (Pod 15/16)
-  version: 2.2.0
+  version: 2.4.0
   description: >
     A tester runs the pod's test list against one target system and reports results
     and coverage. Paths are relative to a team's registered tester base URL.
@@ -124,10 +124,10 @@ components:
               description: Copied from the system's GET /test/report
               allOf: [{$ref: '#/components/schemas/CoverageMeasure'}]
             component:
-              description: Components C1 to C7 exercised by an executed test (pod-contract.md section 5)
+              description: Components C1 to C7 exercised by a test the target answered (pod-contract.md section 5)
               allOf: [{$ref: '#/components/schemas/CoverageMeasure'}]
             system:
-              description: Criteria AC-01 to AC-10 exercised by an executed test (pod-contract.md section 5)
+              description: Criteria AC-01 to AC-10 exercised by a test the target answered (pod-contract.md section 5)
               allOf: [{$ref: '#/components/schemas/CoverageMeasure'}]
 
     TestResult:

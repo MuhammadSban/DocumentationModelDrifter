@@ -3,7 +3,7 @@
 Team 15's top-level specification: requirements and acceptance criteria. The pod contract is
 docs/contract/.
 
-Last revised 2026-10-30.
+Last revised 2026-10-31.
 
 ## How to read this file
 
@@ -13,7 +13,7 @@ Names. Documentation Tracker is the pod's shared product. DocumentationModelDrif
 implementation of it. Its command line tool is called drifter.
 
 Which document wins. This file is Team 15's top-level specification: requirements and acceptance
-criteria. Specs under openspec/specs/ refine one piece each and cite the REQ and AC ids they serve.
+criteria. Specs under openspec/specs/ (none yet) refine one piece each and cite the REQ and AC ids they serve.
 When the two disagree, this file is corrected first and the piece spec follows. For anything another
 team's tester or system sees (routes, JSON, tests), the pod contract in docs/contract/ wins over
 this file (Section 5). The course's docs/base/student-facing-spec.docx.pdf wins over both.
@@ -71,7 +71,7 @@ paths, methods, inputs, responses, and behavior must match the shared specificat
 their internal implementations." [6] Staff may pair either team's tester with either team's system,
 so both teams build to one contract.
 
-That contract is docs/contract/ (version 2.2.0), agreed by Teams 15 and 16 on 2026-10-30. It builds
+That contract is docs/contract/ (version 2.4.0, pending Team 16's agreement; 2.3.0 was agreed by Teams 15 and 16 on 2026-10-31). It builds
 on Team 16's v1.1 package [7], in which Team 16 checks prose documentation. Team 15 checks models
 instead, which the contract allows through two deviations (5.1). Team 16 builds no models.
 
@@ -136,8 +136,9 @@ Outside: the analysed repository, read-only. The tool never writes to it, /model
   release pins its parser and Python version.
 - Both teams use the pod contract (Section 5).
 - Testing uses small public fixture repositories (4.2).
-- Limits: 90 s per check (the pod's limit per project call), 60 s per git call, at most 2 checks
-  at once in the hosted service. An in-scope file over 1 MB fails the check (FILE_TOO_LARGE),
+- Limits: 80 s per check, under the pod's 90 s limit per project call, so a check past its
+  deadline answers 500 before the caller gives up; 60 s per git call; at most 2 checks at once
+  in the hosted service (7.3). An in-scope file over 1 MB fails the check (FILE_TOO_LARGE),
   and a binary or non-UTF-8 in-scope file fails it (PARSE_FAILED); no file is skipped (3.3).
   Ownership covers every changed path, hidden paths, symlinks and submodules included.
 
@@ -213,16 +214,20 @@ legal-compliance certification are excluded.
 /models holds four files: structural.json, behavioral.json, ownership.json and scope.json.
 
 The model format is Team 15's: only Team 15's system reads and writes /models, so the pod contract
-leaves it to this specification. The JSON Schemas, element kinds, id scheme and mining rules are
-still open ([Q11](#q11-open-decisions)).
+leaves it to this specification. Both generators take the in-scope files as a dict of path to
+text. The orchestrator parses every in-scope file once before any generator runs and stops with
+PARSE_FAILED, so generators may assume every file parses.
 
 - **Structural**
   - Question: What exists, and how do the parts relate?
-  - Contents: to be decided in this specification (open, see [Q11](#q11-open-decisions)).
+  - Contents: modules, classes, functions and methods as nodes; imports and inheritance between
+    them as edges (calls are not modelled in schema_version 1). The format, kinds and id scheme are in docs/base/structure.md; where it
+    disagrees with this file, this file wins.
   - Comparison: regenerate at the commit, then set difference by element id.
 - **Behavioral**
   - Question: What may happen, and in what order?
-  - Contents: to be decided in this specification (open, see [Q11](#q11-open-decisions)).
+  - Contents: at least states and the transitions between them. Kind names, id scheme, mining
+    rules and the JSON Schema are open (see [Q11](#q11-open-decisions)).
   - Comparison: regenerate at the commit, then set difference by element id.
 - **Ownership**
   - Question: Who may change what?
@@ -313,41 +318,61 @@ with the facts in the models.
 
 ### 4.1 Requirement coverage
 
-- AC-01, REQ-01: A short commit SHA gives the same answer as the full SHA, and an unknown or
-  ambiguous one returns 404 COMMIT_NOT_FOUND. Checked automatically.
-- AC-02, REQ-02: A commit changes what a structural or behavioral model describes without
+AC-01 to AC-10 have the pod's numbers and meanings (v1.1 SPEC section 10, copied word for word in
+contract section 5). Each criterion first gives the pod's check, then "This system:" says how this
+system meets it; for this system "doc" means /models and a finding means a drift difference. AC-11
+is this system's own and counts as AC-02.
+
+- AC-01, REQ-01: Pod: changes and skipped equal golden, all cases (T-01 to T-07). This system: a
+  short commit SHA also gives the same answer as the full SHA, and an unknown or ambiguous one
+  returns 404 COMMIT_NOT_FOUND. Checked automatically.
+- AC-02, REQ-02: Pod: missing and outdated docs flagged (c8, c1; T-18, T-19). This system: the
+  documentation is /models. A commit changes what a structural or behavioral model describes without
   updating /models. The verdict is false and names the right model, exact element id and file.
   Checked automatically.
-- AC-03, REQ-02 and REQ-07: A commit changes only comments and whitespace, or changes the code
-  together with matching updated /models. The verdict is true. Checked automatically.
-- AC-04, REQ-03: After a false verdict, the code and /models are unchanged and the tool has made
-  no commit. Checked automatically and by inspection.
-- AC-05, REQ-03: Committing updated /models after a false verdict makes the next check true, and
-  the git history of /models gives the person who accepted it and when. Checked automatically.
-- AC-06, REQ-04: Each Action run uploads its answer as an artifact of that commit's run. The
-  hosted service saves every /analyze result, and GET /analysis/{analysis_id} returns it
-  unchanged, also after a restart (pod tests T-14 to T-16). Checked automatically.
-- AC-07, REQ-05: A request without a commit id returns 400 with a message saying what is missing,
-  and no verdict. Checked automatically.
-- AC-08, REQ-05: An unknown repository or commit returns 404 with a message. A commit with no
-  /models, or an in-scope file that cannot be parsed, gives no verdict, never true or false:
-  drift is null with a drift_error code in the hosted service, and exit code 2 in the CLI.
-  Checked automatically.
-- AC-09, REQ-06: The repository is byte-identical before and after a check, and none of its code
-  runs. Checked by automated tests and inspection.
-- AC-10, REQ-07: Three runs with the same repository, commit, /models and tool version return
-  byte-identical models and answers, and generate at the baseline returns the committed /models
-  byte for byte (pod test T-33). Checked automatically.
-- AC-11, REQ-02: A commit by someone who is not an owner of a changed path gives false, naming
-  the commit, path, author and owners; the same change by an owner gives true. Checked
-  automatically. The pod's coverage reports count it as AC-02 (contract section 5).
+- AC-03, REQ-02 and REQ-07: Pod: code and doc updated together gives no finding (c7; T-20). This
+  system: a commit changes only comments and whitespace, or changes the code together with matching
+  updated /models. The verdict is true. Checked automatically.
+- AC-04, REQ-03: Pod: every finding is PENDING_REVIEW (T-21). This system: what it flags also waits
+  for a person; after a false verdict, the code and /models are unchanged and the tool has made no
+  commit. Checked automatically and by inspection.
+- AC-05, REQ-03: Pod: authorized review decisions, Phase 5 (T-22). This system: only a person
+  allowed to do so accepts flagged drift. Accepting means committing updated /models, so write
+  access to the repository is that permission. Committing updated /models after a false verdict
+  makes the next check true, and the git history of /models gives the person who accepted it and
+  when. Checked automatically by Team 15's own tests.
+- AC-06, REQ-04: Pod: two runs give distinct ids; GET returns each unchanged, including after a
+  restart (c2; T-14 to T-16). This system: each Action run also uploads its answer as an artifact of
+  that commit's run. The hosted service saves every /analyze result, and GET /analysis/{analysis_id}
+  returns it unchanged, also after a restart. Checked automatically.
+- AC-07, REQ-05: Pod: missing commit_id, malformed JSON, bad repository format, wrong type → 400
+  INVALID_REQUEST (T-08 to T-11). This system: a request without a commit id returns 400 with a
+  message saying what is missing, and no verdict. Checked automatically.
+- AC-08, REQ-05: Pod: nonexistent repo/commit → 404; unknown analysis_id → 404; mapping problem →
+  saved ERROR (T-12, T-13, T-15). This system: an unknown repository or commit returns 404 with a
+  message. A commit with no /models, or an in-scope file that cannot be parsed, gives no verdict,
+  never true or false: drift is null with a drift_error code in the hosted service, and exit code 2
+  in the CLI. Checked automatically.
+- AC-09, REQ-06: Pod: repository unchanged, no code executed, no credentials in logs (inspection,
+  Phase 5; T-23). This system: the repository is byte-identical before and after a check, none of
+  its code runs, and no credentials appear in responses or logs. Checked by automated tests and
+  inspection.
+- AC-10, REQ-07: Pod: five runs of c4 and of c1 give identical significant fields, including
+  identical finding_ids (T-17). This system: five runs with the same repository, commit, /models and
+  tool version also return byte-identical models and answers (Team 15's own tests), and generate at
+  the baseline returns the committed structural.json, behavioral.json and scope.json byte for byte
+  (pod test T-33). Checked automatically.
+- AC-11, REQ-02: A commit by someone who is not an owner of a changed path gives false, naming the
+  commit, path, author and owners; the same change by an owner gives true. Checked automatically.
+  The pod's coverage reports count it as AC-02 (T-30 lists AC-02).
 
 ### 4.2 Test data and expected outputs
 
 Team 15 builds one small, controlled Git repository, MuhammadSban/doc-tracker-model-fixtures, with
 labelled commits and a manually defined expected verdict per model. Its expected answers are
-published in docs/contract/model-golden-outputs.json, pending until the repository and the id
-scheme exist (contract section 3). The repository stays fixed so results reproduce. Invalid requests
+published in docs/contract/model-golden-outputs.json in two groups (contract section 3): L-pre's
+once the repository exists, L0 to L7's once the formats of all four model files are settled,
+because L0 commits all four. The repository stays fixed so results reproduce. Invalid requests
 and unknown commits are tested by the pod's shared tests on Team 16's fixture
 (ParthGupta06/doc-tracker-fixtures).
 
@@ -360,12 +385,20 @@ Starting set of labelled cases (to be revised, see [Q11](#q11-open-decisions)):
 | L-pre | Python code, no /models yet | no verdict: MODELS_NOT_FOUND |
 | L0 | init on the fixture repo; /models committed | true |
 | L1 | comments and whitespace only | true |
-| L2 | adds one function | false: structural, 1 ADDED node |
-| L3 | removes one import | false: structural, 1 REMOVED edge |
-| L4 | adds a state and a transition into it | false: behavioral, 1 ADDED state and 1 ADDED transition |
+| L2 | adds one function | false: structural, 1 ADDED function |
+| L3 | removes one import | false: structural, 1 REMOVED imports |
+| L4 | adds a state and a transition into it | false: behavioral, 1 ADDED state and 1 ADDED transition (kind names per the behavioral format) |
 | L5 | L2's change plus updated /models in the same commit | true |
 | L6 | a non-owner edits an owned path | false: ownership, 1 violation |
-| L7 | a hand edit removes a call from structural.json that the code still makes | false: structural, 1 ADDED edge |
+| L7 | a hand edit removes an inherits edge from structural.json that the code still makes | false: structural, 1 ADDED inherits |
+
+Each count must be exactly 1, and every other list empty, so the fixture follows five rules. Its
+code sits under src/, so module ids carry no folder prefix (docs/base/structure.md). L3 removes
+an import of a module of the repository; an import of an external library is not in the model.
+L7's base class is a class of the repository; an external one gives no edge. L4 adds its state and
+transition without adding a module, class, function, method, import, inheritance or call, so the
+structural model does not change. Every commit L0 to L7 except L6 is made by an owner of every
+path it changes, under the ownership.json committed at L0, so only L6 gives a violation.
 
 ### 4.3 Independent evaluation
 
@@ -378,8 +411,8 @@ inspected for criteria that cannot be decided from responses alone (AC-04, AC-09
 
 ### 5.1 The pod contract
 
-The cross-team interface is the pod contract in docs/contract/, version 2.2.0, agreed by Teams 15
-and 16 on 2026-10-30. It builds on Team 16's v1.1 package [7] and wins over this file for anything
+The cross-team interface is the pod contract in docs/contract/, version 2.4.0, pending Team 16's
+agreement (2.3.0 was agreed on 2026-10-31). It builds on Team 16's v1.1 package [7] and wins over this file for anything
 another team's tester or system sees.
 
 | File | Holds |
@@ -397,14 +430,18 @@ Two deviations from v1.1 let this design meet the contract (contract section 9):
 2. Optional model-drift additions. This system adds drift and drift_error to every /analyze
    result and serves POST /generate. Testers never require them.
 
+GET /system/health lists "features": ["model_drift"], so testers skip the prose tests and run
+the drift tests (contract section 1).
+
 Everything else in the contract this system follows as written, including change detection,
 classification, unmapped, saved results and error codes.
 
 ### 5.2 How this system's answer appears
 
 The four-field answer of 3.2 is the drift key of every /analyze result. Keys are sorted, and each
-list is sorted (by element id; ownership by commit, then path) and empty when that model matches.
-The element id and kind below are illustrative; the id scheme is open ([Q11](#q11-open-decisions)).
+list is sorted (by element id; ownership by commit SHA, then path, compared as strings) and empty
+when that model matches. An ownership violation's owners are sorted as strings.
+The element id and kind below follow docs/base/structure.md.
 
 ```json
 "drift": {
@@ -413,7 +450,7 @@ The element id and kind below are illustrative; the id scheme is open ([Q11](#q1
   "ownership": [],
   "structural": [
     {"change": "ADDED", "file": "src/shop/orders.py", "id": "shop.orders:Order.cancel",
-     "kind": "node"}
+     "kind": "method"}
   ]
 },
 "drift_error": null
@@ -436,6 +473,9 @@ drift is null and drift_error says why:
 | PARSE_FAILED | an in-scope file cannot be parsed, or is binary or not UTF-8; the message names the file and, for a syntax error, the line |
 | FILE_TOO_LARGE | an in-scope file is over 1 MB; the message names it |
 
+The model check does not depend on status: it also runs when change detection gives status ERROR
+(CHANGE_LIMIT_EXCEEDED), so drift is the same as the CLI's answer for that commit.
+
 HTTP errors are the contract's: 400 INVALID_REQUEST; 404 REPOSITORY_NOT_FOUND, COMMIT_NOT_FOUND,
 ANALYSIS_NOT_FOUND; 500 ANALYSIS_FAILED (including a check past its deadline) and STORAGE_FAILED.
 
@@ -452,11 +492,13 @@ Exit codes of drifter check, which the GitHub Action passes or fails on:
 
 ### 5.3 Tests that exercise this design
 
-The pod's drift tests T-24 to T-33 (contract section 4) run the labelled cases of 4.2 against the
-hosted service and compare the whole drift object with the expected answer; T-33 checks
-/generate at L0 byte for byte. T-17 also checks that drift is byte-identical across repeated runs.
-The shared tests T-01 to T-23 check change detection, classification, saved results and errors.
-Against this system, T-18, T-19 and T-21 (prose findings) fail by design (deviation 1).
+The pod's drift tests T-24 to T-33 (contract section 4) run in both teams' testers. They run the
+labelled cases of 4.2 against the hosted service and compare the whole drift object with the expected answer; T-33 checks
+/generate at L0 byte for byte, except ownership.json, which people correct by hand (3.2). Team 15's own tests check that drift is byte-identical across
+repeated runs. T-32 is published first, since it needs only L-pre (4.2).
+T-01 to T-23 check change detection, classification, saved results and errors.
+Against this system, T-18 to T-21 (prose findings) are skipped: its GET /system/health
+lists features ["model_drift"] and not prose_detector (deviation 1, contract section 1).
 
 ## Q6 Milestones for phases 4 and 5
 
@@ -479,8 +521,9 @@ Demonstration: point our tester at Team 16's hosted system and theirs at ours, r
 read the reports: T-26 (L2) got false with the new function in "structural", and T-29 (L5) got
 true with three empty lists.
 
-Automated validation, run by the tester: AC-01, AC-02, AC-03, AC-05, AC-06, AC-07, AC-08, AC-10,
-AC-11. Requirement coverage: REQ-01, REQ-02, REQ-03, REQ-04, REQ-05, REQ-07.
+Automated validation, run by the tester: AC-01, AC-02, AC-03, AC-06, AC-07, AC-08, AC-10, AC-11
+(counted as AC-02). By Team 15's own tests: AC-05, which the pod tests only in Phase 5 (T-22).
+Requirement coverage: REQ-01, REQ-02, REQ-03, REQ-04, REQ-05, REQ-07.
 
 ### 6.2 Phase 5
 
@@ -518,7 +561,7 @@ generators, comparison, gate and review loop stay.
 | Comparison | baseline model and fresh model -> differences |
 | Change detection | base and head -> changes, skipped and unmapped, classified by the pod's mapping-v1.1.yaml (hosted service only) |
 | Result store | one /analyze result -> a saved run, durable across restarts (hosted service only) |
-| Orchestrator | one request -> one four-field answer, and in the hosted service one /analyze result with it as drift; calls the others in order |
+| Orchestrator | one request -> one four-field answer, and in the hosted service one /analyze result with it as drift; parses every in-scope file once (PARSE_FAILED), then calls the others in order |
 | Tester | a system's URL -> the course's report, with what each test got |
 
 One codebase, three ways to run it, all through the orchestrator:
@@ -558,7 +601,9 @@ Ownership is a rule check, for the reason given in 3.2.
 The service has no accounts, no login and no job queue, and the repository holds the models. Its
 one piece of state is the result store, which keeps every /analyze result durably. It runs at
 most 2 checks at once, stops each check at its deadline, and reports that it is up at
-GET /system/health.
+GET /system/health. A third check waits for a free slot within its own deadline, and gets 500
+ANALYSIS_FAILED if the deadline passes while it waits; waiting in the request is not a job queue.
+System setup allows one active test session at a time (contract section 2).
 
 Two measures show whether the check is useful: how often drift is accepted (updated /models)
 rather than fixed in the code, and the false-alert rate on labelled no-drift commits.
@@ -570,7 +615,7 @@ Postmortems use precision and recall on planted changes.
 - The labelled cases in 4.2, run locally, in CI and by the tester against the deployed service.
 - A determinism test: the same commit gives byte-identical /models on Linux and on Windows.
 - The pod's drift tests T-24 to T-33, including generate at the fixture baseline matching the
-  committed /models byte for byte (T-33).
+  committed structural.json, behavioral.json and scope.json byte for byte (T-33).
 - A test that runs all 10 cases of the pod's golden-outputs.json against the system.
 - Tiny fixture repositories built with git init in tests, with scripted authors for ownership.
 
@@ -663,14 +708,14 @@ repository.
 [7] Team 16. "Documentation Tracker: Pod 15/16 Shared Specification v1.1" (SPEC.md,
 openapi-system-v1.1.yaml, mapping-v1.1.yaml, golden-outputs.json). Proposed 2026-10-30.
 
-[8] Teams 15 and 16. "Pod 15/16 contract", version 2.2.0. docs/contract/ in this repository.
-Agreed 2026-10-30.
+[8] Teams 15 and 16. "Pod 15/16 contract", version 2.4.0. docs/contract/ in this repository.
+Proposed 2026-10-31, pending Team 16's agreement.
 
 ## Q11 Open decisions
 
 #### Settled by the pod contract (2026-10-30)
 
-- Team 16's agreement to the interface and the testing contract: agreed, docs/contract/ 2.2.0.
+- Team 16's agreement to the interface and the testing contract: agreed to docs/contract/ 2.3.0; 2.4.0 pending.
 - The shared fixture: Team 16's fixture serves the shared tests; Team 15 builds the model fixture.
 - Saving answers by id: every /analyze result is saved durably and returned by GET
   /system/analysis/{analysis_id}.
@@ -678,10 +723,12 @@ Agreed 2026-10-30.
 
 #### To settle in Team 15
 
-- Structural and behavioral contents: element kinds, id scheme, mining rules and the JSON
-  Schemas. The id scheme comes first: the model fixture and model-golden-outputs.json depend on
-  it.
-- Path pattern rules for scope.json and ownership.json.
+- Behavioral contents: kind names, id scheme, mining rules and the JSON Schema; it must hold at
+  least states and transitions (3.2). It comes first, with the path pattern rules below: the
+  fixture commits L0 to L7, and so T-24 to T-31 and T-33, depend on them; only T-32 does not. Structural is settled in docs/base/structure.md, except
+  its JSON Schema.
+- Path pattern rules for scope.json and ownership.json, including whether scope.json names source
+  roots besides src/ (structure.md drops only src/ from module ids).
 - The Annex XI claim (1.1): whether to keep the specific Annex XI items or only the general
   Art. 53(1)(a) claim.
 - What drifter init proposes as the first ownership.json.

@@ -3,7 +3,7 @@
 openapi: 3.1.1
 info:
   title: Documentation Tracker System (Pod 15/16)
-  version: 2.2.0
+  version: 2.4.0
   description: >
     Project API and course testing endpoints of the Documentation Tracker pod.
     Paths are relative to a team's registered system base URL. Testing rules
@@ -70,7 +70,9 @@ paths:
       description: >
         Optional. Returns the exact text of each /models file as drifter init would
         write it, so a tester can compare it byte for byte with the committed files.
-        A system without this route answers 404; testers then mark the test skip.
+        A tester skips T-33 when the target's GET /health does not list model_drift
+        (pod-contract.md section 1); a 404 here means REPOSITORY_NOT_FOUND or
+        COMMIT_NOT_FOUND, never a missing route.
       requestBody:
         required: true
         content:
@@ -120,7 +122,7 @@ paths:
           description: Invalid request
           content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
         '409':
-          description: session_id already exists
+          description: session_id already exists, or another session is active (pod-contract.md section 2)
           content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
         '500':
           description: Preparation failed, source "system"
@@ -160,6 +162,13 @@ components:
         tool_version: {type: string}
         config_version: {type: string, examples: [mapping-v1.1]}
         storage: {type: string, description: 'Informational, for example local or github'}
+        features:
+          type: array
+          items: {type: string, enum: [prose_detector, model_drift]}
+          description: >
+            Optional parts this system implements (pod-contract.md section 1). Absent
+            means [prose_detector]. A tester skips, never fails, a test whose feature
+            is not listed.
 
     AnalysisRequest:
       type: object
@@ -229,7 +238,8 @@ components:
         drift:
           description: >
             Optional (Team 15). The model check's answer, or null when there is no
-            verdict. aligned is true only when all three lists are empty.
+            verdict. aligned is true only when all three lists are empty. The model
+            check runs whatever status is.
           oneOf:
             - {$ref: '#/components/schemas/Drift'}
             - {type: 'null'}
@@ -280,7 +290,7 @@ components:
           enum: [MISSING_DOCUMENTATION, OUTDATED_DOCUMENTATION, ORPHANED_DOCUMENTATION,
                  UNDOCUMENTED_SYMBOL, STALE_SIGNATURE, STALE_VALUE, STALE_REFERENCE]
         code_file: {type: string}
-        documentation_file: {type: string, description: The mapped document path, even when it does not exist}
+        documentation_file: {type: string, description: "The mapped document path, even when it does not exist"}
         change_category: {type: string, const: IMPLEMENTATION}
         fact:
           type: [string, 'null']
@@ -307,8 +317,8 @@ components:
       type: object
       description: >
         The four-field answer. Keys sorted; each list sorted (structural and
-        behavioral by id, ownership by commit then path) and empty when that model
-        matches.
+        behavioral by id, ownership by commit SHA then path, compared as strings)
+        and empty when that model matches.
       required: [aligned, behavioral, ownership, structural]
       additionalProperties: false
       properties:
@@ -347,7 +357,7 @@ components:
         author: {type: string, description: Git author email}
         change: {type: string, const: VIOLATION}
         commit: {type: string, description: Full 40-character SHA}
-        owners: {type: array, items: {type: string}}
+        owners: {type: array, items: {type: string}, description: "The matching rule's owners, sorted as strings"}
         path: {type: string}
 
     DriftError:
@@ -388,7 +398,7 @@ components:
       type: object
       required: [session_id]
       properties:
-        session_id: {type: string, minLength: 1, maxLength: 200}
+        session_id: {type: string, minLength: 1}
         setup: {type: object, description: 'Pod setup data: always {}'}
 
     SessionId:
