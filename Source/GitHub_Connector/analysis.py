@@ -21,7 +21,11 @@ from GitHub_Connector.schemas import (
     Status,
 )
 from GitHub_Connector.settings import build_label, get_settings
-from LLM_Shell import llm
+
+try:
+    from LLM_Shell import llm
+except ImportError:  # keeps the app starting, LLM_Shell is not in this repo yet
+    llm = None
 
 # matches owner/name and 7-40 hex before any network call, \Z since $ would accept a trailing newline
 REPOSITORY = re.compile(r"^[A-Za-z0-9-]+/[A-Za-z0-9._-]+\Z")
@@ -58,6 +62,8 @@ def slot() -> threading.BoundedSemaphore:
 def analyze(request: AnalysisRequest) -> AnalysisResult:
     # runs one analysis in a slot, starting the deadline only once the slot is free
     validate(request)
+    if llm is None:
+        raise AnalysisError(ErrorCode.LLM_UNAVAILABLE, "The drift check is not installed (LLM_Shell is missing)")
     with slot():
         return _analyze(request, time.monotonic() + get_settings().analysis_deadline)
 
