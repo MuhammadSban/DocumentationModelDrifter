@@ -40,7 +40,7 @@ app = FastAPI(
 router = APIRouter(prefix="/system")
 
 # finds the console page beside the connector, Source/ ships whole in the image
-CONSOLE = Path(__file__).resolve().parents[1] / "Frontend" / "index.html"
+CONSOLE = Path(__file__).resolve().parents[1] / "Frontend_Archive" / "index.html"
 
 
 def _json(data: bytes, status: int = 200) -> Response:
