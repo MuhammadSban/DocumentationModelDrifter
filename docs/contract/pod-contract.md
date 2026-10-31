@@ -1,0 +1,227 @@
+# Pod 15/16 contract: testing rules
+
+Version 2.2.0, 2026-10-30. Both teams' registry rows link this file as the intra-pod
+specification. The course's `docs/base/student-facing-spec.docx.pdf` wins over every
+file here.
+
+| File (this folder) | Holds |
+| --- | --- |
+| `pod-contract.md` | testing rules: sessions, fixtures, test list, coverage, limits, errors, changes |
+| `pod-contract.openapi.yml` | the system API: routes, fields, enums, status codes |
+| `pod-tester.openapi.yml` | the tester API and suite report, as fixed by the course |
+| `mapping-v1.1.yaml` | shared classification rules, skip allowlist and code-to-doc mappings, loaded at runtime |
+| `golden-outputs.json` | expected answers for the 10 cases on Team 16's fixture |
+| `model-golden-outputs.json` | expected answers for T-24 to T-33 (pending, see section 3) |
+
+`mapping-v1.1.yaml` and `golden-outputs.json` are byte-identical copies from Team 16's
+v1.1 package (proposed 2026-10-30).
+
+## 1. What is shared
+
+This contract follows Team 16's v1.1 package everywhere except two deviations. Neither
+needs any change to Team 16's code.
+
+1. **No prose detector required.** `issues` is filled by the v1.1 SPEC section 6
+   detector on a system that has one (Team 16). On a system without it (Team 15),
+   `issues` is always `[]`, because Team 15's documentation is the `/models` folder,
+   not prose files.
+2. **Optional model-drift additions.** Team 15's `AnalysisResult` adds `drift` and
+   `drift_error`, and Team 15 serves `POST /generate`. A tester never requires them.
+
+Team 15's `/analyze` runs the model check on every request. A commit with no `/models`
+gives `status: "SUCCESS"`, `drift: null` and
+`drift_error: {"code": "MODELS_NOT_FOUND", ...}`. A drifted commit, beside the shared
+fields:
+
+```json
+"drift": {
+  "aligned": false,
+  "behavioral": [],
+  "ownership": [],
+  "structural": [
+    {"change": "ADDED", "file": "src/shop/orders.py", "id": "shop.orders:Order.cancel", "kind": "node"}
+  ]
+},
+"drift_error": null
+```
+
+Saved results are durable: `GET /analysis/{analysis_id}` returns a result unchanged,
+also after the system restarts or is redeployed.
+
+## 2. Sessions, setup and cleanup
+
+- System setup takes `{"session_id": "...", "setup": {}}`. Project requests do not carry
+  the session id.
+- **Concurrent sessions are allowed.** System setup answers 409 only for a session id
+  that already exists.
+- Code coverage counts lines run since setup and is credited to the most recently
+  set-up session. Run one suite at a time for accurate numbers.
+- **No resets and no cleanup:** the fixture repositories are public, fixed and only read.
+- **After an interruption:** a restart clears sessions and tester reports (saved
+  analysis results stay). The tester then starts a new session; it never reuses an id.
+
+## 3. Fixtures and expected answers
+
+| Repository | Built by | Used by | Expected answers |
+| --- | --- | --- | --- |
+| `ParthGupta06/doc-tracker-fixtures` (c0 to c8) | Team 16 | T-01 to T-21 | `golden-outputs.json` |
+| `MuhammadSban/doc-tracker-model-fixtures` | Team 15 | T-24 to T-33 | `model-golden-outputs.json` (pending) |
+
+**Comparing with `golden-outputs.json`** (as v1.1 SPEC section 9): these fields must be
+equal: `head_commit`, `base_commit`, `config_version`, `status`, `error`, `changes`,
+`skipped`, `unmapped`, and `issues` with each finding's `explanation` removed. Not
+compared: `analysis_id`, `repository` casing, `tool_version`, `created_at`,
+`explanation`, `drift`, `drift_error`.
+
+**`issues` is judged only in T-18 to T-21.** T-01 to T-17 compare every other field
+above, so a system without a prose detector (deviation 1) fails only the detector tests.
+
+**`model-golden-outputs.json`** uses the same layout as `golden-outputs.json`: one entry
+per case with `case`, `request` and `expected`, where `expected` holds `drift` and
+`drift_error` (and, for T-33, the four file texts).
+
+Commits of the model fixture, oldest first:
+
+| Tag | What the commit does | SHA |
+| --- | --- | --- |
+| L-pre | Python code, no `/models` yet | pending |
+| L0 | `/models` committed as `drifter init` writes it | pending |
+| L1 | comments and whitespace only | pending |
+| L2 | adds one function | pending |
+| L3 | removes one import | pending |
+| L4 | adds a state and a transition into it | pending |
+| L5 | L2's kind of change plus updated `/models` in the same commit | pending |
+| L6 | a non-owner edits an owned path | pending |
+| L7 | a hand edit removes a call from `structural.json` that the code still makes | pending |
+
+**Checklist when the model fixture exists** (Team 15; a daily scheduled check reminds
+us once the repository appears):
+
+- [ ] Team 15's specification fixes the element id scheme (its open question Q11).
+- [ ] Fill the SHA column above.
+- [ ] Add `model-golden-outputs.json` with the expected answer for each of T-24 to T-33.
+- [ ] Remove "pending" from T-24 to T-33 in section 4.
+- [ ] Bump the version (section 10).
+
+## 4. Test list
+
+T-01 to T-23 are the shared tests; both testers run them. T-24 to T-33 run only in
+Team 15's tester and are **pending** until section 3's checklist is done; a pending test
+is reported as `skip` with the message "expected answers not yet published".
+
+Components and criteria per test are what counts toward coverage (section 5). For
+T-01 to T-23 they are the lists Team 16's tester already uses.
+
+| Test | Title | Golden case or request | Components | Criteria | Without prose detector | Without drift additions |
+| --- | --- | --- | --- | --- | --- | --- |
+| T-01 | Implementation-only change, default base | c1-impl-only | C1 C2 C3 C5 | AC-01 | runs | runs |
+| T-02 | Added, modified and deleted files | c2-add-mod-del | C1 C2 C3 C5 | AC-01 | runs | runs |
+| T-03 | Rename detection | c3-rename | C1 C2 C3 C5 | AC-01 | runs | runs |
+| T-04 | Requirement/specification/design/architecture categories | c4-categories | C1 C2 C3 C5 | AC-01 | runs | runs |
+| T-05 | Unsupported binary files are skipped | c6-binary | C1 C2 C3 C5 | AC-01 | runs | runs |
+| T-06 | Explicit base_commit across several commits | c0-to-c3-explicit-base | C1 C2 C3 C5 | AC-01 | runs | runs |
+| T-07 | Root commit boundary | c0-initial | C1 C2 C3 C5 | AC-01 | runs | runs |
+| T-08 | Missing commit_id | 400 `INVALID_REQUEST` | C1 | AC-07 | runs | runs |
+| T-09 | Malformed JSON | 400 `INVALID_REQUEST` | C1 | AC-07 | runs | runs |
+| T-10 | Invalid repository format | 400 `INVALID_REQUEST` | C1 | AC-07 | runs | runs |
+| T-11 | Incorrectly typed commit_id | 400 `INVALID_REQUEST` | C1 | AC-07 | runs | runs |
+| T-12 | Nonexistent repository | 404 `REPOSITORY_NOT_FOUND` | C1 C2 | AC-08 | runs | runs |
+| T-13 | Nonexistent commit | 404 `COMMIT_NOT_FOUND` | C1 C2 | AC-08 | runs | runs |
+| T-14 | Retrieve saved analysis | c1: GET equals the POST body | C1 C6 | AC-06 | runs | runs |
+| T-15 | Unknown analysis_id | 404 `ANALYSIS_NOT_FOUND` | C1 C6 | AC-06 AC-08 | runs | runs |
+| T-16 | Distinct, durable run files | c2 twice: two ids, both read back | C1 C2 C3 C5 C6 | AC-06 | runs | runs |
+| T-17 | Five-run repeatability | c4 and c1, five runs each: identical compared fields, and identical `drift` and `drift_error` when present | C1 C2 C3 C5 | AC-10 | runs | runs |
+| T-18 | Missing mapped documentation finding | c8: `MISSING_DOCUMENTATION` | C4 | AC-02 | **fails** | runs |
+| T-19 | Unchanged mapped documentation finding | c1: `OUTDATED_DOCUMENTATION`, `UNDOCUMENTED_SYMBOL` | C4 | AC-02 | **fails** | runs |
+| T-20 | Code and documentation updated together | c7: `issues: []` | C4 | AC-03 | runs | runs |
+| T-21 | New findings start PENDING_REVIEW | the findings of T-18 and T-19 | C4 C5 | AC-04 | **fails** | runs |
+| T-22 | Authorized and unauthorized review decisions | Phase 5 | C7 | AC-05 | skip | skip |
+| T-23 | Read-only analysis, no repository code execution | inspection | C2 | AC-09 | skip | skip |
+| T-24 | `/analyze` at L0: `aligned: true`, three empty lists (pending) | model fixture | C1 C2 C3 C4 C5 | AC-03 | runs | skip |
+| T-25 | `/analyze` at L1: `aligned: true` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-03 | runs | skip |
+| T-26 | `/analyze` at L2: one structural `ADDED` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
+| T-27 | `/analyze` at L3: one structural `REMOVED` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
+| T-28 | `/analyze` at L4: behavioral `ADDED` state and transition (pending) | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
+| T-29 | `/analyze` at L5: `aligned: true` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-03 | runs | skip |
+| T-30 | `/analyze` at L6: one ownership `VIOLATION` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
+| T-31 | `/analyze` at L7: one structural `ADDED` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
+| T-32 | `/analyze` at L-pre: `drift: null`, `drift_error.code` `MODELS_NOT_FOUND` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-08 | runs | skip |
+| T-33 | `/generate` at L0: every file byte-equal to the committed `/models` (pending) | model fixture | C1 C2 C4 | AC-10 | runs | skip |
+
+The "fails" cells are the expected result of deviation 1 against Team 15's system, not
+a bug. The "skip" cells in the last column are deviation 2 against Team 16's system.
+
+Rules for T-24 to T-33:
+
+- **What is compared:** T-24 to T-31 compare the whole `drift` object with the expected
+  one (same keys, same differences, same order) and require `drift_error: null`.
+  T-32 compares `drift` and `drift_error.code`. T-33 compares each file text exactly.
+- **Skip:** when the response has no `drift` key, or `/generate` answers 404, the test is
+  `skip` with the message "target does not implement the optional drift additions".
+- **Otherwise** the course outcomes apply: a 5xx is `error` with source `system`, a
+  timeout is `error` with source `communication`.
+
+## 5. Coverage
+
+Both testers use the same lists (v1.1 SPEC section 10), so totals match.
+
+- **Components (7):** C1 interface, C2 fetch and resolve, C3 diff and classify, C4
+  detector (Team 16's prose detector, Team 15's model check), C5 result builder and
+  persistence, C6 retrieval, C7 review workflow (Phase 5).
+- **Criteria (10):** AC-01 to AC-10 as in v1.1 SPEC section 10. Team 15's AC-11
+  (ownership) counts as AC-02.
+- **What counts:** a component or criterion is covered when at least one executed test
+  (outcome `pass`, `fail` or `error`, not `skip`) lists it in section 4.
+- **Code coverage** comes from the system's `GET /test/report`; `null` counts with a
+  basis when unavailable, never 0.
+
+## 6. Limits and retries
+
+| Limit | Seconds |
+| --- | --- |
+| Tester setup (includes a cold start of the target) | 90 |
+| Tester run | 600 |
+| System setup | 90 |
+| One project call, including Team 15's model check | 90 |
+
+**No retries.** A tester sends each project call once. A call with no response within
+90 s is `error` with source `communication`; the tester does not resend it.
+
+## 7. Errors
+
+- **Project routes:** `{code, message}`. 400 `INVALID_REQUEST` (never 422); 404
+  `REPOSITORY_NOT_FOUND`, `COMMIT_NOT_FOUND`, `ANALYSIS_NOT_FOUND`; 500 `ANALYSIS_FAILED`,
+  `STORAGE_FAILED`.
+- **Inside a saved 200 result** (`status: "ERROR"`): `CHANGE_LIMIT_EXCEEDED` (over
+  2000 changed files), `MAPPING_UNSUPPORTED` (a mapped document has an unsupported
+  extension; only a system with a prose detector produces it).
+- **No drift verdict (Team 15 only):** not an error of the analysis. `drift_error`
+  carries `MODELS_NOT_FOUND`, `INVALID_MODELS`, `PARSE_FAILED` or `FILE_TOO_LARGE`.
+- **Test routes:** `{message, source}`, as the course spec defines. System
+  `GET /test/report` answers 409 while preparation is in progress (course spec; v1.1
+  leaves it out).
+
+## 8. Registry and access
+
+Both teams' "Intra-pod specification URL" links this file. Team 15's "Access / run
+notes" cell:
+
+> No authentication; public GitHub repositories only. Limits: tester setup 90 s, tester
+> run 600 s, system setup 90 s, 90 s per project call. Spec: docs/contract/pod-contract.md.
+
+## 9. Differences from Team 16's v1.1 package, in one place
+
+| v1.1 says | This contract says | Why |
+| --- | --- | --- |
+| REQ-02, section 6: every system runs the prose detector | only a system with a prose detector fills `issues` | Team 15's documentation is `/models` |
+| `AnalysisResult` and its parts accept no extra fields | `drift` and `drift_error` are allowed, optional | Team 15's model check |
+| no `/generate` | optional `POST /generate` | T-33 byte-for-byte check |
+| `GET /test/report` lists 400 and 404 | also 409 while preparing | course spec |
+| no retry rule, no concurrency rule, no numbered test list | sections 2, 4 and 6 | the course asks the pod to define them |
+
+## 10. Agreement and changes
+
+Teams 15 and 16 agree to this contract as of version 2.2.0 (2026-10-30). Every later
+change to any file in this folder bumps the version (2.2.0 → 2.3.0) and applies once
+both teams agree to it. `mapping-v1.1.yaml` and `golden-outputs.json` change only when
+Team 16 publishes a new version of them.
