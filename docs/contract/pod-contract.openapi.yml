@@ -354,10 +354,10 @@ components:
       required: [author, change, commit, owners, path]
       additionalProperties: false
       properties:
-        author: {type: string, description: Git author email}
+        author: {type: string, description: Git author email in lowercase}
         change: {type: string, const: VIOLATION}
         commit: {type: string, description: Full 40-character SHA}
-        owners: {type: array, items: {type: string}, description: "The matching rule's owners, sorted as strings"}
+        owners: {type: array, items: {type: string}, description: "The matching rule's owners, as lowercase emails sorted as strings; the author is compared with them in lowercase"}
         path: {type: string}
 
     DriftError:
