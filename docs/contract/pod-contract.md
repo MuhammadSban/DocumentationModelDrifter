@@ -22,14 +22,14 @@ This contract follows Team 16's v1.1 package everywhere except two deviations. N
 changes Team 16's system; section 2's one-session rule is the one change it needs.
 Team 16's tester needs seven changes:
 
-1. It reads `features` from `GET /health` once and skips as below.
-2. When `/health` fails, it marks only the tests that need a feature `error` (section 4).
-3. It accepts `drift` and `drift_error` in an `AnalysisResult`.
-4. It runs T-24 to T-33 against `model-golden-outputs.json` as each group is published
-   (sections 3 and 4).
-5. It reports T-22 and T-23 as `skip` with the messages in section 4.
-6. It counts coverage only from tests the target answered (section 5).
-7. It stops at the 600 s run limit as section 6 says.
+- It reads `features` from `GET /health` once and skips as below.
+- When `/health` fails, it marks only the tests that need a feature `error` (section 4).
+- It accepts `drift` and `drift_error` in an `AnalysisResult`.
+- It runs T-24 to T-33 against `model-golden-outputs.json` as each group is published
+  (sections 3 and 4).
+- It reports T-22 and T-23 as `skip` with the messages in section 4.
+- It counts coverage only from tests the target answered (section 5).
+- It stops at the 600 s run limit as section 6 says.
 
 1. **No prose detector required.** `issues` is filled by the v1.1 SPEC section 6
    detector on a system that has one (Team 16). On a system without it (Team 15),
