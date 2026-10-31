@@ -1,6 +1,6 @@
 # Pod 15/16 contract: testing rules
 
-Version 2.2.0, 2026-10-30. Both teams' registry rows link this file as the intra-pod
+Version 2.3.0, 2026-10-31. Both teams' registry rows link this file as the intra-pod
 specification. The course's `docs/base/student-facing-spec.docx.pdf` wins over every
 file here.
 
@@ -217,11 +217,12 @@ notes" cell:
 | `AnalysisResult` and its parts accept no extra fields | `drift` and `drift_error` are allowed, optional | Team 15's model check |
 | no `/generate` | optional `POST /generate` | T-33 byte-for-byte check |
 | `GET /test/report` lists 400 and 404 | also 409 while preparing | course spec |
+| `session_id` has no length limits | `POST /test/setup` caps it at 200 characters; `GET /test/report` requires at least 1 | rejects empty or oversized ids; testers send UUIDs |
 | no retry rule, no concurrency rule, no numbered test list | sections 2, 4 and 6 | the course asks the pod to define them |
 
 ## 10. Agreement and changes
 
-Teams 15 and 16 agree to this contract as of version 2.2.0 (2026-10-30). Every later
-change to any file in this folder bumps the version (2.2.0 → 2.3.0) and applies once
+Teams 15 and 16 agree to this contract as of version 2.3.0 (2026-10-31). Every later
+change to any file in this folder bumps the version (2.3.0 → 2.4.0) and applies once
 both teams agree to it. `mapping-v1.1.yaml` and `golden-outputs.json` change only when
 Team 16 publishes a new version of them.

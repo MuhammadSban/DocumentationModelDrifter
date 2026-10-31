@@ -71,7 +71,7 @@ paths, methods, inputs, responses, and behavior must match the shared specificat
 their internal implementations." [6] Staff may pair either team's tester with either team's system,
 so both teams build to one contract.
 
-That contract is docs/contract/ (version 2.2.0), agreed by Teams 15 and 16 on 2026-10-30. It builds
+That contract is docs/contract/ (version 2.3.0), agreed by Teams 15 and 16 on 2026-10-31. It builds
 on Team 16's v1.1 package [7], in which Team 16 checks prose documentation. Team 15 checks models
 instead, which the contract allows through two deviations (5.1). Team 16 builds no models.
 
@@ -313,31 +313,54 @@ with the facts in the models.
 
 ### 4.1 Requirement coverage
 
-- AC-01, REQ-01: A short commit SHA gives the same answer as the full SHA, and an unknown or
-  ambiguous one returns 404 COMMIT_NOT_FOUND. Checked automatically.
-- AC-02, REQ-02: A commit changes what a structural or behavioral model describes without
-  updating /models. The verdict is false and names the right model, exact element id and file.
+AC-01 to AC-10 have the pod's numbers and meanings (v1.1 SPEC section 10, contract section 5).
+Each criterion first states what it means for the pod, then "This system:" says how this system
+meets it. AC-11 is this system's own and counts as AC-02.
+
+- AC-01, REQ-01: Every changed path between base and head is reported in changes or skipped
+  exactly as the expected answer says (pod tests T-01 to T-07). This system: a short commit SHA
+  also gives the same answer as the full SHA, and an unknown or ambiguous one returns 404
+  COMMIT_NOT_FOUND. Checked automatically.
+- AC-02, REQ-02: A code change that its documentation does not reflect is flagged. This system:
+  the documentation is /models. A commit changes what a structural or behavioral model describes
+  without updating /models. The verdict is false and names the right model, exact element id and
+  file. Checked automatically.
+- AC-03, REQ-02 and REQ-07: A change that its documentation already reflects is not flagged.
+  This system: a commit changes only comments and whitespace, or changes the code together with
+  matching updated /models. The verdict is true. Checked automatically.
+- AC-04, REQ-03: The tool flags drift but never accepts it or edits the documentation; what it
+  flags waits for a person. The pod checks this as every new finding being PENDING_REVIEW
+  (T-21). This system: after a false verdict, the code and /models are unchanged and the tool
+  has made no commit. Checked automatically and by inspection.
+- AC-05, REQ-03: Only a person allowed to do so accepts flagged drift, and the record shows who
+  accepted it and when. The pod checks this as authorized review decisions in Phase 5 (T-22).
+  This system: accepting means committing updated /models, so write access to the repository is
+  that permission. Committing updated /models after a false verdict makes the next check true,
+  and the git history of /models gives the person who accepted it and when. Checked
+  automatically by Team 15's own tests.
+- AC-06, REQ-04: Every result is saved once under its own id and read back unchanged, also after
+  a restart; two runs give two distinct ids (pod tests T-14 to T-16). This system: each Action run
+  also uploads its answer as an artifact of that commit's run. The hosted service saves every
+  /analyze result, and GET /analysis/{analysis_id} returns it unchanged, also after a restart.
   Checked automatically.
-- AC-03, REQ-02 and REQ-07: A commit changes only comments and whitespace, or changes the code
-  together with matching updated /models. The verdict is true. Checked automatically.
-- AC-04, REQ-03: After a false verdict, the code and /models are unchanged and the tool has made
-  no commit. Checked automatically and by inspection.
-- AC-05, REQ-03: Committing updated /models after a false verdict makes the next check true, and
-  the git history of /models gives the person who accepted it and when. Checked automatically.
-- AC-06, REQ-04: Each Action run uploads its answer as an artifact of that commit's run. The
-  hosted service saves every /analyze result, and GET /analysis/{analysis_id} returns it
-  unchanged, also after a restart (pod tests T-14 to T-16). Checked automatically.
-- AC-07, REQ-05: A request without a commit id returns 400 with a message saying what is missing,
-  and no verdict. Checked automatically.
-- AC-08, REQ-05: An unknown repository or commit returns 404 with a message. A commit with no
-  /models, or an in-scope file that cannot be parsed, gives no verdict, never true or false:
-  drift is null with a drift_error code in the hosted service, and exit code 2 in the CLI.
+- AC-07, REQ-05: Invalid input returns 400 INVALID_REQUEST with a message and no result: a missing
+  commit_id, malformed JSON, a bad repository format or a wrongly typed field (pod tests T-08 to
+  T-11). This system: a request without a commit id returns 400 with a message saying what is
+  missing, and no verdict. Checked automatically.
+- AC-08, REQ-05: A missing resource returns 404, and a check that cannot finish is never reported
+  as a success: an unknown repository, commit or analysis_id returns 404, and a mapping problem
+  gives a saved ERROR (pod tests T-12, T-13, T-15). This system: an unknown repository or commit
+  returns 404 with a message. A commit with no /models, or an in-scope file that cannot be
+  parsed, gives no verdict, never true or false: drift is null with a drift_error code in the
+  hosted service, and exit code 2 in the CLI. Checked automatically.
+- AC-09, REQ-06: The repository is read-only and untrusted: it is byte-identical before and after
+  a check, none of its code runs, and no credentials appear in responses or logs. Checked by
+  automated tests and inspection.
+- AC-10, REQ-07: Repeated runs with the same inputs give identical results: five runs of c4 and of
+  c1 give identical compared fields (pod test T-17). This system: five runs with the same
+  repository, commit, /models and tool version also return byte-identical models and answers,
+  and generate at the baseline returns the committed /models byte for byte (pod test T-33).
   Checked automatically.
-- AC-09, REQ-06: The repository is byte-identical before and after a check, and none of its code
-  runs. Checked by automated tests and inspection.
-- AC-10, REQ-07: Three runs with the same repository, commit, /models and tool version return
-  byte-identical models and answers, and generate at the baseline returns the committed /models
-  byte for byte (pod test T-33). Checked automatically.
 - AC-11, REQ-02: A commit by someone who is not an owner of a changed path gives false, naming
   the commit, path, author and owners; the same change by an owner gives true. Checked
   automatically. The pod's coverage reports count it as AC-02 (contract section 5).
@@ -378,8 +401,8 @@ inspected for criteria that cannot be decided from responses alone (AC-04, AC-09
 
 ### 5.1 The pod contract
 
-The cross-team interface is the pod contract in docs/contract/, version 2.2.0, agreed by Teams 15
-and 16 on 2026-10-30. It builds on Team 16's v1.1 package [7] and wins over this file for anything
+The cross-team interface is the pod contract in docs/contract/, version 2.3.0, agreed by Teams 15
+and 16 on 2026-10-31. It builds on Team 16's v1.1 package [7] and wins over this file for anything
 another team's tester or system sees.
 
 | File | Holds |
@@ -479,8 +502,9 @@ Demonstration: point our tester at Team 16's hosted system and theirs at ours, r
 read the reports: T-26 (L2) got false with the new function in "structural", and T-29 (L5) got
 true with three empty lists.
 
-Automated validation, run by the tester: AC-01, AC-02, AC-03, AC-05, AC-06, AC-07, AC-08, AC-10,
-AC-11. Requirement coverage: REQ-01, REQ-02, REQ-03, REQ-04, REQ-05, REQ-07.
+Automated validation, run by the tester: AC-01, AC-02, AC-03, AC-06, AC-07, AC-08, AC-10, AC-11
+(counted as AC-02). By Team 15's own tests: AC-05, which the pod tests only in Phase 5 (T-22).
+Requirement coverage: REQ-01, REQ-02, REQ-03, REQ-04, REQ-05, REQ-07.
 
 ### 6.2 Phase 5
 
@@ -663,14 +687,14 @@ repository.
 [7] Team 16. "Documentation Tracker: Pod 15/16 Shared Specification v1.1" (SPEC.md,
 openapi-system-v1.1.yaml, mapping-v1.1.yaml, golden-outputs.json). Proposed 2026-10-30.
 
-[8] Teams 15 and 16. "Pod 15/16 contract", version 2.2.0. docs/contract/ in this repository.
-Agreed 2026-10-30.
+[8] Teams 15 and 16. "Pod 15/16 contract", version 2.3.0. docs/contract/ in this repository.
+Agreed 2026-10-31.
 
 ## Q11 Open decisions
 
 #### Settled by the pod contract (2026-10-30)
 
-- Team 16's agreement to the interface and the testing contract: agreed, docs/contract/ 2.2.0.
+- Team 16's agreement to the interface and the testing contract: agreed, docs/contract/ 2.3.0.
 - The shared fixture: Team 16's fixture serves the shared tests; Team 15 builds the model fixture.
 - Saving answers by id: every /analyze result is saved durably and returned by GET
   /system/analysis/{analysis_id}.

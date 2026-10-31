@@ -3,7 +3,7 @@
 openapi: 3.1.1
 info:
   title: Documentation Tracker System (Pod 15/16)
-  version: 2.2.0
+  version: 2.3.0
   description: >
     Project API and course testing endpoints of the Documentation Tracker pod.
     Paths are relative to a team's registered system base URL. Testing rules
@@ -280,7 +280,7 @@ components:
           enum: [MISSING_DOCUMENTATION, OUTDATED_DOCUMENTATION, ORPHANED_DOCUMENTATION,
                  UNDOCUMENTED_SYMBOL, STALE_SIGNATURE, STALE_VALUE, STALE_REFERENCE]
         code_file: {type: string}
-        documentation_file: {type: string, description: The mapped document path, even when it does not exist}
+        documentation_file: {type: string, description: "The mapped document path, even when it does not exist"}
         change_category: {type: string, const: IMPLEMENTATION}
         fact:
           type: [string, 'null']
