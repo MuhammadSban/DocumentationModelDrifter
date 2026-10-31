@@ -72,6 +72,8 @@ test id, component or limit number changed.
 | 17 | Publishing the drift answers | all of T-24 to T-33 at once, after the id scheme | two groups: T-32 once the model fixture exists; the rest once Team 15's model formats are settled | T-32 uses only L-pre, which has no `/models`; L0 commits all four model files, so every later case waits for all four formats | md §3, §4 |
 | 18 | L7 (T-31) | a hand edit removes a call edge | a hand edit removes an `inherits` edge; T-31 still expects one structural `ADDED` | the structural model has no `calls` edges in `schema_version` 1 (Team 15's `structure.md`) | md §3 |
 | 19 | Ownership emails | "Git author email", case not fixed | `author` and `owners` are lowercase emails, compared in lowercase | git may record one person as `Kaan@…` and `kaan@…`; T-30 compares strings exactly, and Team 15's ownership model already lowercases | OpenAPI `OwnershipViolation` |
+| 20 | What group 2 waits for | the behavioral format and the scope and ownership rules | the behavioral format and the scope rules | `drifter init` proposes `ownership.json` with exact paths only (Team 15's spec §3.2), so the fixture needs no ownership pattern syntax | md §3 |
+| 21 | §1, Team 16's tester | "three changes" | the seven changes, each with its section | the edge-case, message, coverage and run-limit rules were already in 2.4.0 but missing from §1's list | md §1 |
 
 "md" is `pod-contract.md`; "OpenAPI" is `pod-contract.openapi.yml`. `pod-tester.openapi.yml`
 changed its version number and its coverage descriptions (row 16).
