@@ -62,7 +62,7 @@ pod-tester.openapi.yml
 tester routes /test/setup, /test/run, /test/report and the suite report shape
 What exists today in Source/GitHub_Connector (v1, built for an LLM prose check):
 • Reusable: fetch.py (clone, resolve short SHA, first parent, diff, read blobs, timeouts), runs.py (write-once run files), course.py (system /test/setup and /test/report with line coverage), api.py routing.
-• Not contract 2.2.0: imports LLM_Shell, which is not in the repo, so the app cannot start; classifies with path_rules.json instead of mapping-v1.1.yaml; config_version is a hash, not mapping-v1.1; no unmapped; error codes TIMEOUT, WRITE_FAILED, LLM_UNAVAILABLE instead of ANALYSIS_FAILED, STORAGE_FAILED; skip reasons beyond UNSUPPORTED_FILE_TYPE; deadline 120 s, not 90 s; run files are lost on redeploy; the console path points at Source/Frontend, which is now Frontend_Archive.
+• Not contract 2.4.0: no features in /health; imports LLM_Shell, which is not in the repo, so the app cannot start; classifies with path_rules.json instead of mapping-v1.1.yaml; config_version is a hash, not mapping-v1.1; no unmapped; error codes TIMEOUT, WRITE_FAILED, LLM_UNAVAILABLE instead of ANALYSIS_FAILED, STORAGE_FAILED; skip reasons beyond UNSUPPORTED_FILE_TYPE; deadline 120 s, not 90 s; run files are lost on redeploy; the console path points at Source/Frontend, which is now Frontend_Archive.
 • Missing entirely: generators, comparison, orchestrator, CLI, /generate, the tester, tests, packaging.
 Architecture: one seam for the teammates
 The core never looks inside a model. Each model is a plugin the teammates write; the core only asks it four things, so their format can change without touching the core, the CLI, the service or the tester.
@@ -113,11 +113,11 @@ What
 Needs
 Done when
 A
-Align the hosted service to contract 2.2.0: mapping-v1.1.yaml, config_version: mapping-v1.1, unmapped, contract error codes, one skip reason, issues: [], 90 s deadline, durable store, drop the LLM_Shell import
+Align the hosted service to contract 2.4.0: features: [model_drift] in /health, mapping-v1.1.yaml, config_version: mapping-v1.1, unmapped, contract error codes, one skip reason, issues: [], 90 s deadline, durable store, drop the LLM_Shell import
 nothing
 all 10 cases of golden-outputs.json match on the nine compared fields
 B
-Tester: /test/setup, /test/run, /test/report; tests as a table of (id, components, criteria, run); golden comparator; 90 s per call, no retry, 600 s budget
+Tester: /test/setup, /test/run, /test/report; tests as a table of (id, components, criteria, feature, run); the runner reads GET /health once and skips every row whose feature the target does not list, so no test checks features itself; golden comparator; 90 s per call, no retry, 600 s budget
 nothing
 runs against Team 16's deployed system; report validates against pod-tester.openapi.yml
 C
@@ -135,7 +135,7 @@ each plugin's snippet goldens; byte-identical on Linux and Windows
 F
 Model fixture L-pre to L7 and model-golden-outputs.json
 E
-contract §3 checklist done, version 2.3.0
+contract §3 checklist done, contract version bumped
 G
 Tester turns on T-24 to T-33
 F
@@ -157,7 +157,7 @@ pass
 pass
 T-18, T-19, T-21 (prose findings)
 none
-fail by design (deviation 1)
+skip (no prose_detector)
 pass
 T-22, T-23
 none
@@ -166,7 +166,7 @@ skip
 T-24 to T-31 (L0 to L7)
 C, E, F
 skip until F, then pass
-skip (no drift key)
+skip (no model_drift)
 T-32 (L-pre, MODELS_NOT_FOUND)
 C and the L-pre commit only
 could pass before E (see questions)
@@ -174,7 +174,7 @@ skip
 T-33 (/generate at L0)
 C, E, F
 skip until F
-skip (404)
+skip (no model_drift)
 The tester itself (B) runs every row on day one; until F it reports T-24 to T-33 as skip with "expected answers not yet published".
 Design questions
 Round 1 is open in the thread. Each question below says what is being decided, why it matters, the options with their costs, and the recommendation. Answer in the thread with the question number.
@@ -240,7 +240,7 @@ core, service, tester apart
 more setup, versions to keep in step
 Recommendation: new Source/drifter/ package, plugins one file each so each teammate owns one file. Gives clean ownership of code too.
 Q5 Fix GitHub_Connector in place, or rewrite it
-The decision. The v1 service was built for an LLM prose check. It cannot start today (it imports LLM_Shell, which is not in the repo) and it differs from contract 2.2.0 in about ten places (see Inputs).
+The decision. The v1 service was built for an LLM prose check. It cannot start today (it imports LLM_Shell, which is not in the repo) and it differs from contract 2.4.0 in about ten places (see Inputs).
 Why it matters. T-01 to T-21 grade exactly this service. It is the shortest path to a working run with Team 16.
 Option
 Work
