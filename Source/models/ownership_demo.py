@@ -121,7 +121,7 @@ def show_proposal(proposed: dict, limit: int) -> None:
           f"{len(text)} bytes")
     print()
     for rule in proposed["rules"][:limit]:
-        print(f"  {rule['path']:<40} {', '.join(rule['owners'])}")
+        print(f"  {rule['pattern']:<40} {', '.join(rule['owners'])}")
     if len(proposed["rules"]) > limit:
         print(f"  ... {len(proposed['rules']) - limit} more rules")
     print()
@@ -173,7 +173,7 @@ def main() -> None:
     candidates = [records[0]]
     if owned:
         candidates.append(CommitRecord("f" * 40, "stranger@x.com", ("x" * 40,),
-                                       (PathTouch(owned[0]["path"], "MODIFIED"),)))
+                                       (PathTouch(owned[0]["pattern"], "MODIFIED"),)))
     show_check(proposed, candidates)
     print("same history proposed twice gives identical bytes:",
           write_model(propose_ownership(head, records)) == write_model(proposed))
