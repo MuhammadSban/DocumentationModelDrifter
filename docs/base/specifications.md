@@ -3,7 +3,7 @@
 Team 15's top-level specification: requirements and acceptance criteria. The pod contract is
 docs/contract/.
 
-Last revised 2026-10-31.
+Last revised 2026-11-01.
 
 ## How to read this file
 
@@ -260,9 +260,9 @@ ownership question directly: was this change made by someone allowed to make it?
 Scope. scope.json holds include and exclude path patterns. It decides which files feed the
 structural and behavioral generators; drifter init writes the defaults, include `**/*.py` and exclude
 `tests/**`. Ownership rules apply to every path, whatever the scope says. Editing the scope without
-regenerating the models shows up as drift by itself. The pattern rules for scope.json and for
-hand-written ownership rules are still to be fixed (open, see [Q11](#q11-open-decisions)); init
-proposes only exact paths.
+regenerating the models shows up as drift by itself. scope.json and hand-written ownership rules
+use the glob syntax of mapping-v1.1.yaml, with one matcher for all three: `**/` matches zero or
+more folders, `**` anything, `*` within one path segment. init proposes only exact paths.
 
 Layout of every model file, so that every run produces the same bytes:
 
@@ -712,12 +712,11 @@ Proposed 2026-10-31, pending Team 16's agreement.
 #### To settle in Team 15
 
 - Behavioral contents: kind names, id scheme, mining rules and the JSON Schema; it must hold at
-  least states and transitions (3.2). It comes first, with the path pattern rules below: the
-  fixture commits L0 to L7, and so T-24 to T-31 and T-33, depend on them; only T-32 does not. Structural is settled in docs/base/structure.md, except
+  least states and transitions (3.2). It comes first: the fixture commits L0 to L7, and so
+  T-24 to T-31 and T-33, depend on it; only T-32 does not. Structural is settled in docs/base/structure.md, except
   its JSON Schema.
-- Path pattern rules for scope.json and for hand-written ownership rules (init proposes only
-  exact paths, 3.2), including whether scope.json names source roots besides src/ (structure.md
-  drops only src/ from module ids).
+- Whether scope.json names source roots besides src/ (structure.md drops only src/ from module
+  ids). The pattern syntax itself is settled in 3.2.
 - The Annex XI claim (1.1): whether to keep the specific Annex XI items or only the general
   Art. 53(1)(a) claim.
 - The labelled cases L-pre and L0 to L7 (4.2), to be revised in a separate pass. That pass should

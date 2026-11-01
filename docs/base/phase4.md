@@ -42,11 +42,12 @@ The spec (§3.2, §5.2, §6.1, §7.1) fixes what each piece must output; the con
 | contract §6 | 90 s per project call, 600 s per tester run, no retries |
 | pod-tester.openapi.yml | tester routes /test/setup, /test/run, /test/report and the suite report shape |
 
-What exists today in Source/GitHub_Connector (v1, built for an LLM prose check):
+What exists on `main` (2026-11-01):
 
-- **Reusable:** fetch.py (clone, resolve short SHA, first parent, diff, read blobs, timeouts), runs.py (write-once run files), course.py (system /test/setup and /test/report with line coverage), api.py routing.
-- **Not contract 2.4.0:** run files are lost on redeploy. (Done on branch contract-alignment: features in /health, mapping-v1.1.yaml, config_version mapping-v1.1, unmapped, contract error codes, one skip reason, 80 s deadline, CHANGE_LIMIT_EXCEEDED, one active test session; all 10 golden cases pass. The console path already points at Frontend_Archive.)
-- **Missing entirely:** generators, comparison, orchestrator, CLI, /generate, the tester, tests, packaging.
+- **Reusable, in Source/GitHub_Connector:** fetch.py (clone, resolve short SHA, first parent, diff, read blobs, timeouts), runs.py (write-once run files), course.py (system /test/setup and /test/report with line coverage), api.py routing.
+- **Started, outside the plan's layout:** `Source/models/` holds `common.py` (`parse_files`, `write_model`), `structural_model.py` (the structural generator) and `ownership_model.py` (propose and check); `Source/orchestration.py` runs a local check with scope, diff by id and the ownership check, with FILLERs for behavioral and remote repositories; `Source/Tester/` serves the tester at /tester; `tests/` holds the connector, structural, common, tester and diagram tests.
+- **Not contract 2.4.0:** run files are lost on redeploy. (Done on `main`, merged from contract-alignment: features in /health, mapping-v1.1.yaml, config_version mapping-v1.1, unmapped, contract error codes, one skip reason, 80 s deadline, CHANGE_LIMIT_EXCEEDED, one active test session; all 10 golden cases pass. The console path already points at Frontend_Archive.)
+- **Missing entirely:** the behavioral generator, `Source/drifter/`, the CLI, `drift` on /analyze, /generate, packaging, the durable store.
 
 ## Roadmap: v1, v1.1, v1.2
 
@@ -63,12 +64,12 @@ The model owners start now, in parallel with v1 (D8). Behavioral comes first: fi
 
 ### v1: the contract service (Kaan)
 
-Needs no model format. Builds on branch `contract-alignment`, where /health features, contract error codes, mapping-v1.1.yaml, the 80 s deadline, CHANGE_LIMIT_EXCEEDED and one active session are done.
+Needs no model format. Builds on `main` (contract-alignment is merged), where /health features, contract error codes, mapping-v1.1.yaml, the 80 s deadline, CHANGE_LIMIT_EXCEEDED and one active session are done.
 
 | Item | Done when |
 | --- | --- |
 | Durable store (D6): a Railway volume behind `runs.py`; `runs_dir` from `RAILWAY_VOLUME_MOUNT_PATH`; on Railway without a volume the app refuses to start; /health reports `storage: volume` (or `ephemeral` locally); the container starts as root, hands the volume to `drifter`, then drops to it with `setpriv` (fallback `RAILWAY_RUN_UID=0`); scheduled volume backups on | a result saved before a redeploy is returned byte for byte after it (T-14, T-16); /health says `volume` on Railway |
-| Base image (D11): `FROM python:3.12-slim-trixie`, which brings git 2.47 (`GIT_NO_LAZY_FETCH` needs 2.44 or later) | `git --version` in the container is 2.44 or later |
+| Base image (D11): from `python:3.12-slim` today to `FROM python:3.12-slim-trixie`, which brings git 2.47 (`GIT_NO_LAZY_FETCH` needs 2.44 or later) | `git --version` in the container is 2.44 or later |
 | Fresh blobless clone per check, no clone cache (D11) | step A's old "one clone per repository" check is dropped |
 | Our tester against Team 16's system, and against ours | T-01 to T-17 pass on both; one full run is timed and logs each call's time |
 
@@ -118,7 +119,7 @@ Needs no model format. Builds on branch `contract-alignment`, where /health feat
 | D1 | Team 15's design work stops at the seam; each model's kinds, ids, attributes, mining rules and schema belong to its owner. |
 | D2 | Owners as in the table above. |
 | D3 | The roadmap covers v1, v1.1 and v1.2 only. |
-| D4 | Work continues on `durable-store`, rebased onto `contract-alignment`. |
+| D4 | Work continues on `durable-store`, rebased onto `contract-alignment`. Since then contract-alignment is merged into `main` and `durable-store` was never created, so v1 branches from `main`. |
 | D5 | Q1 to Q8 below are decided as recommended, except: generators take `{path: text}` as spec §3.2 says (not parsed trees); models live in `Source/models/`, the core in `Source/drifter/`. |
 | D6 | Results on a Railway volume behind `runs.py`, failing loudly without one. Not horizontally scalable, deliberately: the spec caps checks at 2 at once. |
 | D7 | This roadmap lives here; one GitHub issue per item, labelled `ready-for-human`. |

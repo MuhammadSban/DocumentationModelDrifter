@@ -17,7 +17,7 @@ Closed on 2026-10-31, in contract 2.4.0 and the spec:
 | 6 | T-33 vs a hand-corrected `ownership.json` | T-33 compares three files: contract §3, §4 |
 | 7 | Fixture commits by non-owners | fixture rule: spec §4.2 |
 | 8 | L4 may change structural too | fixture rule: spec §4.2 |
-| 9 | System deadline equals tester timeout | 80 s per check: spec §2.2, `phase4.md` step A |
+| 9 | System deadline equals tester timeout | 80 s per check: spec §2.2, `phase4.md` v1 |
 | 10 | A third concurrent check | waits within its deadline: spec §7.3 |
 | 12 | Diagrams out of date | five diagrams redrawn to the spec and contract 2.4.0: `docs/models/`, `docs/README.md` |
 | 13 | Outdated text in the spec and plan | spec header and "How to read"; `phase4.md` Q8 and status |
