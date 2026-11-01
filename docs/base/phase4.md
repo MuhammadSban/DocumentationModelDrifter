@@ -92,7 +92,7 @@ Needs no model format. Builds on `main` (contract-alignment is merged), where /h
 | --- | --- | --- |
 | `structural.schema.json` | Enrique | seam test passes; byte-identical on Linux and Windows |
 | Behavioral format, `generate_behavioral`, `behavioral.schema.json` | Barshan | own snippet goldens and the seam test pass; byte-identical on Linux and Windows |
-| `propose(head_sha, records)` returning spec §3.2's rule list; PR #7 fixes (a bot is an email containing `[bot]`; no `email:` prefix); `ownership.schema.json` | Muhammad | own goldens pass; output validates against the schema |
+| `propose(head_sha, records)` returning spec §3.2's rule list (done in PRs #7 and #9: `[bot]` emails, no `email:` prefix, `pattern` key, window 10, vendored folders, lowercase emails, renames under the old path; open: the name `propose`, settings as constants or a config file); `ownership.schema.json` | Muhammad | own goldens pass; output validates against the schema |
 | Model fixture `MuhammadSban/doc-tracker-model-fixtures`, public, commits L-pre to L7 (spec §4.2) | Kaan | contract §3 checklist done |
 | `docs/contract/model-golden-outputs.json`, contract version bump | Kaan | Team 16 told; tester turns on T-24 to T-33 |
 | Full suite against our system | Enrique, Kaan | T-24 to T-33 pass |
