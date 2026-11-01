@@ -246,6 +246,11 @@ ELEMENT = {"file": "src/app.py", "id": "A", "kind": "state"}
         pytest.param("structural.json", "[]\n", id="model-not-object"),
         pytest.param("scope.json", write_model({"include": "**/*.py"}), id="scope-not-list"),
         pytest.param("scope.json", "[]\n", id="scope-not-object"),
+        pytest.param("ownership.json", "[]\n", id="ownership-not-object"),
+        pytest.param("ownership.json", write_model({"rules": "src/**"}), id="rules-not-list"),
+        pytest.param("ownership.json", write_model({"rules": ["src/**"]}), id="rule-not-object"),
+        pytest.param("ownership.json", write_model({"rules": [{"pattern": "src/**"}]}), id="rule-without-owners"),
+        pytest.param("ownership.json", write_model({"rules": [{"owners": ["ana@x.com"]}]}), id="rule-without-pattern"),
     ],
 )
 def test_a_bad_model_file_is_invalid_models_naming_it(tmp_path, monkeypatch, capsysbinary, name, text):

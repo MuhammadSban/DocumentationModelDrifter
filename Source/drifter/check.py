@@ -178,6 +178,7 @@ def read_sources(reader: Reader) -> Sources:
     for name in ("behavioral.json", "structural.json"):
         _element_rule(f"models/{name}", models[name])
     _scope_rule(models["scope.json"])
+    _ownership_rule(models["ownership.json"])
     paths = in_scope(sorted(tree), models["scope.json"])
     raw = reader.read(paths)
     # judges each file in path order by size, then encoding, then syntax, so the first bad file
@@ -273,6 +274,20 @@ def _scope_rule(scope: object) -> None:
         patterns = scope.get(key, [])
         if not (isinstance(patterns, list) and all(isinstance(p, str) for p in patterns)):
             raise DriftError("INVALID_MODELS", f"models/scope.json: {key} is not a list of patterns")
+
+
+def _ownership_rule(model: object) -> None:
+    # rejects an ownership.json the checker cannot read: an object whose rules, when given, are
+    # objects with a string pattern and a list of string owners
+    if not isinstance(model, dict):
+        raise DriftError("INVALID_MODELS", "models/ownership.json is not a JSON object")
+    rules = model.get("rules", [])
+    if not isinstance(rules, list):
+        raise DriftError("INVALID_MODELS", "models/ownership.json: rules is not a list")
+    for rule in rules:
+        owners = rule.get("owners") if isinstance(rule, dict) else None
+        if not (isinstance(owners, list) and all(isinstance(o, str) for o in owners) and isinstance(rule.get("pattern"), str)):
+            raise DriftError("INVALID_MODELS", "models/ownership.json has a rule without a string pattern and a list of owners")
 
 
 def _model(path: str, raw: bytes | str) -> dict:
