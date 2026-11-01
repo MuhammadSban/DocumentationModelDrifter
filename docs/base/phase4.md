@@ -45,9 +45,9 @@ The spec (§3.2, §5.2, §6.1, §7.1) fixes what each piece must output; the con
 What exists on `main` (2026-11-01):
 
 - **Reusable, in Source/GitHub_Connector:** fetch.py (clone, resolve short SHA, first parent, diff, read blobs, timeouts), runs.py (write-once run files), course.py (system /test/setup and /test/report with line coverage), api.py routing.
-- **Started, outside the plan's layout:** `Source/models/` holds `common.py` (`parse_files`, `write_model`), `structural_model.py` (the structural generator) and `ownership_model.py` (propose and check); `Source/drifter/check.py` (moved from `Source/orchestration.py`) runs a local check with scope, diff by id and the ownership check, with FILLERs for behavioral and remote repositories; `Source/Tester/` serves the tester at /tester; `tests/` holds the connector, structural, common, tester and diagram tests.
+- **Started:** `Source/models/` holds `common.py` (`parse_files`, `write_model`, and `glob`, the one matcher classification, scope.json and ownership share), `structural_model.py` (the structural generator) and `ownership_model.py` (propose and check); `Source/drifter/check.py` runs a check on a local clone (`local_sources`) or on the connector's clone (`remote_sources`, with the batched blob fetch in `fetch.py`), with scope, the four drift_error codes, diff by id and the ownership check, and a FILLER for behavioral; every /analyze result carries `drift` and `drift_error`; `Source/Tester/` serves the tester at /tester; `tests/` holds the connector, drift, drifter, structural, common, ownership, tester and diagram tests.
 - **Not contract 2.4.0:** run files are lost on redeploy. (Done on `main`, merged from contract-alignment: features in /health, mapping-v1.1.yaml, config_version mapping-v1.1, unmapped, contract error codes, one skip reason, 80 s deadline, CHANGE_LIMIT_EXCEEDED, one active test session; all 10 golden cases pass. The console path already points at Frontend_Archive.)
-- **Missing entirely:** the behavioral generator, `Source/drifter/`, the CLI, `drift` on /analyze, /generate, packaging, the durable store.
+- **Missing entirely:** the behavioral generator, the CLI and packaging (`pyproject.toml`), /generate, the generator registry, the shared seam test, the durable store.
 
 ## Roadmap: v1, v1.1, v1.2
 
@@ -75,16 +75,19 @@ Needs no model format. Builds on `main` (contract-alignment is merged), where /h
 
 ### v1.1: the drift core (Kaan, with structural plugged in)
 
-| Item | Done when |
-| --- | --- |
-| File reader (D11): after `ls-tree` at head, fetch every needed blob in one `git fetch --filter=blob:none --stdin`; read with lazy fetching off, so a failed batch is 500 ANALYSIS_FAILED at once | a local test: reading succeeds after the batch and fails without it; the clone holds exactly 2 promisor packs |
-| Seam (D9, `docs/models/model-seam.md`): reuse `parse_files` and `write_model`; flatten each model's top-level lists to `{id: element}`; diff by id (ADDED, REMOVED, MODIFIED) | fake-plugin tests in tests/ cover each change type |
-| Orchestrator, starting from `Source/drifter/check.py`: scope.json, the four drift_error codes, the four-field answer | a test per drift_error code; aligned true only when all three lists are empty |
-| `drift` and `drift_error` on every /analyze, POST /generate | T-32 passes at L-pre (MODELS_NOT_FOUND) |
-| Ownership checker and commit log (D10): `CommitRecord` in `ownership_model.py` (sha, lowercase author email, parents, paths as `PathTouch`; no `author_login`, no date, no prefix); first matching rule wins; no rule means anyone; a rename is judged under its old path; one glob matcher shared with mapping-v1.1.yaml | scripted-author repo: a non-owner gives one VIOLATION, an owner none |
-| CLI (D12): `drifter init`, `update`, `check` on a local checkout (commit defaults to HEAD); `pyproject.toml` with a `drifter` entry point | `pip install -e .`; check exits 0, 1 and 2 in tests |
-| Shared seam test in tests/common/: element rule, unique ids, sorted lists, valid against the schema, `write_model` round trip | passes for structural |
-| Timing on real repositories, generators included | on Railway, one full check of pytest and of Django each finishes; Django under 60 s |
+Spec: issue #12. Status as of 2026-11-01, after #13 closed and Muhammad's push of the remote reader and `drift` on /analyze.
+
+| Item | Done when | Status |
+| --- | --- | --- |
+| Shared glob (#13): one matcher for mapping-v1.1.yaml, scope.json and ownership rules, importable without the web service | glob, scope and ownership tests; the 10 golden cases pass | **done** (#13 closed): `glob` in `models/common.py`, with `\` to escape; init escapes `\`, `*`, `?` in proposed paths; history read with `git log -z` so no quoted path escapes a rule |
+| File reader (D11, #18): after `ls-tree` at head, fetch every needed blob in one `git fetch --filter=blob:none --stdin`; read with lazy fetching off, so a failed batch is 500 ANALYSIS_FAILED at once | a local test: reading succeeds after the batch and fails without it; the clone holds exactly 2 promisor packs | **built, untested**: the batch and `GIT_NO_LAZY_FETCH` are in `fetch.py`, `remote_sources` reads through them; none of the three checks has a test yet |
+| Seam (D9, `docs/models/model-seam.md`, #14): reuse `parse_files` and `write_model`; flatten each model's top-level lists to `{id: element}`; diff by id (ADDED, REMOVED, MODIFIED) | fake-plugin tests in tests/ cover each change type | **partial**: diff by id works, but `_elements` still reads only `nodes` and `edges`; no generator registry, no fake-plugin tests |
+| Orchestrator, starting from `Source/drifter/check.py` (#15): scope.json, the four drift_error codes, the four-field answer | a test per drift_error code; aligned true only when all three lists are empty | **partial**: all four codes raised and tested through /analyze; INVALID_MODELS does not yet check the element rule (duplicate id, missing `file`); no test of the exact 1 MB boundary, Latin-1 or two bad files |
+| `drift` and `drift_error` on every /analyze (#19), POST /generate (#20) | T-32 passes at L-pre (MODELS_NOT_FOUND) | /analyze **mostly done**: tested through `analysis.analyze`, not yet through TestClient; under CHANGE_LIMIT_EXCEEDED only a commit with no `/models` is tested, not a real verdict. /generate **not started** |
+| Ownership checker and commit log (D10, #16): `CommitRecord` in `ownership_model.py` (sha, lowercase author email, parents, paths as `PathTouch`; no `author_login`, no date, no prefix); first matching rule wins; no rule means anyone; a rename is judged under its old path; one glob matcher shared with mapping-v1.1.yaml | scripted-author repo: a non-owner gives one VIOLATION, an owner none | **mostly done**: checker, `-z` history reader and the non-owner/owner tests pass; through the check, merge, first-rule-wins, outside-scope, default base and root commit are untested |
+| CLI (D12, #14, #17): `drifter init`, `update`, `check` on a local checkout (commit defaults to HEAD); `pyproject.toml` with a `drifter` entry point | `pip install -e .`; check exits 0, 1 and 2 in tests | **not started**: `check.py` runs by path and prints a report, with no JSON output and no exit codes; no `pyproject.toml`, `init` or `update` |
+| Shared seam test in tests/common/ (#21): element rule, unique ids, sorted lists, valid against the schema, `write_model` round trip | passes for structural | **not started** |
+| Timing on real repositories, generators included (#22, a person) | on Railway, one full check of pytest and of Django each finishes; Django under 60 s | **not started** |
 
 ### v1.2: all three models and the drift tests
 
