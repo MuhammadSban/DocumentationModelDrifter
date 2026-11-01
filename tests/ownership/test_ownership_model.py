@@ -68,7 +68,16 @@ def test_rules_match_with_the_mapping_glob():
     ]
 
 
-def test_a_path_with_glob_characters_gets_no_rule():
-    # a proposed exact path is read as a glob, so "src/*.py" would claim every file beside it
-    head, records = history(("a@x.com", ["src/*.py", "src/?.py", "src/app.py"]))
-    assert [r["pattern"] for r in propose_ownership(head, records)["rules"]] == ["src/app.py"]
+def test_a_proposed_path_with_glob_characters_is_escaped():
+    # a proposed exact path is read as a glob, so "src/*.py" unescaped would claim every file beside it
+    head, records = history(("a@x.com", ["src/*.py", "src/?.py", "src/a\\b.py"]))
+    assert [r["pattern"] for r in propose_ownership(head, records)["rules"]] == [
+        "src/\\*.py", "src/\\?.py", "src/a\\\\b.py"
+    ]
+
+
+def test_an_escaped_rule_owns_only_its_own_file():
+    head, records = history(("a@x.com", ["src/*.py"]))
+    owned = propose_ownership(head, records)
+    _, edits = history(("b@x.com", ["src/*.py", "src/app.py"]))
+    assert [v["path"] for v in check_ownership(owned, edits)] == ["src/*.py"]

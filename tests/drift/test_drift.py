@@ -26,22 +26,31 @@ def _git(cwd, *args, author="ana@x.com"):
     subprocess.run(["git", "-C", str(cwd), *env, *args], check=True, capture_output=True)
 
 
-def _repo(tmp_path, files, author="ana@x.com", second=None):
+def _repo(tmp_path, files, author="ana@x.com", second=None, odd_names=False):
     # builds a bare repository holding files, and points the connector's clone URL at its folder;
     # returns owner/name and the head SHA. A second dict adds one more commit on top.
     work = tmp_path / "work"
     work.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "init", "-q", "-b", "main", str(work)], check=True)
-    # lets the index hold names Windows cannot put on disk, such as one with a tab
-    _git(work, "config", "core.protectNTFS", "false")
+    if odd_names:
+        # lets the index hold names Windows cannot put on disk, such as one with a tab
+        _git(work, "config", "core.protectNTFS", "false")
     for commit in (files, second):
         if commit is None:
             continue
         for path, text in commit.items():
-            # stages each file by plumbing, never on disk, so any name git allows can be committed
-            blob = subprocess.run(["git", "-C", str(work), "hash-object", "-w", "--stdin"], check=True,
-                                  capture_output=True, input=text if isinstance(text, bytes) else text.encode())
-            _git(work, "update-index", "--add", "--cacheinfo", f"100644,{blob.stdout.decode().strip()},{path}")
+            data = text if isinstance(text, bytes) else text.encode()
+            if odd_names:
+                # stages the file by plumbing, never on disk, so any name git allows can be committed
+                blob = subprocess.run(["git", "-C", str(work), "hash-object", "-w", "--stdin"],
+                                      check=True, capture_output=True, input=data).stdout.decode().strip()
+                _git(work, "update-index", "--add", "--cacheinfo", f"100644,{blob},{path}")
+            else:
+                target = work / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+        if not odd_names:
+            _git(work, "add", "-A", author=author)
         _git(work, "commit", "-qm", "change", author=author)
     bare = tmp_path / "remotes" / "owner" / "repo.git"
     subprocess.run(["git", "clone", "-q", "--bare", str(work), str(bare)], check=True)
@@ -65,9 +74,9 @@ def _models(code, **overrides):
     return files
 
 
-def _analyze(tmp_path, monkeypatch, files, author="ana@x.com", second=None):
+def _analyze(tmp_path, monkeypatch, files, author="ana@x.com", second=None, odd_names=False):
     # runs one analysis against a fresh local repository and returns the result
-    repo, head, remotes = _repo(tmp_path, files, author=author, second=second)
+    repo, head, remotes = _repo(tmp_path, files, author=author, second=second, odd_names=odd_names)
     monkeypatch.setenv("DRIFTER_REMOTE_BASE_URL", remotes.as_uri() + "/")
     monkeypatch.setattr(runs, "save", lambda *args: None)
     get_settings.cache_clear()
@@ -126,13 +135,13 @@ def test_a_non_owner_is_judged_under_any_name_git_allows(tmp_path, monkeypatch):
     rules = {"rules": [{"owners": ["bob@x.com"], "pattern": "src/**"}], "schema_version": 1}
     files = {**CODE, **_models(CODE, **{"models/ownership.json": write_model(rules)})}
 
-    result = _analyze(tmp_path, monkeypatch, files, second=dict.fromkeys(ODD_NAMES, "x\n"))
+    result = _analyze(tmp_path, monkeypatch, files, second=dict.fromkeys(ODD_NAMES, "x\n"), odd_names=True)
 
     assert sorted(v.path for v in result.drift.ownership) == sorted(ODD_NAMES)
 
 
 def test_the_local_reader_keeps_any_name_git_allows(tmp_path):
-    _repo(tmp_path, {**CODE, **_models(CODE)}, second=dict.fromkeys(ODD_NAMES, "x\n"))
+    _repo(tmp_path, {**CODE, **_models(CODE)}, second=dict.fromkeys(ODD_NAMES, "x\n"), odd_names=True)
 
     sources = local_sources(tmp_path / "work", "HEAD")
 

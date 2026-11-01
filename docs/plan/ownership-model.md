@@ -64,8 +64,9 @@ judged, and so are deletions. Output is the contract's `OwnershipViolation`, key
 `{author, change, commit, owners, path}`, sorted by commit then path.
 
 Patterns use the mapping-v1.1.yaml glob, the one matcher scope.json and classification share
-(spec §3.2): `**/` zero or more folders, `**` anything, `*` and `?` within one segment. Since
-rules are read as globs, init proposes no rule for a path containing `*` or `?`.
+(spec §3.2): `**/` zero or more folders, `**` anything, `*` and `?` within one segment, `\`
+before a character to make it literal. Since rules are read as globs, init escapes `\`, `*`
+and `?` in the exact paths it proposes.
 
 ## Verification
 

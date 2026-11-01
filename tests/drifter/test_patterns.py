@@ -34,3 +34,10 @@ def test_double_star_crosses_a_newline_in_a_file_name():
     # git allows a newline in a name, which must not slip past a folder rule
     assert matches("src/a\nb.py", "src/**")
     assert matches("src/x\n/b.py", "**/*.py")
+
+
+def test_a_backslash_makes_the_next_character_literal():
+    assert matches("src/*.py", r"src/\*.py")
+    assert not matches("src/app.py", r"src/\*.py")
+    assert matches(r"src/a\b.py", r"src/a\\b.py")
+    assert not matches(r"src/a\b.py", r"src/a\b.py")

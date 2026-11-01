@@ -75,6 +75,8 @@ class LineMonitor:
         self._latest: dict[tuple[str, int], int] = {}
         self._epoch = 0
         self._tool: int | None = None
+        # keeps DISABLE on the instance, shutdown clears module globals such as sys before the last line event
+        self._disable = sys.monitoring.DISABLE
         # serialises epoch changes with line records, reentrant because this file's own lines fire inside it
         self._lock = threading.RLock()
 
@@ -115,7 +117,7 @@ class LineMonitor:
         if code.co_filename.startswith(self._prefix):
             with self._lock:
                 self._latest[(code.co_filename, line)] = self._epoch
-        return sys.monitoring.DISABLE
+        return self._disable
 
 
 class Statements:

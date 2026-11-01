@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from models.common import glob
+from models.common import glob, literal
 
 SCHEMA_VERSION = 1
 
@@ -21,7 +21,6 @@ WINDOW = 10  # commits per path that name its owners, so a departed author does 
 MAX_FILES = 50  # a commit touching more is a sweep and names no owner
 SKIP = ("vendor/", "third_party/", "node_modules/")  # vendored folders at any depth get no rule (spec 3.2)
 MODELS = "models/"  # the root /models folder, which init writes, gets no rule (spec 3.2)
-GLOB_CHARS = ("*", "?")  # a path holding these gets no rule, since rules are read as globs
 
 
 class OwnershipInputError(Exception):
@@ -102,12 +101,12 @@ def propose_ownership(
         path
         for path, change_type in newest.items()
         if change_type != "DELETED" and not _under(path, skip) and not path.startswith(MODELS)
-        and not any(c in path for c in GLOB_CHARS)
     }
     owners = _owners(walked, live, window, max_files, bots)
     return {
         "rules": [
-            {"owners": sorted(owners[path]), "pattern": path}
+            # escapes the path, since rules are read as globs and "src/*.py" would claim its neighbours
+            {"owners": sorted(owners[path]), "pattern": literal(path)}
             for path in sorted(live)
             if owners[path]
         ],
