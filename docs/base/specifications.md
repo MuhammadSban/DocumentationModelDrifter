@@ -240,15 +240,17 @@ PARSE_FAILED, so generators may assume every file parses.
     commits, following renames and skipping merges, bot commits and commits that change more than
     50 files. The file gets one rule: its exact path, owned by every author of those commits. A
     file with no such commit gets no rule, and the rules are sorted by path. A bot commit is one
-    whose author email contains `[bot]@`, as GitHub apps' do; vendored means under a `vendor/`,
+    whose author email contains `[bot]`, as GitHub apps' do; vendored means under a `vendor/`,
     `third_party/` or `node_modules/` folder at any depth. These settings are fixed in the tool,
     not stored in /models. People then correct the file by hand, like a GitHub CODEOWNERS file,
     and may add broader rules after the proposed ones: for files created later, or for /models
     itself, which no proposed rule covers because init writes it.
   - Comparison: not regenerated per push. Every non-merge commit between the base and the
     checked commit is judged: each file it changes must have, as its git author, one of the
-    owners of that file's path, compared in lowercase. A rename is judged under both its old and
-    its new path, so renaming an owned file is not a way around its rule. Co-authors do not count, and bots get no special case (list a
+    owners of that file's path, compared in lowercase. A rename is judged under its old
+    path: the owners travel with the file, so they may move it, and a non-owner cannot move an
+    owned file out from under its rule. The rule itself stays on the old path; people move it to
+    the new path in ownership.json. Co-authors do not count, and bots get no special case (list a
     bot's email to allow it). A violation names the commit, the path, the author and the owners.
 
 Why ownership is checked differently: it is mined from history, and history grows with every push,
