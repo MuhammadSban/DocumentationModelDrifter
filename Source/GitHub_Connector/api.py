@@ -8,7 +8,7 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-from GitHub_Connector import course, runs
+from GitHub_Connector import course, rules, runs
 from Tester import api as tester
 from GitHub_Connector.analysis import analyze
 from GitHub_Connector.schemas import (
@@ -18,6 +18,7 @@ from GitHub_Connector.schemas import (
     ErrorBody,
     ErrorCode,
 )
+from GitHub_Connector.settings import build_label
 
 # maps every contract error code to its HTTP status, the one table all failures go through
 STATUS_FOR = {
@@ -108,9 +109,15 @@ def index() -> dict:
 
 
 @router.get("/health")
-def health() -> dict[str, str]:
-    # answers the warm-up call, does no git work
-    return {"status": "ok", "storage": "local"}
+def health() -> dict[str, object]:
+    # answers the warm-up call, does no git work; model_drift lets testers skip the prose tests (contract §1)
+    return {
+        "status": "ok",
+        "tool_version": build_label(),
+        "config_version": rules.config_version(),
+        "storage": "local",
+        "features": ["model_drift"],
+    }
 
 
 @app.get("/", include_in_schema=False)
