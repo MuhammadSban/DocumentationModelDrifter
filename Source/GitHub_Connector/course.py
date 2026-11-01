@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,13 @@ BASIS = (
     f"Executable source lines of the {PACKAGE} package's v1 modules, the course routes excepted, "
     "executed while handling requests since this session was set up (coverage.py statement lines, Python line events, line coverage)"
 )
+
+
+# releases an unread session this long after its setup: tester setup (120 s) plus tester run (600 s), contract section 2
+RELEASE_AFTER = 720
+
+# reads the time a session opened, swapped in tests
+_clock = time.monotonic
 
 
 class TestSetupRequest(BaseModel):
@@ -143,28 +151,45 @@ class Statements:
 
 
 class Sessions:
-    # holds open sessions in memory, lost on restart like run files
+    # holds sessions in memory, one active at a time (contract section 2), lost on restart like run files
 
     def __init__(self) -> None:
         self._monitor = LineMonitor(PACKAGE_DIR)
         self._statements = Statements(PACKAGE_DIR)
         self._opened: dict[str, int] = {}
+        self._frozen: dict[str, dict] = {}
+        self._active: str | None = None
+        self._since = 0.0
+        self._read = False
         self._lock = threading.Lock()
 
-    def open(self, session_id: str) -> bool:
-        # opens a session, False when the id is already taken
+    def open(self, session_id: str) -> str | None:
+        # opens a session, or says why it answers 409: the id is taken, or another session is still active
         with self._lock:
             if session_id in self._opened:
-                return False
+                return f"session {session_id} already exists"
+            if self._active is not None:
+                if not self._read and _clock() - self._since < RELEASE_AFTER:
+                    return "another test session is active"
+                # freezes the released session's report, so the next session's lines never count toward it
+                self._frozen[self._active] = self._build(self._active)
             self._opened[session_id] = self._monitor.new_epoch()
-            return True
+            self._active, self._since, self._read = session_id, _clock(), False
+            return None
 
     def report(self, session_id: str) -> dict | None:
-        # builds the reference service's report shape, None for an unknown session
-        epoch = self._opened.get(session_id)
-        if epoch is None:
-            return None
-        covered, total = self._statements.count(self._monitor.lines_since(epoch))
+        # builds the reference service's report shape, None for an unknown session; reading it frees the system
+        with self._lock:
+            if session_id in self._frozen:
+                return self._frozen[session_id]
+            if session_id != self._active:
+                return None
+            self._read = True
+            return self._build(session_id)
+
+    def _build(self, session_id: str) -> dict:
+        # counts the lines run since this session's setup
+        covered, total = self._statements.count(self._monitor.lines_since(self._opened[session_id]))
         return {
             "session_id": session_id,
             "coverage": {"code": {"covered": covered, "total": total, "basis": BASIS}},
@@ -177,9 +202,10 @@ router = APIRouter(prefix="/test", tags=["testing"])
 
 @router.post("/setup", status_code=201)
 def test_setup(request: TestSetupRequest):
-    # opens a session, 409 when the id was already set up
-    if not SESSIONS.open(request.session_id):
-        return course_error(409, f"session {request.session_id} already exists")
+    # opens a session, 409 when the id was already set up or another session is active
+    refused = SESSIONS.open(request.session_id)
+    if refused is not None:
+        return course_error(409, refused)
     return {"session_id": request.session_id}
 
 
