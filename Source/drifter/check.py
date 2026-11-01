@@ -3,8 +3,8 @@
 # committed /models by element id, and judge every non-merge commit between base and head
 # against the ownership rules. Read-only: nothing here writes to the repository.
 #
-#   python3 Source/orchestration.py --repo . HEAD          # check a local clone
-#   python3 Source/orchestration.py --repo . HEAD --base X  # against a given base
+#   python3 Source/drifter/check.py --repo . HEAD          # check a local clone
+#   python3 Source/drifter/check.py --repo . HEAD --base X  # against a given base
 #
 # Ownership is checked, never regenerated and diffed: history grows with the push being checked
 # (spec 3.2). `drifter init` proposes the first ownership.json, a person corrects it, and from
@@ -22,7 +22,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from models.common import ParseFailed, glob, parse_files
 from models.ownership_model import CommitRecord, PathTouch, check_ownership
@@ -36,6 +36,9 @@ DEFAULT_SCOPE = {"exclude": ["tests/**"], "include": ["**/*.py"]}
 
 # caps one in-scope file, over this there is no verdict (spec 5.2)
 MAX_FILE_BYTES = 1024 * 1024
+
+# reads history for the ownership check, NUL-separated so no path comes back quoted
+LOG_ARGS = ("log", "-z", "--topo-order", "--name-status", "-M", "--format=%x01%H%x1f%ae%x1f%P")
 
 # maps git's status letters to the ownership model's change types
 LETTERS = {"A": "ADDED", "M": "MODIFIED", "D": "DELETED", "R": "RENAMED", "C": "COPIED", "T": "TYPE_CHANGED"}
@@ -222,29 +225,38 @@ def _history(repo: Path, head: str, base: str | None) -> list[CommitRecord]:
         parents = _git(repo, "rev-parse", f"{head}^@").split()
         base = parents[0] if parents else None
     span = [f"{base}..{head}"] if base else [head]
-    return _parse_history(_git(repo, "log", "--topo-order", "--name-status", "-M",
-                               "--format=%x00%H%x1f%ae%x1f%P", *span))
+    return _parse_history(_git(repo, *LOG_ARGS, *span))
 
 
 def _parse_history(raw: str) -> list[CommitRecord]:
-    # reads the commit records out of one git log, whichever clone ran it
-    records = []
-    for block in raw.split("\x00"):
-        if not block.strip():
-            continue
-        lines = block.strip("\n").split("\n")
-        sha, email, parent_list = lines[0].split("\x1f")
-        touches = []
-        for line in lines[1:]:
-            if not line.strip():
-                continue
-            parts = line.split("\t")
-            if parts[0][0] == "R":
-                touches.append(PathTouch(parts[2], "RENAMED", parts[1]))
-            else:
-                touches.append(PathTouch(parts[1], LETTERS[parts[0][0]]))
-        records.append(CommitRecord(sha, email.lower(), tuple(parent_list.split()), tuple(touches)))
+    # reads the commit records out of one `git log` run with LOG_ARGS, whichever clone ran it.
+    # Every field ends in NUL, so a path is read as git stores it, never quoted: a header opens
+    # with \x01, then each change is a status and one path, or two for a rename or copy.
+    tokens = raw.split("\x00")
+    records, header, touches, i = [], None, [], 0
+    while i < len(tokens):
+        token = tokens[i].lstrip("\n")
+        i += 1
+        if token.startswith("\x01"):
+            if header:
+                records.append(_record(header, touches))
+            header, touches = token[1:], []
+        elif token[:1] in ("R", "C"):
+            old, new = tokens[i], tokens[i + 1]
+            i += 2
+            touches.append(PathTouch(new, "RENAMED", old) if token[0] == "R" else PathTouch(new, "COPIED"))
+        elif token:
+            touches.append(PathTouch(tokens[i], LETTERS[token[0]]))
+            i += 1
+    if header:
+        records.append(_record(header, touches))
     return records
+
+
+def _record(header: str, touches: list[PathTouch]) -> CommitRecord:
+    # builds one commit record from its sha, author email and parents
+    sha, email, parent_list = header.split("\x1f")
+    return CommitRecord(sha, email.lower(), tuple(parent_list.split()), tuple(touches))
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -275,7 +287,7 @@ def main() -> None:
     # checks a local clone at a commit
     args = sys.argv[1:]
     if "--repo" not in args:
-        print(__doc__ or "usage: orchestration.py --repo PATH [COMMIT] [--base SHA]")
+        print(__doc__ or "usage: check.py --repo PATH [COMMIT] [--base SHA]")
         return
     repo = Path(args[args.index("--repo") + 1]).resolve()
     base = args[args.index("--base") + 1] if "--base" in args else None

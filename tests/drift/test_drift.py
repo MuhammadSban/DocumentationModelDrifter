@@ -6,6 +6,7 @@ import subprocess
 
 import pytest
 
+from drifter.check import local_sources
 from GitHub_Connector import analysis, runs
 from GitHub_Connector.schemas import AnalysisRequest
 from GitHub_Connector.settings import get_settings
@@ -31,14 +32,16 @@ def _repo(tmp_path, files, author="ana@x.com", second=None):
     work = tmp_path / "work"
     work.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "init", "-q", "-b", "main", str(work)], check=True)
+    # lets the index hold names Windows cannot put on disk, such as one with a tab
+    _git(work, "config", "core.protectNTFS", "false")
     for commit in (files, second):
         if commit is None:
             continue
         for path, text in commit.items():
-            target = work / path
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(text if isinstance(text, bytes) else text.encode())
-        _git(work, "add", "-A", author=author)
+            # stages each file by plumbing, never on disk, so any name git allows can be committed
+            blob = subprocess.run(["git", "-C", str(work), "hash-object", "-w", "--stdin"], check=True,
+                                  capture_output=True, input=text if isinstance(text, bytes) else text.encode())
+            _git(work, "update-index", "--add", "--cacheinfo", f"100644,{blob.stdout.decode().strip()},{path}")
         _git(work, "commit", "-qm", "change", author=author)
     bare = tmp_path / "remotes" / "owner" / "repo.git"
     subprocess.run(["git", "clone", "-q", "--bare", str(work), str(bare)], check=True)
@@ -114,6 +117,26 @@ def test_an_owners_own_commit_is_no_violation(tmp_path, monkeypatch):
 
     assert result.drift.ownership == []
 
+
+# names git quotes in a plain log, which must still meet the rules as they are
+ODD_NAMES = ["src/a\tb.txt", 'src/say "hi".txt', "src/café.txt"]
+
+
+def test_a_non_owner_is_judged_under_any_name_git_allows(tmp_path, monkeypatch):
+    rules = {"rules": [{"owners": ["bob@x.com"], "pattern": "src/**"}], "schema_version": 1}
+    files = {**CODE, **_models(CODE, **{"models/ownership.json": write_model(rules)})}
+
+    result = _analyze(tmp_path, monkeypatch, files, second=dict.fromkeys(ODD_NAMES, "x\n"))
+
+    assert sorted(v.path for v in result.drift.ownership) == sorted(ODD_NAMES)
+
+
+def test_the_local_reader_keeps_any_name_git_allows(tmp_path):
+    _repo(tmp_path, {**CODE, **_models(CODE)}, second=dict.fromkeys(ODD_NAMES, "x\n"))
+
+    sources = local_sources(tmp_path / "work", "HEAD")
+
+    assert sorted(t.path for c in sources.commits for t in c.paths) == sorted(ODD_NAMES)
 
 @pytest.mark.parametrize(
     "code, overrides, expected",

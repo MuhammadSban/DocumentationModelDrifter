@@ -14,6 +14,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from drifter.check import LOG_ARGS
 from GitHub_Connector import rules
 from GitHub_Connector.schemas import AnalysisError, ChangeType, ErrorCode
 from GitHub_Connector.settings import get_settings
@@ -127,9 +128,7 @@ class Comparison:
         # returns the commits the ownership check judges, newest first: those base..head, or the
         # head alone for a root commit (spec 3.1). Text, so the check owns the parsing.
         span = f"{self.base}..{self.head}" if self.base else self.head
-        return self._git.out(
-            "log", "--topo-order", "--name-status", "-M", "--format=%x00%H%x1f%ae%x1f%P", span
-        )
+        return self._git.out(*LOG_ARGS, span)
 
 
 def _lines(values: list[str]) -> bytes:
