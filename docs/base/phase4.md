@@ -45,7 +45,7 @@ The spec (§3.2, §5.2, §6.1, §7.1) fixes what each piece must output; the con
 What exists on `main` (2026-11-01):
 
 - **Reusable, in Source/GitHub_Connector:** fetch.py (clone, resolve short SHA, first parent, diff, read blobs, timeouts), runs.py (write-once run files), course.py (system /test/setup and /test/report with line coverage), api.py routing.
-- **Started, outside the plan's layout:** `Source/models/` holds `common.py` (`parse_files`, `write_model`), `structural_model.py` (the structural generator) and `ownership_model.py` (propose and check); `Source/orchestration.py` runs a local check with scope, diff by id and the ownership check, with FILLERs for behavioral and remote repositories; `Source/Tester/` serves the tester at /tester; `tests/` holds the connector, structural, common, tester and diagram tests.
+- **Started, outside the plan's layout:** `Source/models/` holds `common.py` (`parse_files`, `write_model`), `structural_model.py` (the structural generator) and `ownership_model.py` (propose and check); `Source/drifter/check.py` (moved from `Source/orchestration.py`) runs a local check with scope, diff by id and the ownership check, with FILLERs for behavioral and remote repositories; `Source/Tester/` serves the tester at /tester; `tests/` holds the connector, structural, common, tester and diagram tests.
 - **Not contract 2.4.0:** run files are lost on redeploy. (Done on `main`, merged from contract-alignment: features in /health, mapping-v1.1.yaml, config_version mapping-v1.1, unmapped, contract error codes, one skip reason, 80 s deadline, CHANGE_LIMIT_EXCEEDED, one active test session; all 10 golden cases pass. The console path already points at Frontend_Archive.)
 - **Missing entirely:** the behavioral generator, `Source/drifter/`, the CLI, `drift` on /analyze, /generate, packaging, the durable store.
 
@@ -55,7 +55,7 @@ Decided 2026-11-01 in a design session (decisions D1 to D12 below). It replaces 
 
 | Who | Owns |
 | --- | --- |
-| Kaan | core (`Source/drifter/`, `Source/models/common.py`), hosted service, CLI, model fixture and goldens |
+| Kaan | core (`Source/drifter/`, `Source/models/common.py`; Muhammad may edit `check.py` too), hosted service, CLI, model fixture and goldens |
 | Enrique | structural model (`Source/models/structural_model.py`) and the tester |
 | Barshan | behavioral model (`Source/models/behavioral_model.py`) |
 | Muhammad | ownership model (`Source/models/ownership_model.py`, moved from `Source/Modelers/`) |
@@ -79,7 +79,7 @@ Needs no model format. Builds on `main` (contract-alignment is merged), where /h
 | --- | --- |
 | File reader (D11): after `ls-tree` at head, fetch every needed blob in one `git fetch --filter=blob:none --stdin`; read with lazy fetching off, so a failed batch is 500 ANALYSIS_FAILED at once | a local test: reading succeeds after the batch and fails without it; the clone holds exactly 2 promisor packs |
 | Seam (D9, `docs/models/model-seam.md`): reuse `parse_files` and `write_model`; flatten each model's top-level lists to `{id: element}`; diff by id (ADDED, REMOVED, MODIFIED) | fake-plugin tests in tests/ cover each change type |
-| Orchestrator: scope.json, the four drift_error codes, the four-field answer | a test per drift_error code; aligned true only when all three lists are empty |
+| Orchestrator, starting from `Source/drifter/check.py`: scope.json, the four drift_error codes, the four-field answer | a test per drift_error code; aligned true only when all three lists are empty |
 | `drift` and `drift_error` on every /analyze, POST /generate | T-32 passes at L-pre (MODELS_NOT_FOUND) |
 | Ownership checker and commit log (D10): `CommitRecord` in `common.py` (no `author_login`; lowercase email, no prefix); first matching rule wins; no rule means anyone; a rename is judged under its old path; one glob matcher shared with mapping-v1.1.yaml | scripted-author repo: a non-owner gives one VIOLATION, an owner none |
 | CLI (D12): `drifter init`, `update`, `check` on a local checkout (commit defaults to HEAD); `pyproject.toml` with a `drifter` entry point | `pip install -e .`; check exits 0, 1 and 2 in tests |

@@ -3,8 +3,8 @@
 # committed /models by element id, and judge every non-merge commit between base and head
 # against the ownership rules. Read-only: nothing here writes to the repository.
 #
-#   python3 Source/orchestration.py --repo . HEAD          # check a local clone
-#   python3 Source/orchestration.py --repo . HEAD --base X  # against a given base
+#   python3 Source/drifter/check.py --repo . HEAD          # check a local clone
+#   python3 Source/drifter/check.py --repo . HEAD --base X  # against a given base
 #
 # Ownership is checked, never regenerated and diffed: history grows with the push being checked
 # (spec 3.2). `drifter init` proposes the first ownership.json, a person corrects it, and from
@@ -24,7 +24,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from models.common import ParseFailed, parse_files
 from models.ownership_model import CommitRecord, PathTouch, check_ownership
@@ -241,7 +241,7 @@ def main() -> None:
     # checks a local clone at a commit
     args = sys.argv[1:]
     if "--repo" not in args:
-        print(__doc__ or "usage: orchestration.py --repo PATH [COMMIT] [--base SHA]")
+        print(__doc__ or "usage: check.py --repo PATH [COMMIT] [--base SHA]")
         return
     repo = Path(args[args.index("--repo") + 1]).resolve()
     base = args[args.index("--base") + 1] if "--base" in args else None
