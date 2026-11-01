@@ -7,6 +7,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
+
 from drifter import check, cli
 from models.common import write_model
 from models.structural_model import generate_structural
@@ -183,3 +185,111 @@ def test_the_drifter_script_runs_check_without_fastapi(tmp_path):
 
     assert proc.returncode == 0, proc.stderr.decode()
     assert json.loads(proc.stdout)["aligned"] is True
+
+
+# ------------------------------------------- no verdict: the four drift_error codes, exit 2 (#15)
+
+# holds exactly the size limit: a comment line padded to 1,048,576 bytes
+LIMIT = b"#" * (1024 * 1024 - 1) + b"\n"
+
+
+def _no_verdict(path, monkeypatch, capsysbinary, files, models=None):
+    # commits files and the models CODE deserves, models overriding (None removes one), then
+    # checks through the entry point and the CLI and returns the CLI's drift_error
+    repo = _repo(path, CODE)
+    for name, text in {**files, **(models or {})}.items():
+        target = repo / name
+        if text is None:
+            target.unlink()
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(text if isinstance(text, bytes) else text.encode())
+    _commit(repo, "break it")
+    try:
+        check.local_sources(repo)
+        raised = None
+    except check.DriftError as exc:
+        raised = exc.body()
+    code, out = _check(repo, monkeypatch, capsysbinary)
+    body = json.loads(out)
+    assert code == 2
+    assert body["drift"] is None
+    assert body["drift_error"] == raised
+    return body["drift_error"]
+
+
+def test_no_models_folder_is_models_not_found(tmp_path, monkeypatch, capsysbinary):
+    gone = {f"models/{name}": None for name in check.MODEL_FILES}
+
+    error = _no_verdict(tmp_path, monkeypatch, capsysbinary, {}, gone)
+
+    assert error["code"] == "MODELS_NOT_FOUND"
+
+
+def test_one_missing_model_file_is_models_not_found(tmp_path, monkeypatch, capsysbinary):
+    error = _no_verdict(tmp_path, monkeypatch, capsysbinary, {}, {"models/ownership.json": None})
+
+    assert error["code"] == "MODELS_NOT_FOUND"
+    assert "models/ownership.json" in error["message"]
+
+
+ELEMENT = {"file": "src/app.py", "id": "A", "kind": "state"}
+
+
+@pytest.mark.parametrize(
+    "name, text",
+    [
+        pytest.param("structural.json", "{not json", id="bad-json"),
+        pytest.param("behavioral.json", write_model({"states": [ELEMENT, ELEMENT]}), id="duplicate-id"),
+        pytest.param("behavioral.json", write_model({"states": [{"id": "A", "kind": "state"}]}), id="missing-file"),
+        pytest.param("behavioral.json", write_model({"states": ["A"]}), id="element-not-object"),
+        pytest.param("structural.json", "[]\n", id="model-not-object"),
+        pytest.param("scope.json", write_model({"include": "**/*.py"}), id="scope-not-list"),
+        pytest.param("scope.json", "[]\n", id="scope-not-object"),
+    ],
+)
+def test_a_bad_model_file_is_invalid_models_naming_it(tmp_path, monkeypatch, capsysbinary, name, text):
+    error = _no_verdict(tmp_path, monkeypatch, capsysbinary, {}, {f"models/{name}": text})
+
+    assert error["code"] == "INVALID_MODELS"
+    assert f"models/{name}" in error["message"]
+
+
+def test_one_byte_over_1_mb_is_file_too_large(tmp_path, monkeypatch, capsysbinary):
+    error = _no_verdict(tmp_path, monkeypatch, capsysbinary, {"src/big.py": LIMIT + b"\n"})
+
+    assert error == {"code": "FILE_TOO_LARGE", "message": "src/big.py is 1048577 bytes, over 1 MB"}
+
+
+def test_exactly_1_mb_passes(tmp_path, monkeypatch, capsysbinary):
+    repo = _repo(tmp_path, {**CODE, "src/big.py": LIMIT.decode()})
+
+    code, _ = _check(repo, monkeypatch, capsysbinary)
+
+    assert code == 0
+
+
+@pytest.mark.parametrize(
+    "data, words",
+    [
+        pytest.param(b"def f(:\n", ["src/bad.py", "line 1"], id="syntax"),
+        pytest.param("name = 'café'\n".encode("latin-1"), ["src/bad.py", "UTF-8"], id="latin-1"),
+        pytest.param(b"x = 1\x00\n", ["src/bad.py", "null byte"], id="null-byte"),
+    ],
+)
+def test_an_unreadable_file_is_parse_failed_naming_it(tmp_path, monkeypatch, capsysbinary, data, words):
+    error = _no_verdict(tmp_path, monkeypatch, capsysbinary, {"src/bad.py": data})
+
+    assert error["code"] == "PARSE_FAILED"
+    assert all(word in error["message"] for word in words)
+
+
+def test_of_two_bad_files_the_first_in_path_order_wins_every_run(tmp_path, monkeypatch, capsysbinary):
+    # a syntax error in src/a.py comes before a too-large src/b.py, though size is judged first
+    bad = {"src/a.py": b"def f(:\n", "src/b.py": LIMIT + b"\n"}
+
+    first = _no_verdict(tmp_path / "one", monkeypatch, capsysbinary, bad)
+    second = _no_verdict(tmp_path / "two", monkeypatch, capsysbinary, bad)
+
+    assert first["code"] == "PARSE_FAILED" and "src/a.py" in first["message"]
+    assert first == second

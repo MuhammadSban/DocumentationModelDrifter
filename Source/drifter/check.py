@@ -167,7 +167,7 @@ def local_sources(repo: Path, head: str = "HEAD", base: str | None = None) -> So
 
 def read_sources(reader: Reader) -> Sources:
     # reads the three things one check needs: the committed /models at the commit, the in-scope
-    # files, and the commits the ownership check judges. The three no-verdict codes are raised
+    # files, and the commits the ownership check judges. All four no-verdict codes are raised
     # here, before any generator runs (phase4.md Q2).
     tree = reader.tree()
     missing = [name for name in MODEL_FILES if f"models/{name}" not in tree]
@@ -176,21 +176,22 @@ def read_sources(reader: Reader) -> Sources:
     committed = reader.read([f"models/{name}" for name in MODEL_FILES])
     models = {name: _model(f"models/{name}", committed[f"models/{name}"]) for name in MODEL_FILES}
     for name in ("behavioral.json", "structural.json"):
-        _unique_ids(f"models/{name}", models[name])
+        _element_rule(f"models/{name}", models[name])
+    _scope_rule(models["scope.json"])
     paths = in_scope(sorted(tree), models["scope.json"])
     raw = reader.read(paths)
-    # judges size, then encoding, then syntax, each before any generator runs (phase4.md Q2).
-    # Size is judged on what arrived: a blobless clone cannot report it any earlier.
-    big = [path for path in sorted(raw) if len(raw[path]) > MAX_FILE_BYTES]
-    if big:
-        raise DriftError("FILE_TOO_LARGE", f"{big[0]} is {len(raw[big[0]])} bytes, over 1 MB")
-    files = _decode(raw)
-    # parses every in-scope file once before any generator runs, so a generator may assume each
-    # one parses and one bad file fails the whole check (spec 3.2)
-    try:
-        parse_files(files)
-    except ParseFailed as exc:
-        raise DriftError(exc.code, str(exc)) from None
+    # judges each file in path order by size, then encoding, then syntax, so the first bad file
+    # is the one reported (phase4.md Q2). Size is judged on what arrived: a blobless clone cannot
+    # report it any earlier. Parsing every file here lets a generator assume each one parses (spec 3.2).
+    files = {}
+    for path in sorted(raw):
+        if len(raw[path]) > MAX_FILE_BYTES:
+            raise DriftError("FILE_TOO_LARGE", f"{path} is {len(raw[path])} bytes, over 1 MB")
+        files[path] = _decode(path, raw[path])
+        try:
+            parse_files({path: files[path]})
+        except ParseFailed as exc:
+            raise DriftError(exc.code, str(exc)) from None
     return Sources(files=files, models=models, commits=_parse_history(reader.log()))
 
 
@@ -239,25 +240,39 @@ class LocalReader:
         return _git(self.repo, *LOG_ARGS, span)
 
 
-def _decode(raw: dict[str, bytes]) -> dict[str, str]:
-    # turns each in-scope file's bytes into text; one that is not UTF-8 ends the check (spec 5.2)
-    files = {}
-    for path, data in raw.items():
-        try:
-            files[path] = data.decode("utf-8")
-        except UnicodeDecodeError:
-            raise DriftError("PARSE_FAILED", f"{path} is not UTF-8 text") from None
-    return files
+def _decode(path: str, data: bytes) -> str:
+    # turns one in-scope file's bytes into text; one that is not UTF-8 ends the check (spec 5.2)
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise DriftError("PARSE_FAILED", f"{path} is not UTF-8 text") from None
 
 
-def _unique_ids(path: str, model: dict) -> None:
-    # rejects a model that repeats an element id, which the diff by id would silently collapse
+def _element_rule(path: str, model: object) -> None:
+    # rejects a model that breaks the element rule (model-seam.md): an object whose top-level
+    # lists hold objects with a string id, kind and file, no id repeated, since the diff by id
+    # would silently collapse a repeat
+    if not isinstance(model, dict):
+        raise DriftError("INVALID_MODELS", f"{path} is not a JSON object")
     seen: set[str] = set()
     for value in model.values():
         for element in value if isinstance(value, list) else ():
+            if not (isinstance(element, dict) and all(isinstance(element.get(k), str) for k in ("id", "kind", "file"))):
+                raise DriftError("INVALID_MODELS", f"{path} has an element without a string id, kind and file")
             if element["id"] in seen:
                 raise DriftError("INVALID_MODELS", f"{path} repeats the id {element['id']}")
             seen.add(element["id"])
+
+
+def _scope_rule(scope: object) -> None:
+    # rejects a scope.json that is not an object whose include and exclude, when given, are
+    # lists of patterns
+    if not isinstance(scope, dict):
+        raise DriftError("INVALID_MODELS", "models/scope.json is not a JSON object")
+    for key in ("include", "exclude"):
+        patterns = scope.get(key, [])
+        if not (isinstance(patterns, list) and all(isinstance(p, str) for p in patterns)):
+            raise DriftError("INVALID_MODELS", f"models/scope.json: {key} is not a list of patterns")
 
 
 def _model(path: str, raw: bytes | str) -> dict:
