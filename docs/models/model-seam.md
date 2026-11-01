@@ -10,7 +10,7 @@ Each owner decides everything inside their model: kinds, id scheme, attributes, 
 | --- | --- | --- |
 | Structural | Enrique | `generate_structural(files) -> dict` and `structural.schema.json`; element lists `nodes`, `edges` |
 | Behavioral | Barshan | `generate_behavioral(files) -> dict` and `behavioral.schema.json`; element lists of the owner's choice |
-| Ownership | Muhammad | `propose(head_sha, records) -> dict` and `ownership.schema.json`; rules, never diffed |
+| Ownership | Muhammad | `propose_ownership(head_sha, records) -> dict` and `ownership.schema.json`; rules, never diffed |
 | Core | Kaan | `parse_files`, `write_model`, `CommitRecord`, scope, the diff, the ownership checker, the CLI |
 
 ## The element rule (structural and behavioral)
@@ -49,7 +49,7 @@ flowchart TB
 
     subgraph OW[Ownership]
         Log[git integration: every commit up to head,<br/>newest first, as CommitRecord<br/>sha, author_email, author_date, parent_count, paths]
-        Log -- init and /generate --> Prop["propose<br/>(owner)"] --> Write[write_model: ownership.json]
+        Log -- init and /generate --> Prop["propose_ownership<br/>(owner)"] --> Write[write_model: ownership.json]
         Log -- non-merge commits base..head --> Check[checker: first matching rule wins,<br/>no rule means anyone,<br/>a rename is judged on its old path]
         Rules["ownership.json, validated<br/>against the schema (owner)"] --> Check
         Check --> Viol[VIOLATION<br/>author, commit, owners, path]
@@ -58,7 +58,7 @@ flowchart TB
     SB ~~~ OW
 ```
 
-`propose()` returns rules sorted by path, each one exact path with its owners as sorted lowercase emails: `{"rules": [{"owners": ["a@x.com"], "pattern": "src/app.py"}], "schema_version": 1}`. Inside it is Muhammad's: `derive()`, the window of 10, the 50-file limit and the vendored folders as a config file in the tool, a bot being an email containing `[bot]`, and no `email:` prefix.
+`propose_ownership()` returns rules sorted by path, each one exact path with its owners as sorted lowercase emails: `{"rules": [{"owners": ["a@x.com"], "pattern": "src/app.py"}], "schema_version": 1}`. Inside it is Muhammad's: the window of 10, the 50-file limit and the vendored folders as constants in `ownership_model.py`, a bot being an email containing `[bot]`, and no `email:` prefix.
 
 ## Done when (each owner, before plugging in at v1.2)
 
