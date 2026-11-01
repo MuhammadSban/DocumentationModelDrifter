@@ -10,7 +10,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # anchors defaults to the repo, the app runs from Source/ so CWD cannot be trusted
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PACKAGE_DIR = Path(__file__).resolve().parent
 VERSION = "1.1.0"
 
 
@@ -33,11 +32,8 @@ class AnalysisSettings(BaseSettings):
     # holds temporary clones, None means the system temp folder
     clone_dir: Path | None = None
 
-    # lists the ordered path rules, config_version is a hash of this file
-    rules_file: Path = PACKAGE_DIR / "path_rules.json"
-
-    # skips any changed file over this many bytes
-    max_file_bytes: int = 1024 * 1024
+    # points at the pod's shared mapping, loaded at runtime (contract section 1)
+    mapping_file: Path = REPO_ROOT / "docs" / "contract" / "mapping-v1.1.yaml"
 
     # caps each git call and the whole analysis, both end in 500 ANALYSIS_FAILED; 80 s stays under the pod's 90 s per call (spec 2.2)
     git_timeout: float = 60

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 
 class Category(str, Enum):
-    # names the kind of file a change touches, DOCUMENTATION is our one addition
+    # names the kind of file a change touches, as mapping-v1.1.yaml decides
     IMPLEMENTATION = "IMPLEMENTATION"
     DESIGN = "DESIGN"
     ARCHITECTURE = "ARCHITECTURE"
@@ -101,6 +101,7 @@ class AnalysisResult(BaseModel):
     issues: list[Finding]
     changes: list[Change]
     skipped: list[Skipped]
+    unmapped: list[str]
     created_at: str
 
 

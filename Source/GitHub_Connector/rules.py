@@ -1,70 +1,100 @@
-# gives each changed path a category from the ordered rules file, first match wins,
-# and says which file types are skipped unread
+# gives each changed path a category from the pod's mapping-v1.1.yaml, first match wins (v1.1 SPEC section 5.1),
+# and says which paths are skipped and which implementation paths have no mapping
 
 from __future__ import annotations
 
-import hashlib
-import json
+import re
 from dataclasses import dataclass
-from fnmatch import fnmatchcase
 from functools import lru_cache
 from pathlib import Path
+
+import yaml
 
 from GitHub_Connector.schemas import Category
 from GitHub_Connector.settings import get_settings
 
 
 @dataclass(frozen=True)
-class _Rules:
-    # holds one version of the rules file
-    raw: bytes
-    rules: list[tuple[str, Category]]
-    fallback: Category
-    unsupported_exts: tuple[str, ...]
+class _Mapping:
+    # holds one version of the mapping file
+    config_version: str
+    categories: list[tuple[re.Pattern, Category]]
+    default: Category
+    extensions: frozenset[str]
+    filenames: frozenset[str]
+    sources: frozenset[str]
 
 
-def _rules(rules_file: Path) -> _Rules:
-    # rereads the rules whenever the file changes on disk
-    st = rules_file.stat()
-    return _load(rules_file, st.st_mtime_ns, st.st_size)
+def _mapping() -> _Mapping:
+    # rereads the mapping whenever the file changes on disk
+    path = get_settings().mapping_file
+    st = path.stat()
+    return _load(path, st.st_mtime_ns, st.st_size)
 
 
 @lru_cache(maxsize=8)
-def _load(rules_file: Path, _mtime: int, _size: int) -> _Rules:
-    # reads one version of the rules, line endings normalised so a Windows checkout hashes the same
-    raw = rules_file.read_bytes().replace(b"\r\n", b"\n")
-    data = json.loads(raw)
-    rules = [(r["pattern"], Category(r["category"])) for r in data.get("rules", [])]
-    exts = tuple(ext.lower() for ext in data.get("unsupported", []))
-    return _Rules(raw, rules, Category(data["fallback"]), exts)
+def _load(path: Path, _mtime: int, _size: int) -> _Mapping:
+    # reads one version of the mapping, patterns compiled in file order
+    data = yaml.safe_load(path.read_text("utf-8"))
+    categories = [
+        (_glob(pattern), Category(entry["category"]))
+        for entry in data["categories"]
+        for pattern in entry["patterns"]
+    ]
+    return _Mapping(
+        config_version=data["config_version"],
+        categories=categories,
+        default=Category(data["default_category"]),
+        extensions=frozenset(ext.lower() for ext in data["supported_extensions"]),
+        filenames=frozenset(data["supported_filenames"]),
+        sources=frozenset(m["source"] for m in data.get("mappings") or []),
+    )
+
+
+def _glob(pattern: str) -> re.Pattern:
+    # turns a POSIX glob into a regex: "**/" is zero or more folders, "**" anything, "*" one segment's text
+    out, i = [], 0
+    while i < len(pattern):
+        if pattern.startswith("**/", i):
+            out.append("(?:.*/)?")
+            i += 3
+        elif pattern.startswith("**", i):
+            out.append(".*")
+            i += 2
+        elif pattern[i] == "*":
+            out.append("[^/]*")
+            i += 1
+        elif pattern[i] == "?":
+            out.append("[^/]")
+            i += 1
+        else:
+            out.append(re.escape(pattern[i]))
+            i += 1
+    return re.compile("".join(out) + r"\Z")
 
 
 def config_version() -> str:
-    # hashes the rules file, so any rule change shows up in every run file
-    return hashlib.sha256(_rules(get_settings().rules_file).raw).hexdigest()[:12]
+    # names the mapping version every result carries, mapping-v1.1
+    return _mapping().config_version
 
 
 def classify(path: str) -> Category:
-    # returns the category of the first rule that matches, else the fallback
-    loaded = _rules(get_settings().rules_file)
-    for pattern, category in loaded.rules:
-        if matches(pattern, path):
+    # returns the category of the first pattern that matches, else the default, OTHER
+    loaded = _mapping()
+    for pattern, category in loaded.categories:
+        if pattern.match(path):
             return category
-    return loaded.fallback
+    return loaded.default
 
 
 def is_unsupported(path: str) -> bool:
-    # says whether a path's file type is on the denylist, so it is skipped without being read
-    name = path.rsplit("/", 1)[-1].lower()
-    return name.endswith(_rules(get_settings().rules_file).unsupported_exts)
+    # says whether a path is off the allowlist: neither its extension (any case) nor its file name is listed
+    loaded = _mapping()
+    name = path.rsplit("/", 1)[-1]
+    ext = name[name.rfind("."):].lower() if "." in name else ""
+    return ext not in loaded.extensions and name not in loaded.filenames
 
 
-def matches(pattern: str, path: str) -> bool:
-    # matches one rule against a repo-relative path, gitignore style
-    if "/" not in pattern:
-        # matches a bare name pattern such as *.md against the file name, in any folder
-        return fnmatchcase(path.rsplit("/", 1)[-1], pattern)
-    if pattern.endswith("/**"):
-        # matches a folder pattern such as docs/** against everything under it, from the root
-        return path.startswith(pattern[:-2])
-    return fnmatchcase(path, pattern)
+def is_mapped(path: str) -> bool:
+    # says whether a path is the source of an entry in mappings
+    return path in _mapping().sources

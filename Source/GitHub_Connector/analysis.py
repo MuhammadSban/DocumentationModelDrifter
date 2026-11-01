@@ -14,7 +14,9 @@ from GitHub_Connector.schemas import (
     AnalysisError,
     AnalysisRequest,
     AnalysisResult,
+    Category,
     Change,
+    ChangeType,
     ErrorCode,
     Skipped,
     Status,
@@ -73,6 +75,13 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
             for c in cmp.changes
         ]
         skipped = [Skipped(path=s.path, reason=s.reason) for s in cmp.skipped]
+        # lists implementation paths with no mapping entry, a deletion excluded (v1.1 SPEC section 6.1)
+        unmapped = [
+            c.path for c in changes
+            if c.category == Category.IMPLEMENTATION
+            and c.change_type != ChangeType.DELETED
+            and not rules.is_mapped(c.path)
+        ]
         head, base = cmp.head, cmp.base
 
     result = AnalysisResult(
@@ -85,8 +94,9 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
         status=Status.SUCCESS,
         error=None,
         issues=[],  # stays empty, this system has no prose detector (contract deviation 1)
-        changes=sorted(changes, key=lambda c: c.path),
+        changes=sorted(changes, key=lambda c: (c.path, c.old_path or "")),
         skipped=sorted(skipped, key=lambda s: s.path),
+        unmapped=sorted(unmapped),
         created_at=_now(),
     )
     try:
