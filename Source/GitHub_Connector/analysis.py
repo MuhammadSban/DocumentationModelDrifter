@@ -125,7 +125,7 @@ def _drift(cmp) -> tuple[Drift | None, DriftErrorBody | None]:
     # It runs whatever status change detection reached, and a no-verdict code leaves status alone
     # and drift null, so a check that could not be completed is never read as aligned (spec 5.2)
     try:
-        return Drift(**check.answer(check.remote_sources(cmp))), None
+        return Drift(**check.answer(check.read_sources(cmp))), None
     except check.DriftError as exc:
         return None, DriftErrorBody(**exc.body())
 

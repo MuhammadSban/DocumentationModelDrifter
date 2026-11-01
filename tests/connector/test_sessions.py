@@ -1,5 +1,7 @@
 # checks the one-active-session rule of pod-contract.md section 2
 
+import sys
+
 from GitHub_Connector import course
 
 
@@ -24,3 +26,12 @@ def test_one_session_at_a_time(monkeypatch):
     assert sessions.open("c") == "another test session is active"
     clock[0] += 1
     assert sessions.open("c") is None
+
+
+def test_the_line_callback_survives_interpreter_shutdown(monkeypatch):
+    # shutdown clears module globals, so sys is None when a last line event fires
+    disable = sys.monitoring.DISABLE
+    monitor = course.LineMonitor(course.PACKAGE_DIR)
+    monkeypatch.setattr(course, "sys", None)
+
+    assert monitor._on_line(test_the_line_callback_survives_interpreter_shutdown.__code__, 1) is disable

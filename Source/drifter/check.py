@@ -3,26 +3,23 @@
 # committed /models by element id, and judge every non-merge commit between base and head
 # against the ownership rules. Read-only: nothing here writes to the repository.
 #
-#   python3 Source/orchestration.py --repo . HEAD          # check a local clone
-#   python3 Source/orchestration.py --repo . HEAD --base X  # against a given base
+#   drifter check               # check HEAD of the checkout in the current folder
+#   drifter check SHA --base X  # check a commit against a given base
 #
 # Ownership is checked, never regenerated and diffed: history grows with the push being checked
 # (spec 3.2). `drifter init` proposes the first ownership.json, a person corrects it, and from
 # then on each push is judged against it.
 #
-# What the lower layers still owe, each marked FILLER, so `grep -n FILLER` is the to-do list:
-#
-#   behavioral_differences   the behavioral generator is not built
+# The behavioral generator is not built: until it registers in GENERATORS (v1.2), behavioral
+# reports no differences.
 
 from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+from typing import Callable, Protocol
 
 from models.common import ParseFailed, glob, parse_files
 from models.ownership_model import CommitRecord, PathTouch, check_ownership
@@ -36,6 +33,12 @@ DEFAULT_SCOPE = {"exclude": ["tests/**"], "include": ["**/*.py"]}
 
 # caps one in-scope file, over this there is no verdict (spec 5.2)
 MAX_FILE_BYTES = 1024 * 1024
+
+# reads history for the ownership check, NUL-separated so no path comes back quoted
+LOG_ARGS = ("log", "-z", "--topo-order", "--name-status", "-M", "--format=%x01%H%x1f%ae%x1f%P")
+
+# names the regular file modes a check reads; symlinks and submodules are left out
+REGULAR = {"100644", "100755"}
 
 # maps git's status letters to the ownership model's change types
 LETTERS = {"A": "ADDED", "M": "MODIFIED", "D": "DELETED", "R": "RENAMED", "C": "COPIED", "T": "TYPE_CHANGED"}
@@ -53,6 +56,24 @@ class DriftError(Exception):
         return {"code": self.code, "message": self.message}
 
 
+class Reader(Protocol):
+    # reads one commit of a repository; LocalReader reads a checkout, the connector's Comparison a
+    # fresh blobless clone, so every entry point gathers its Sources the same way
+    head: str
+
+    def tree(self) -> dict[str, str]:
+        # maps every regular file at the commit to its blob
+        ...
+
+    def read(self, paths: list[str]) -> dict[str, bytes]:
+        # returns each path's bytes at the commit
+        ...
+
+    def log(self) -> str:
+        # returns the commits base..head as one LOG_ARGS log, newest first
+        ...
+
+
 @dataclass(frozen=True)
 class Sources:
     # everything one check reads at one commit, gathered before any model is built
@@ -66,8 +87,8 @@ class Sources:
 
 def answer(sources: Sources) -> dict:
     # returns the contract's DriftAnswer: aligned is true only when all three lists are empty
-    structural = structural_differences(sources.files, sources.models["structural.json"])
-    behavioral = behavioral_differences(sources.files, sources.models["behavioral.json"])
+    structural = model_differences("structural", sources)
+    behavioral = model_differences("behavioral", sources)
     ownership = check_ownership(sources.models["ownership.json"], sources.commits)
     return {
         "aligned": not (structural or behavioral or ownership),
@@ -77,22 +98,21 @@ def answer(sources: Sources) -> dict:
     }
 
 
-def structural_differences(files: dict[str, str], committed: dict) -> list[dict]:
-    # regenerates the structural model and sets it against the committed one by element id
+# maps each regenerated model to its generator; behavioral joins at v1.2 (model-seam.md)
+GENERATORS: dict[str, Callable[[dict[str, str]], dict]] = {"structural": generate_structural}
+
+
+def model_differences(name: str, sources: Sources) -> list[dict]:
+    # regenerates one model and sets it against the committed one by element id; a model with no
+    # registered generator reports no differences
+    generate = GENERATORS.get(name)
+    if generate is None:
+        return []
     try:
-        fresh = generate_structural(files)
+        fresh = generate(sources.files)
     except ParseFailed as exc:
         raise DriftError(exc.code, str(exc)) from None
-    return differences(fresh, committed)
-
-
-def behavioral_differences(files: dict[str, str], committed: dict) -> list[dict]:
-    # FILLER. returns no differences, so a check runs end to end before the generator exists.
-    # The behavioral model holds at least states and transitions; its kind names, id scheme and
-    # mining rules are open (spec 3.2, Q11). Once generate_behavioral(files) lands it reads the
-    # same files dict and this becomes `return differences(generate_behavioral(files), committed)`,
-    # since differences() is already keyed by element id and needs no change.
-    return []
+    return differences(fresh, sources.models[f"{name}.json"])
 
 
 def differences(fresh: dict, committed: dict) -> list[dict]:
@@ -104,7 +124,7 @@ def differences(fresh: dict, committed: dict) -> list[dict]:
     for element_id in sorted(set(fresh_by_id) | set(committed_by_id)):
         in_code, in_model = fresh_by_id.get(element_id), committed_by_id.get(element_id)
         if in_model is None:
-            found.append(_difference("ADDED", in_code))
+            found.append(_difference("ADDED", fresh_by_id[element_id]))
         elif in_code is None:
             found.append(_difference("REMOVED", in_model))
         elif in_code != in_model:
@@ -113,8 +133,9 @@ def differences(fresh: dict, committed: dict) -> list[dict]:
 
 
 def _elements(model: dict) -> dict[str, dict]:
-    # indexes a model's nodes and edges by id, the one key every comparison uses
-    return {e["id"]: e for e in [*model.get("nodes", ()), *model.get("edges", ())]}
+    # indexes every element of every top-level list by id; a value that is not a list, such as
+    # schema_version, is not an element (model-seam.md)
+    return {e["id"]: e for value in model.values() if isinstance(value, list) for e in value}
 
 
 def _difference(change: str, element: dict) -> dict:
@@ -139,59 +160,134 @@ def _matches(path: str, pattern: str) -> bool:
 # ------------------------------------------------------------- reading one commit, locally or not
 
 
-def local_sources(repo: Path, head: str, base: str | None = None) -> Sources:
-    # reads a local clone with git, the stand-in for the connector's blobless clone
-    head_sha = _git(repo, "rev-parse", "--verify", f"{head}^{{commit}}").strip()
-    models = _read_models(repo, head_sha)
-    paths = _git(repo, "ls-tree", "-r", "--name-only", head_sha).splitlines()
-    wanted = in_scope(paths, models["scope.json"])
-    files = {path: _git(repo, "show", f"{head_sha}:{path}") for path in wanted}
-    # parses every in-scope file once before any generator runs, so a generator may assume
-    # each one parses and one bad file fails the whole check (spec 3.2)
-    try:
-        parse_files(files)
-    except ParseFailed as exc:
-        raise DriftError(exc.code, str(exc)) from None
-    return Sources(files=files, models=models, commits=_history(repo, head_sha, base))
+def local_sources(repo: Path, head: str = "HEAD", base: str | None = None) -> Sources:
+    # reads one commit of a local checkout
+    return read_sources(LocalReader(repo, head, base))
 
 
-def remote_sources(cmp) -> Sources:
-    # reads the three things one check needs from the clone the connector already opened: the
-    # committed /models at the commit, the in-scope files, and the commits the ownership check
-    # judges. cmp is the connector's Comparison, passed in so this module still runs no git
-    # itself. The three no-verdict codes are raised here, before any generator runs (phase4.md Q2).
-    tree = cmp.tree()
+def read_sources(reader: Reader) -> Sources:
+    # reads the three things one check needs: the committed /models at the commit, the in-scope
+    # files, and the commits the ownership check judges. All four no-verdict codes are raised
+    # here, before any generator runs (phase4.md Q2).
+    tree = reader.tree()
     missing = [name for name in MODEL_FILES if f"models/{name}" not in tree]
     if missing:
-        raise DriftError("MODELS_NOT_FOUND", f"models/{missing[0]} is missing at {cmp.head}")
-    committed = cmp.read([f"models/{name}" for name in MODEL_FILES])
+        raise DriftError("MODELS_NOT_FOUND", f"models/{missing[0]} is missing at {reader.head}")
+    committed = reader.read([f"models/{name}" for name in MODEL_FILES])
     models = {name: _model(f"models/{name}", committed[f"models/{name}"]) for name in MODEL_FILES}
+    for name in ("behavioral.json", "structural.json"):
+        _element_rule(f"models/{name}", models[name])
+    _scope_rule(models["scope.json"])
+    _ownership_rule(models["ownership.json"])
     paths = in_scope(sorted(tree), models["scope.json"])
-    raw = cmp.read(paths)
-    # judges size, then encoding, then syntax, each before any generator runs (phase4.md Q2).
-    # Size is judged on what arrived: a blobless clone cannot report it any earlier.
-    big = [path for path in sorted(raw) if len(raw[path]) > MAX_FILE_BYTES]
-    if big:
-        raise DriftError("FILE_TOO_LARGE", f"{big[0]} is {len(raw[big[0]])} bytes, over 1 MB")
-    files = _decode(raw)
-    # parses every in-scope file once before any generator runs, so a generator may assume each
-    # one parses and one bad file fails the whole check (spec 3.2)
-    try:
-        parse_files(files)
-    except ParseFailed as exc:
-        raise DriftError(exc.code, str(exc)) from None
-    return Sources(files=files, models=models, commits=_parse_history(cmp.log()))
-
-
-def _decode(raw: dict[str, bytes]) -> dict[str, str]:
-    # turns each in-scope file's bytes into text; one that is not UTF-8 ends the check (spec 5.2)
+    raw = reader.read(paths)
+    # judges each file in path order by size, then encoding, then syntax, so the first bad file
+    # is the one reported (phase4.md Q2). Size is judged on what arrived: a blobless clone cannot
+    # report it any earlier. Parsing every file here lets a generator assume each one parses (spec 3.2).
     files = {}
-    for path, data in raw.items():
+    for path in sorted(raw):
+        if len(raw[path]) > MAX_FILE_BYTES:
+            raise DriftError("FILE_TOO_LARGE", f"{path} is {len(raw[path])} bytes, over 1 MB")
+        files[path] = _decode(path, raw[path])
         try:
-            files[path] = data.decode("utf-8")
-        except UnicodeDecodeError:
-            raise DriftError("PARSE_FAILED", f"{path} is not UTF-8 text") from None
-    return files
+            parse_files({path: files[path]})
+        except ParseFailed as exc:
+            raise DriftError(exc.code, str(exc)) from None
+    return Sources(files=files, models=models, commits=_parse_history(reader.log()))
+
+
+class LocalReader:
+    # reads one commit of a local checkout with git. The base defaults to the head's first parent
+    # and is excluded; for a root commit only the head itself is judged (spec 3.1).
+    def __init__(self, repo: Path, head: str = "HEAD", base: str | None = None) -> None:
+        self.repo = repo
+        self.head = _git(repo, "rev-parse", "--verify", f"{head}^{{commit}}").strip()
+        if base is None:
+            parents = _git(repo, "rev-parse", f"{self.head}^@").split()
+            base = parents[0] if parents else None
+        self.base = base
+        self._tree: dict[str, str] | None = None
+
+    def tree(self) -> dict[str, str]:
+        # lists the whole tree once, whichever folder of the checkout the command runs in
+        if self._tree is None:
+            self._tree = {}
+            for entry in _git(self.repo, "ls-tree", "-r", "-z", "--full-tree", self.head).split("\0"):
+                meta, _, path = entry.partition("\t")
+                if meta:
+                    mode, _, sha = meta.split()
+                    if mode in REGULAR:
+                        self._tree[path] = sha
+        return self._tree
+
+    def read(self, paths: list[str]) -> dict[str, bytes]:
+        # reads each path's blob at the head in one git call, so a large checkout starts one
+        # process, not one per file
+        tree = self.tree()
+        shas = sorted({tree[path] for path in paths})
+        raw = _run(self.repo, "cat-file", "--batch", input="".join(f"{sha}\n" for sha in shas).encode())
+        blobs, at = {}, 0
+        while at < len(raw):
+            # reads "<sha> blob <size>", then that many bytes and the newline after them
+            end = raw.index(b"\n", at)
+            sha, _, size = raw[at:end].decode().split(" ")
+            blobs[sha] = raw[end + 1:end + 1 + int(size)]
+            at = end + 1 + int(size) + 1
+        return {path: blobs[tree[path]] for path in paths}
+
+    def log(self) -> str:
+        # reads the commits base..head, or the head alone for a root commit
+        span = f"{self.base}..{self.head}" if self.base else self.head
+        return _git(self.repo, *LOG_ARGS, span)
+
+
+def _decode(path: str, data: bytes) -> str:
+    # turns one in-scope file's bytes into text; one that is not UTF-8 ends the check (spec 5.2)
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise DriftError("PARSE_FAILED", f"{path} is not UTF-8 text") from None
+
+
+def _element_rule(path: str, model: object) -> None:
+    # rejects a model that breaks the element rule (model-seam.md): an object whose top-level
+    # lists hold objects with a string id, kind and file, no id repeated, since the diff by id
+    # would silently collapse a repeat
+    if not isinstance(model, dict):
+        raise DriftError("INVALID_MODELS", f"{path} is not a JSON object")
+    seen: set[str] = set()
+    for value in model.values():
+        for element in value if isinstance(value, list) else ():
+            if not (isinstance(element, dict) and all(isinstance(element.get(k), str) for k in ("id", "kind", "file"))):
+                raise DriftError("INVALID_MODELS", f"{path} has an element without a string id, kind and file")
+            if element["id"] in seen:
+                raise DriftError("INVALID_MODELS", f"{path} repeats the id {element['id']}")
+            seen.add(element["id"])
+
+
+def _scope_rule(scope: object) -> None:
+    # rejects a scope.json that is not an object whose include and exclude, when given, are
+    # lists of patterns
+    if not isinstance(scope, dict):
+        raise DriftError("INVALID_MODELS", "models/scope.json is not a JSON object")
+    for key in ("include", "exclude"):
+        patterns = scope.get(key, [])
+        if not (isinstance(patterns, list) and all(isinstance(p, str) for p in patterns)):
+            raise DriftError("INVALID_MODELS", f"models/scope.json: {key} is not a list of patterns")
+
+
+def _ownership_rule(model: object) -> None:
+    # rejects an ownership.json the checker cannot read: an object whose rules, when given, are
+    # objects with a string pattern and a list of string owners
+    if not isinstance(model, dict):
+        raise DriftError("INVALID_MODELS", "models/ownership.json is not a JSON object")
+    rules = model.get("rules", [])
+    if not isinstance(rules, list):
+        raise DriftError("INVALID_MODELS", "models/ownership.json: rules is not a list")
+    for rule in rules:
+        owners = rule.get("owners") if isinstance(rule, dict) else None
+        if not (isinstance(owners, list) and all(isinstance(o, str) for o in owners) and isinstance(rule.get("pattern"), str)):
+            raise DriftError("INVALID_MODELS", "models/ownership.json has a rule without a string pattern and a list of owners")
 
 
 def _model(path: str, raw: bytes | str) -> dict:
@@ -203,94 +299,44 @@ def _model(path: str, raw: bytes | str) -> dict:
         raise DriftError("INVALID_MODELS", f"{path} is not valid JSON: {exc}") from None
 
 
-def _read_models(repo: Path, commit: str) -> dict[str, dict]:
-    # reads and parses the committed /models, failing with the contract's codes
-    models = {}
-    for name in MODEL_FILES:
-        try:
-            raw = _git(repo, "show", f"{commit}:models/{name}")
-        except subprocess.CalledProcessError:
-            raise DriftError("MODELS_NOT_FOUND", f"models/{name} is missing at {commit}") from None
-        models[name] = _model(f"models/{name}", raw)
-    return models
-
-
-def _history(repo: Path, head: str, base: str | None) -> list[CommitRecord]:
-    # lists the commits the ownership check judges, newest first. The base defaults to the head's
-    # first parent and is excluded; for a root commit only the head itself is judged (spec 3.1).
-    if base is None:
-        parents = _git(repo, "rev-parse", f"{head}^@").split()
-        base = parents[0] if parents else None
-    span = [f"{base}..{head}"] if base else [head]
-    return _parse_history(_git(repo, "log", "--topo-order", "--name-status", "-M",
-                               "--format=%x00%H%x1f%ae%x1f%P", *span))
-
-
 def _parse_history(raw: str) -> list[CommitRecord]:
-    # reads the commit records out of one git log, whichever clone ran it
-    records = []
-    for block in raw.split("\x00"):
-        if not block.strip():
-            continue
-        lines = block.strip("\n").split("\n")
-        sha, email, parent_list = lines[0].split("\x1f")
-        touches = []
-        for line in lines[1:]:
-            if not line.strip():
-                continue
-            parts = line.split("\t")
-            if parts[0][0] == "R":
-                touches.append(PathTouch(parts[2], "RENAMED", parts[1]))
-            else:
-                touches.append(PathTouch(parts[1], LETTERS[parts[0][0]]))
-        records.append(CommitRecord(sha, email.lower(), tuple(parent_list.split()), tuple(touches)))
+    # reads the commit records out of one LOG_ARGS log: \x01 opens a header, then each change
+    # is a status and one path, or two for a rename or copy
+    tokens = raw.split("\x00")
+    records: list[CommitRecord] = []
+    touches: list[PathTouch] = []
+    header: str | None = None
+    i = 0
+    while i < len(tokens):
+        token = tokens[i].lstrip("\n")
+        i += 1
+        if token.startswith("\x01"):
+            if header:
+                records.append(_record(header, touches))
+            header, touches = token[1:], []
+        elif token[:1] in ("R", "C"):
+            old, new = tokens[i], tokens[i + 1]
+            i += 2
+            touches.append(PathTouch(new, "RENAMED", old) if token[0] == "R" else PathTouch(new, "COPIED"))
+        elif token:
+            touches.append(PathTouch(tokens[i], LETTERS[token[0]]))
+            i += 1
+    if header:
+        records.append(_record(header, touches))
     return records
+
+
+def _record(header: str, touches: list[PathTouch]) -> CommitRecord:
+    # builds one commit record from its sha, author email and parents
+    sha, email, parent_list = header.split("\x1f")
+    return CommitRecord(sha, email.lower(), tuple(parent_list.split()), tuple(touches))
 
 
 def _git(repo: Path, *args: str) -> str:
     # runs one git command in repo and returns its text, decoded as git hands paths over
-    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, check=True)
-    return proc.stdout.decode("utf-8", "surrogateescape")
+    return _run(repo, *args).decode("utf-8", "surrogateescape")
 
 
-# ---------------------------------------------------------------------------------- command line
-
-
-def report(verdict: dict, sources: Sources) -> None:
-    # prints one check, what went in and what came out
-    print(f"in   {len(sources.files)} in-scope files, {len(sources.commits)} commits judged, "
-          f"{len(sources.models['ownership.json'].get('rules', ()))} ownership rules")
-    print(f"out  aligned={verdict['aligned']}")
-    for model in ("structural", "behavioral", "ownership"):
-        rows = verdict[model]
-        print(f"     {model:<12} {len(rows)} difference(s)")
-        for row in rows[:5]:
-            detail = row.get("id") or f"{row['path']} by {row['author']}"
-            print(f"       {row['change']:<10} {detail}")
-        if len(rows) > 5:
-            print(f"       ... {len(rows) - 5} more")
-
-
-def main() -> None:
-    # checks a local clone at a commit
-    args = sys.argv[1:]
-    if "--repo" not in args:
-        print(__doc__ or "usage: orchestration.py --repo PATH [COMMIT] [--base SHA]")
-        return
-    repo = Path(args[args.index("--repo") + 1]).resolve()
-    base = args[args.index("--base") + 1] if "--base" in args else None
-    positional = [a for i, a in enumerate(args) if not a.startswith("--") and args[i - 1] not in ("--repo", "--base")]
-    head = positional[0] if positional else "HEAD"
-    try:
-        sources = local_sources(repo, head, base)
-    except DriftError as exc:
-        print(f"no verdict: {exc.code}  {exc.message}")
-        return
-    try:
-        report(answer(sources), sources)
-    except DriftError as exc:
-        print(f"no verdict: {exc.code}  {exc.message}")
-
-
-if __name__ == "__main__":
-    main()
+def _run(repo: Path, *args: str, input: bytes | None = None) -> bytes:
+    # runs one git command in repo, feeding it input, and returns its bytes
+    return subprocess.run(["git", "-C", str(repo), *args], input=input, capture_output=True, check=True).stdout

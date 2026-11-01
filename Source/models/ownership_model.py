@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from models.common import glob, literal
+
 SCHEMA_VERSION = 1
 
 # lists the change types a commit may report, an unknown one is a contract break
@@ -103,7 +105,8 @@ def propose_ownership(
     owners = _owners(walked, live, window, max_files, bots)
     return {
         "rules": [
-            {"owners": sorted(owners[path]), "pattern": path}
+            # escapes the path, since rules are read as globs and "src/*.py" would claim its neighbours
+            {"owners": sorted(owners[path]), "pattern": literal(path)}
             for path in sorted(live)
             if owners[path]
         ],
@@ -126,7 +129,7 @@ def _walk(records: list[CommitRecord]) -> tuple[list[tuple[CommitRecord, tuple[s
         touched: list[str] = []
         for touch in record.paths:
             head_name = canonical.get(touch.path, touch.path)
-            if touch.change_type == "RENAMED":
+            if touch.change_type == "RENAMED" and touch.old_path:
                 # credits the file's older history to the name it carries at head
                 canonical[touch.old_path] = head_name
             if head_name not in newest:
@@ -196,16 +199,13 @@ def check_ownership(rules: dict, commits: list[CommitRecord]) -> list[dict]:
 def _changed(commit: CommitRecord) -> list[str]:
     # lists the paths one commit changes, each once and in path order; a rename counts under its
     # old path, so the owners travel with the file (spec 3.2)
-    return sorted({touch.old_path if touch.change_type == "RENAMED" else touch.path for touch in commit.paths})
+    return sorted({touch.old_path if touch.change_type == "RENAMED" and touch.old_path else touch.path for touch in commit.paths})
 
 
 def _match(path: str, patterns: list[tuple[str, tuple[str, ...]]]) -> tuple[str, ...] | None:
-    # returns the owners of the first rule matching path, None where no rule does. v1 patterns
-    # are an exact path or a folder as "dir/**"; the full pattern language is open (spec Q11).
+    # returns the owners of the first rule matching path, None where no rule does; patterns use
+    # the mapping-v1.1.yaml glob (spec 3.2)
     for pattern, owners in patterns:
-        if pattern.endswith("/**"):
-            if path.startswith(pattern[:-2]):
-                return owners
-        elif pattern == path:
+        if glob(pattern).match(path):
             return owners
     return None

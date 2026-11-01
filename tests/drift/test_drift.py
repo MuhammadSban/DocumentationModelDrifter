@@ -6,6 +6,7 @@ import subprocess
 
 import pytest
 
+from drifter.check import local_sources
 from GitHub_Connector import analysis, runs
 from GitHub_Connector.schemas import AnalysisRequest
 from GitHub_Connector.settings import get_settings
@@ -25,20 +26,31 @@ def _git(cwd, *args, author="ana@x.com"):
     subprocess.run(["git", "-C", str(cwd), *env, *args], check=True, capture_output=True)
 
 
-def _repo(tmp_path, files, author="ana@x.com", second=None):
+def _repo(tmp_path, files, author="ana@x.com", second=None, odd_names=False):
     # builds a bare repository holding files, and points the connector's clone URL at its folder;
     # returns owner/name and the head SHA. A second dict adds one more commit on top.
     work = tmp_path / "work"
     work.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "init", "-q", "-b", "main", str(work)], check=True)
+    if odd_names:
+        # lets the index hold names Windows cannot put on disk, such as one with a tab
+        _git(work, "config", "core.protectNTFS", "false")
     for commit in (files, second):
         if commit is None:
             continue
         for path, text in commit.items():
-            target = work / path
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(text if isinstance(text, bytes) else text.encode())
-        _git(work, "add", "-A", author=author)
+            data = text if isinstance(text, bytes) else text.encode()
+            if odd_names:
+                # stages the file by plumbing, never on disk, so any name git allows can be committed
+                blob = subprocess.run(["git", "-C", str(work), "hash-object", "-w", "--stdin"],
+                                      check=True, capture_output=True, input=data).stdout.decode().strip()
+                _git(work, "update-index", "--add", "--cacheinfo", f"100644,{blob},{path}")
+            else:
+                target = work / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+        if not odd_names:
+            _git(work, "add", "-A", author=author)
         _git(work, "commit", "-qm", "change", author=author)
     bare = tmp_path / "remotes" / "owner" / "repo.git"
     subprocess.run(["git", "clone", "-q", "--bare", str(work), str(bare)], check=True)
@@ -62,9 +74,9 @@ def _models(code, **overrides):
     return files
 
 
-def _analyze(tmp_path, monkeypatch, files, author="ana@x.com", second=None):
+def _analyze(tmp_path, monkeypatch, files, author="ana@x.com", second=None, odd_names=False):
     # runs one analysis against a fresh local repository and returns the result
-    repo, head, remotes = _repo(tmp_path, files, author=author, second=second)
+    repo, head, remotes = _repo(tmp_path, files, author=author, second=second, odd_names=odd_names)
     monkeypatch.setenv("DRIFTER_REMOTE_BASE_URL", remotes.as_uri() + "/")
     monkeypatch.setattr(runs, "save", lambda *args: None)
     get_settings.cache_clear()
@@ -115,6 +127,26 @@ def test_an_owners_own_commit_is_no_violation(tmp_path, monkeypatch):
     assert result.drift.ownership == []
 
 
+# names git quotes in a plain log, which must still meet the rules as they are
+ODD_NAMES = ["src/a\tb.txt", 'src/say "hi".txt', "src/café.txt"]
+
+
+def test_a_non_owner_is_judged_under_any_name_git_allows(tmp_path, monkeypatch):
+    rules = {"rules": [{"owners": ["bob@x.com"], "pattern": "src/**"}], "schema_version": 1}
+    files = {**CODE, **_models(CODE, **{"models/ownership.json": write_model(rules)})}
+
+    result = _analyze(tmp_path, monkeypatch, files, second=dict.fromkeys(ODD_NAMES, "x\n"), odd_names=True)
+
+    assert sorted(v.path for v in result.drift.ownership) == sorted(ODD_NAMES)
+
+
+def test_the_local_reader_keeps_any_name_git_allows(tmp_path):
+    _repo(tmp_path, {**CODE, **_models(CODE)}, second=dict.fromkeys(ODD_NAMES, "x\n"), odd_names=True)
+
+    sources = local_sources(tmp_path / "work", "HEAD")
+
+    assert sorted(t.path for c in sources.commits for t in c.paths) == sorted(ODD_NAMES)
+
 @pytest.mark.parametrize(
     "code, overrides, expected",
     [
@@ -150,3 +182,23 @@ def test_drift_is_byte_identical_across_runs(tmp_path, monkeypatch):
     assert json.dumps(first.drift.model_dump(mode="json"), sort_keys=True) == json.dumps(
         second.drift.model_dump(mode="json"), sort_keys=True
     )
+
+
+def test_the_local_reader_keeps_renames_and_commits_with_no_paths(tmp_path):
+    _repo(tmp_path, {**CODE, **_models(CODE)})
+    work = tmp_path / "work"
+    root = subprocess.run(["git", "-C", str(work), "rev-parse", "HEAD"],
+                          check=True, capture_output=True, text=True).stdout.strip()
+    blob = subprocess.run(["git", "-C", str(work), "rev-parse", ":src/app.py"],
+                          check=True, capture_output=True, text=True).stdout.strip()
+    _git(work, "update-index", "--force-remove", "src/app.py")
+    _git(work, "update-index", "--add", "--cacheinfo", f"100644,{blob},src/main.py")
+    _git(work, "commit", "-qm", "rename", author="bob@x.com")
+    _git(work, "commit", "-q", "--allow-empty", "-m", "empty", author="ana@x.com")
+
+    sources = local_sources(work, "HEAD", base=root)
+
+    assert [(c.author_email, [(t.change_type, t.path, t.old_path) for t in c.paths]) for c in sources.commits] == [
+        ("ana@x.com", []),
+        ("bob@x.com", [("RENAMED", "src/main.py", "src/app.py")]),
+    ]

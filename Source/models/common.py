@@ -45,14 +45,23 @@ def write_model(model: dict) -> str:
     return json.dumps(model, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
 
 
+def literal(path: str) -> str:
+    # escapes a path for glob, so a pattern made from it matches that path only
+    return "".join("\\" + c if c in "\\*?" else c for c in path)
+
+
 @lru_cache(maxsize=256)
 def glob(pattern: str) -> re.Pattern:
     # turns a POSIX glob into a regex: "**/" is zero or more folders, "**" anything, "*" one
-    # segment's text. The one matcher scope.json, ownership rules and mapping-v1.1.yaml share,
-    # so a pattern means the same thing in all three (phase4.md Q3)
+    # segment's text, "?" one character, a backslash makes the next character literal. The one matcher
+    # scope.json, ownership rules and mapping-v1.1.yaml share, so a pattern means the same thing
+    # in all three (phase4.md Q3)
     out, i = [], 0
     while i < len(pattern):
-        if pattern.startswith("**/", i):
+        if pattern[i] == "\\" and i + 1 < len(pattern):
+            out.append(re.escape(pattern[i + 1]))
+            i += 2
+        elif pattern.startswith("**/", i):
             out.append("(?:.*/)?")
             i += 3
         elif pattern.startswith("**", i):
@@ -67,4 +76,5 @@ def glob(pattern: str) -> re.Pattern:
         else:
             out.append(re.escape(pattern[i]))
             i += 1
-    return re.compile("".join(out) + r"\Z")
+    # compiles with DOTALL, so ".*" crosses a newline, which git allows in a file name
+    return re.compile("".join(out) + r"\Z", re.DOTALL)

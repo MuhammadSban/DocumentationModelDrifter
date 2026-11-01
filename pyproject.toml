@@ -1,0 +1,18 @@
+# packages the drifter core and the model generators, without the web service, as the drifter command
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "drifter"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+drifter = "drifter.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "Source"}
+packages = ["drifter", "models"]

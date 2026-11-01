@@ -262,7 +262,9 @@ structural and behavioral generators; drifter init writes the defaults, include 
 `tests/**`. Ownership rules apply to every path, whatever the scope says. Editing the scope without
 regenerating the models shows up as drift by itself. scope.json and hand-written ownership rules
 use the glob syntax of mapping-v1.1.yaml, with one matcher for all three: `**/` matches zero or
-more folders, `**` anything, `*` within one path segment. init proposes only exact paths.
+more folders, `**` anything, `*` within one path segment, `?` one character of a segment, and
+`\` makes the next character literal. init proposes only exact paths, escaping `\`, `*` and
+`?`, so a file named `src/*.py` gets the rule `src/\*.py` and owns only itself.
 
 Layout of every model file, so that every run produces the same bytes:
 
