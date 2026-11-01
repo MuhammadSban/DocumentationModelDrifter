@@ -124,7 +124,7 @@ def differences(fresh: dict, committed: dict) -> list[dict]:
     for element_id in sorted(set(fresh_by_id) | set(committed_by_id)):
         in_code, in_model = fresh_by_id.get(element_id), committed_by_id.get(element_id)
         if in_model is None:
-            found.append(_difference("ADDED", in_code))
+            found.append(_difference("ADDED", fresh_by_id[element_id]))
         elif in_code is None:
             found.append(_difference("REMOVED", in_model))
         elif in_code != in_model:
@@ -175,6 +175,8 @@ def read_sources(reader: Reader) -> Sources:
         raise DriftError("MODELS_NOT_FOUND", f"models/{missing[0]} is missing at {reader.head}")
     committed = reader.read([f"models/{name}" for name in MODEL_FILES])
     models = {name: _model(f"models/{name}", committed[f"models/{name}"]) for name in MODEL_FILES}
+    for name in ("behavioral.json", "structural.json"):
+        _unique_ids(f"models/{name}", models[name])
     paths = in_scope(sorted(tree), models["scope.json"])
     raw = reader.read(paths)
     # judges size, then encoding, then syntax, each before any generator runs (phase4.md Q2).
@@ -217,9 +219,19 @@ class LocalReader:
         return self._tree
 
     def read(self, paths: list[str]) -> dict[str, bytes]:
-        # reads each path's blob at the head, one git call per file
+        # reads each path's blob at the head in one git call, so a large checkout starts one
+        # process, not one per file
         tree = self.tree()
-        return {path: _run(self.repo, "cat-file", "blob", tree[path]) for path in paths}
+        shas = sorted({tree[path] for path in paths})
+        raw = _run(self.repo, "cat-file", "--batch", input="".join(f"{sha}\n" for sha in shas).encode())
+        blobs, at = {}, 0
+        while at < len(raw):
+            # reads "<sha> blob <size>", then that many bytes and the newline after them
+            end = raw.index(b"\n", at)
+            sha, _, size = raw[at:end].decode().split(" ")
+            blobs[sha] = raw[end + 1:end + 1 + int(size)]
+            at = end + 1 + int(size) + 1
+        return {path: blobs[tree[path]] for path in paths}
 
     def log(self) -> str:
         # reads the commits base..head, or the head alone for a root commit
@@ -238,6 +250,16 @@ def _decode(raw: dict[str, bytes]) -> dict[str, str]:
     return files
 
 
+def _unique_ids(path: str, model: dict) -> None:
+    # rejects a model that repeats an element id, which the diff by id would silently collapse
+    seen: set[str] = set()
+    for value in model.values():
+        for element in value if isinstance(value, list) else ():
+            if element["id"] in seen:
+                raise DriftError("INVALID_MODELS", f"{path} repeats the id {element['id']}")
+            seen.add(element["id"])
+
+
 def _model(path: str, raw: bytes | str) -> dict:
     # parses one committed model file, a file that is not readable JSON ending the check
     try:
@@ -251,7 +273,10 @@ def _parse_history(raw: str) -> list[CommitRecord]:
     # reads the commit records out of one LOG_ARGS log: \x01 opens a header, then each change
     # is a status and one path, or two for a rename or copy
     tokens = raw.split("\x00")
-    records, header, touches, i = [], None, [], 0
+    records: list[CommitRecord] = []
+    touches: list[PathTouch] = []
+    header: str | None = None
+    i = 0
     while i < len(tokens):
         token = tokens[i].lstrip("\n")
         i += 1
@@ -282,6 +307,6 @@ def _git(repo: Path, *args: str) -> str:
     return _run(repo, *args).decode("utf-8", "surrogateescape")
 
 
-def _run(repo: Path, *args: str) -> bytes:
-    # runs one git command in repo and returns its bytes
-    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, check=True).stdout
+def _run(repo: Path, *args: str, input: bytes | None = None) -> bytes:
+    # runs one git command in repo, feeding it input, and returns its bytes
+    return subprocess.run(["git", "-C", str(repo), *args], input=input, capture_output=True, check=True).stdout

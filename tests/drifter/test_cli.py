@@ -3,8 +3,9 @@
 
 import json
 import subprocess
-
-import pytest
+import sys
+import tomllib
+from pathlib import Path
 
 from drifter import check, cli
 from models.common import write_model
@@ -153,3 +154,32 @@ def test_two_runs_print_the_same_bytes(tmp_path, monkeypatch, capsysbinary):
 
     assert first[0] == 1
     assert first == second
+
+
+def test_a_repeated_id_in_a_committed_model_gives_no_verdict(tmp_path, monkeypatch, capsysbinary):
+    twice = {**COMMITTED, "transitions": [{"file": "src/app.py", "id": "Order.open", "kind": "transition"}]}
+
+    code, out = _check(_repo(tmp_path, CODE, twice), monkeypatch, capsysbinary)
+
+    assert code == 2
+    error = json.loads(out)["drift_error"]
+    assert error["code"] == "INVALID_MODELS"
+    assert "models/behavioral.json" in error["message"] and "Order.open" in error["message"]
+
+
+def test_the_drifter_script_runs_check_without_fastapi(tmp_path):
+    # runs pyproject's drifter target as its console script would, in a clean interpreter
+    root = Path(__file__).resolve().parents[2]
+    target = tomllib.loads((root / "pyproject.toml").read_text())["project"]["scripts"]["drifter"]
+    module, function = target.split(":")
+    script = (
+        f"import sys; sys.path.insert(0, {str(root / 'Source')!r}); sys.modules['fastapi'] = None\n"
+        f"sys.argv = ['drifter', 'check']\n"
+        f"from {module} import {function}; sys.exit({function}())"
+    )
+    repo = _repo(tmp_path, CODE)
+
+    proc = subprocess.run([sys.executable, "-I", "-c", script], cwd=repo, capture_output=True)
+
+    assert proc.returncode == 0, proc.stderr.decode()
+    assert json.loads(proc.stdout)["aligned"] is True
