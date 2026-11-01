@@ -62,7 +62,7 @@ pod-tester.openapi.yml
 tester routes /test/setup, /test/run, /test/report and the suite report shape
 What exists today in Source/GitHub_Connector (v1, built for an LLM prose check):
 • Reusable: fetch.py (clone, resolve short SHA, first parent, diff, read blobs, timeouts), runs.py (write-once run files), course.py (system /test/setup and /test/report with line coverage), api.py routing.
-• Not contract 2.4.0: no features in /health; imports LLM_Shell, which is not in the repo, so the app cannot start; classifies with path_rules.json instead of mapping-v1.1.yaml; config_version is a hash, not mapping-v1.1; no unmapped; error codes TIMEOUT, WRITE_FAILED, LLM_UNAVAILABLE instead of ANALYSIS_FAILED, STORAGE_FAILED; skip reasons beyond UNSUPPORTED_FILE_TYPE; deadline 120 s, not 80 s; run files are lost on redeploy; the console path points at Source/Frontend, which is now Frontend_Archive.
+• Not contract 2.4.0: no features in /health; classifies with path_rules.json instead of mapping-v1.1.yaml; config_version is a hash, not mapping-v1.1; no unmapped; error codes TIMEOUT, WRITE_FAILED instead of ANALYSIS_FAILED, STORAGE_FAILED; skip reasons beyond UNSUPPORTED_FILE_TYPE; deadline 120 s, not 80 s; run files are lost on redeploy; the console path points at Source/Frontend, which is now Frontend_Archive.
 • Missing entirely: generators, comparison, orchestrator, CLI, /generate, the tester, tests, packaging.
 Architecture: one seam for the teammates
 The core never looks inside a model. Each model is a plugin the teammates write; the core only asks it four things, so their format can change without touching the core, the CLI, the service or the tester.
@@ -113,7 +113,7 @@ What
 Needs
 Done when
 A
-Align the hosted service to contract 2.4.0: features: [model_drift] in /health, mapping-v1.1.yaml, config_version: mapping-v1.1, unmapped, contract error codes, one skip reason, issues: [], 80 s deadline, one active test session (409 otherwise), durable store, drop the LLM_Shell import, keep one clone per repository and fetch only missing commits, so a full tester run of about 34 analyses fits in 570 s
+Align the hosted service to contract 2.4.0: features: [model_drift] in /health, mapping-v1.1.yaml, config_version: mapping-v1.1, unmapped, contract error codes, one skip reason, issues: [], 80 s deadline, one active test session (409 otherwise), durable store, drop the LLM_Shell import (done), keep one clone per repository and fetch only missing commits, so a full tester run of about 34 analyses fits in 570 s
 nothing
 all 10 cases of golden-outputs.json match on the nine compared fields; a second /analyze on the same repository runs no new clone
 B
@@ -240,7 +240,7 @@ core, service, tester apart
 more setup, versions to keep in step
 Recommendation: new Source/drifter/ package, plugins one file each so each teammate owns one file. Gives clean ownership of code too.
 Q5 Fix GitHub_Connector in place, or rewrite it
-The decision. The v1 service was built for an LLM prose check. It cannot start today (it imports LLM_Shell, which is not in the repo) and it differs from contract 2.4.0 in about ten places (see Inputs).
+The decision. The v1 service was built for an LLM prose check. It could not start (it imported LLM_Shell, which is not in the repo; that import is now removed) and it differs from contract 2.4.0 in about ten places (see Inputs).
 Why it matters. T-01 to T-21 grade exactly this service. It is the shortest path to a working run with Team 16.
 Option
 Work

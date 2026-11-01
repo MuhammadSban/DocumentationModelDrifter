@@ -41,7 +41,7 @@ class IssueType(str, Enum):
 
 
 class ErrorCode(str, Enum):
-    # lists the contract's failure codes
+    # lists the failure codes, TIMEOUT and WRITE_FAILED are ours where the contract has ANALYSIS_FAILED and STORAGE_FAILED
     INVALID_REQUEST = "INVALID_REQUEST"
     REPOSITORY_NOT_FOUND = "REPOSITORY_NOT_FOUND"
     COMMIT_NOT_FOUND = "COMMIT_NOT_FOUND"

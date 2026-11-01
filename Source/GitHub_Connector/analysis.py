@@ -96,7 +96,6 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
     return result
 
 
-
 def _now() -> str:
     # formats the current time as ISO 8601 UTC with milliseconds and a Z
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
