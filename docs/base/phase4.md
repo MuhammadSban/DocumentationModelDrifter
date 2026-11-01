@@ -92,7 +92,7 @@ Needs no model format. Builds on branch `contract-alignment`, where /health feat
 | Item | Done when |
 | --- | --- |
 | File reader (D11): after `ls-tree` at head, fetch every needed blob in one `git fetch --filter=blob:none --stdin`; read with lazy fetching off, so a failed batch is 500 ANALYSIS_FAILED at once | a local test: reading succeeds after the batch and fails without it; the clone holds exactly 2 promisor packs |
-| Seam (D9, `docs/models/model-seam.png`): reuse `parse_files` and `write_model`; flatten each model's top-level lists to `{id: element}`; diff by id (ADDED, REMOVED, MODIFIED) | fake-plugin tests in tests/ cover each change type |
+| Seam (D9, `docs/models/model-seam.md`): reuse `parse_files` and `write_model`; flatten each model's top-level lists to `{id: element}`; diff by id (ADDED, REMOVED, MODIFIED) | fake-plugin tests in tests/ cover each change type |
 | Orchestrator: scope.json, the four drift_error codes, the four-field answer | a test per drift_error code; aligned true only when all three lists are empty |
 | `drift` and `drift_error` on every /analyze, POST /generate | T-32 passes at L-pre (MODELS_NOT_FOUND) |
 | Ownership checker and commit log (D10): `CommitRecord` in `common.py` (no `author_login`; lowercase email, no prefix); first matching rule wins; no rule means anyone; a rename is judged under its old path; one glob matcher shared with mapping-v1.1.yaml | scripted-author repo: a non-owner gives one VIOLATION, an owner none |
@@ -138,9 +138,9 @@ Needs no model format. Builds on branch `contract-alignment`, where /health feat
 | D6 | Results on a Railway volume behind `runs.py`, failing loudly without one. Not horizontally scalable, deliberately: the spec caps checks at 2 at once. |
 | D7 | This roadmap lives here; one GitHub issue per item, labelled `ready-for-human`. |
 | D8 | Model owners start now; behavioral first. |
-| D9 | The seam in `docs/models/model-seam.png`. |
+| D9 | The seam in `docs/models/model-seam.md`. |
 | D10 | Kaan writes the ownership checker and the commit log; `CommitRecord` is the shared type. |
-| D11 | A fresh blobless clone per check, one batched blob fetch, reads with lazy fetching off (`docs/models/file-fetch.png`). Measured: fixture 1 to 3 s, pytest 9 to 13 s, Django 38 to 41 s per check; reading blob by blob took 163 to 221 s on pytest. |
+| D11 | A fresh blobless clone per check, one batched blob fetch, reads with lazy fetching off (`docs/models/file-fetch.md`). Measured: fixture 1 to 3 s, pytest 9 to 13 s, Django 38 to 41 s per check; reading blob by blob took 163 to 221 s on pytest. |
 | D12 | CLI as in v1.1. |
 
 Contract test map

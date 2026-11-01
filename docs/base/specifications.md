@@ -18,8 +18,7 @@ When the two disagree, this file is corrected first and the piece spec follows. 
 team's tester or system sees (routes, JSON, tests), the pod contract in docs/contract/ wins over
 this file (Section 5). The course's docs/base/student-facing-spec.docx.pdf wins over both.
 
-Diagrams are in docs/models/; docs/README.md maps them. The lifecycle diagram's Mermaid source is
-in 3.2.
+Diagrams are in docs/models/, each as Mermaid in a Markdown file; docs/README.md maps them.
 
 ## Q1 Common problem selection
 
@@ -289,35 +288,9 @@ describes anything at all is visible in /models itself, not in the answer.
 
 #### The system model
 
-The lifecycle of a repository under the tool, drawn in docs/models/behavioral-model.png. Its source:
-
-```mermaid
-stateDiagram-v2
-    accTitle: Lifecycle of a repo under DocumentationModelDrifter
-    accDescr: The tool proposes three models once, the user commits them as the baseline, and every push is then checked against them, ending true, false or in an error.
-
-    state "No models" as NoModels
-
-    [*] --> NoModels
-    NoModels --> Proposed: init generates the 3 models
-    Proposed --> Baselined: user reviews, corrects, commits /models
-    Baselined --> Checking: push
-
-    state Checking {
-        [*] --> Fetch
-        Fetch --> Generate: code + commits at head
-        Generate --> Compare: 2 fresh models + ownership rules
-        Compare --> [*]
-    }
-
-    Checking --> Aligned: all 3 models match
-    Checking --> Drifted: any model differs
-    Checking --> Failed: fetch or parse error
-
-    Aligned --> Baselined: true, green check
-    Failed --> Baselined: error, no verdict, baseline kept
-    Drifted --> Checking: push a code fix or updated /models
-```
+The lifecycle of a repository under the tool, drawn in docs/models/behavioral-model.md: the tool
+proposes the models once, a person commits them as the baseline, and every push then ends
+Aligned, Drifted or Failed.
 
 ### 3.3 Model explanation
 
