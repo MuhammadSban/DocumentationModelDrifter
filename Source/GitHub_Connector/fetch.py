@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from drifter.check import LOG_ARGS
+from drifter.check import LOG_ARGS, REGULAR
 from GitHub_Connector import rules
 from GitHub_Connector.schemas import AnalysisError, ChangeType, ErrorCode
 from GitHub_Connector.settings import get_settings
@@ -27,9 +27,6 @@ _STATUS = {
     "R": ChangeType.RENAMED,
     "T": ChangeType.TYPE_CHANGED,
 }
-
-# keeps plain and executable files, the only ones read as text
-REGULAR = {"100644", "100755"}
 
 # lists symlinks and submodules in changes[] and skips them unread, as the reference does (decision T12-Q10)
 LINKS = {"120000", "160000"}

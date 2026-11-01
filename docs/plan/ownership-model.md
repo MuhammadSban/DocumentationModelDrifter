@@ -82,9 +82,9 @@ On a repository whose rules were written by hand to match, init reproduces them 
 
 ## Deferred
 
-- **Behavioral model**, and with it `behavioral_differences` in the orchestrator.
+- **Behavioral model**, and with it its entry in the orchestrator's `GENERATORS`.
 - **The connector's two missing reads**: a repository's history and its `/models` at a commit.
-  `remote_sources` marks the seam; `local_sources` already does both against a local clone.
+  The `Reader` interface in `check.py` marks the seam; `LocalReader` already does both against a local clone.
 - **Pattern language** for `ownership.json` and `scope.json` (spec §Q11).
 - **A tool identity that is not marked `[bot]`** becomes an owner. On this repository
   `noreply@anthropic.com` owns files. The fix is one entry in `bots`, not code.
