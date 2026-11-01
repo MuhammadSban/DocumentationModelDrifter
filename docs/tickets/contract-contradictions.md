@@ -19,6 +19,7 @@ Closed on 2026-10-31, in contract 2.4.0 and the spec:
 | 8 | L4 may change structural too | fixture rule: spec §4.2 |
 | 9 | System deadline equals tester timeout | 80 s per check: spec §2.2, `phase4.md` step A |
 | 10 | A third concurrent check | waits within its deadline: spec §7.3 |
+| 12 | Diagrams out of date | five diagrams redrawn to the spec and contract 2.4.0: `docs/models/`, `docs/README.md` |
 | 13 | Outdated text in the spec and plan | spec header and "How to read"; `phase4.md` Q8 and status |
 
 ## Open
@@ -29,7 +30,6 @@ Closed on 2026-10-31, in contract 2.4.0 and the spec:
 | 4 | Team 16's `unmapped` wording | v1.1 OpenAPI vs v1.1 SPEC and goldens | with 2.4.0 | Team 16 |
 | 5 | Our system's behavior differs from Team 16's | course PDF vs contract deviation 1 | Phase 5 decision | Team 15 |
 | 11 | `c5-docs-only` is never tested | contract AC-01 vs §4 test list | low | Team 15, ask Team 16 |
-| 12 | Diagrams out of date | `docs/models/*.png` vs spec and contract | housekeeping | Team 15 |
 
 ```mermaid
 flowchart LR
@@ -120,21 +120,6 @@ AC-01 is v1.1 text copied word for word, so it cannot be reworded.
 - **If no:** leave it. Spec §7.4's test of all 10 cases still covers our system.
 
 **Done when.** Both testers' lists agree on c5.
-
-## Housekeeping
-
-### 12. Diagrams out of date
-
-| Diagram | Says | Should say |
-| --- | --- | --- |
-| `four-field-answer.png` | "T-18, T-19, T-21 skip on a system without prose_detector" | T-18 to T-21 |
-| `one-check.png` | "whole check ≤ 90 s" | 80 s per check (spec §2.2) |
-| `one-check.png` | "pinned CPython ast" | spec §2.2 names no parser; either the spec adopts `ast` (`phase4.md` Q2) or the diagram drops the name |
-| `cross-team-test.png` | the tester loop | add the 600 s run limit, the `/health` failure rule and the one-session 409, if the diagram should show edge cases |
-
-The images are exports from the Phase 4 overview page; edit them there, not here.
-
-**Done when.** The diagrams are re-exported and `docs/README.md`'s entries match them.
 
 ## Not tickets: proposals for Phase 5
 
