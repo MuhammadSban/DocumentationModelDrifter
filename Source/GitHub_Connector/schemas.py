@@ -41,12 +41,13 @@ class IssueType(str, Enum):
 
 
 class ErrorCode(str, Enum):
-    # lists the failure codes, TIMEOUT and WRITE_FAILED are ours where the contract has ANALYSIS_FAILED and STORAGE_FAILED
+    # lists the contract's failure codes (pod-contract.md section 7)
     INVALID_REQUEST = "INVALID_REQUEST"
     REPOSITORY_NOT_FOUND = "REPOSITORY_NOT_FOUND"
     COMMIT_NOT_FOUND = "COMMIT_NOT_FOUND"
-    TIMEOUT = "TIMEOUT"
-    WRITE_FAILED = "WRITE_FAILED"
+    ANALYSIS_NOT_FOUND = "ANALYSIS_NOT_FOUND"
+    ANALYSIS_FAILED = "ANALYSIS_FAILED"
+    STORAGE_FAILED = "STORAGE_FAILED"
 
 
 class AnalysisRequest(BaseModel):

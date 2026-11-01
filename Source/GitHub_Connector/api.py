@@ -25,8 +25,9 @@ STATUS_FOR = {
     ErrorCode.INVALID_REQUEST: 400,
     ErrorCode.REPOSITORY_NOT_FOUND: 404,
     ErrorCode.COMMIT_NOT_FOUND: 404,
-    ErrorCode.TIMEOUT: 500,
-    ErrorCode.WRITE_FAILED: 500,
+    ErrorCode.ANALYSIS_NOT_FOUND: 404,
+    ErrorCode.ANALYSIS_FAILED: 500,
+    ErrorCode.STORAGE_FAILED: 500,
 }
 
 
@@ -53,6 +54,14 @@ def _json(data: bytes, status: int = 200) -> Response:
 def _analysis_error(_, exc: AnalysisError) -> JSONResponse:
     # turns a failed analysis into its status and an ErrorBody
     return JSONResponse(status_code=STATUS_FOR[exc.code], content=exc.body().model_dump(mode="json"))
+
+
+@app.exception_handler(Exception)
+def _crash(request: Request, exc: Exception) -> JSONResponse:
+    # answers any unexpected failure as 500 in the error shape of the route's family, never a bare 500
+    if request.url.path.startswith(router.prefix + course.router.prefix + "/"):
+        return course.course_error(500, "The request failed unexpectedly")
+    return _analysis_error(None, AnalysisError(ErrorCode.ANALYSIS_FAILED, "The analysis failed unexpectedly"))
 
 
 @app.exception_handler(RequestValidationError)
@@ -89,7 +98,7 @@ def get_analysis(analysis_id: str) -> Response:
     if data is None:
         # matches the reference service's body for a run that doesn't exist (probed 2026-10-17)
         message = f"analysis {analysis_id} does not exist"
-        return JSONResponse(status_code=404, content={"code": "ANALYSIS_NOT_FOUND", "message": message})
+        return _analysis_error(None, AnalysisError(ErrorCode.ANALYSIS_NOT_FOUND, message))
     return _json(data)
 
 

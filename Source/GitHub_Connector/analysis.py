@@ -92,7 +92,7 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
     try:
         runs.save(result.analysis_id, runs.dump(result))
     except OSError as exc:
-        raise AnalysisError(ErrorCode.WRITE_FAILED, "The run file could not be saved") from exc
+        raise AnalysisError(ErrorCode.STORAGE_FAILED, "The run file could not be saved") from exc
     return result
 
 

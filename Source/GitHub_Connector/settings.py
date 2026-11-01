@@ -39,9 +39,9 @@ class AnalysisSettings(BaseSettings):
     # skips any changed file over this many bytes
     max_file_bytes: int = 1024 * 1024
 
-    # caps each git call and the whole analysis, both end in 500 TIMEOUT
+    # caps each git call and the whole analysis, both end in 500 ANALYSIS_FAILED; 80 s stays under the pod's 90 s per call (spec 2.2)
     git_timeout: float = 60
-    analysis_deadline: float = 120
+    analysis_deadline: float = 80
 
     # runs at most this many analyses at once, extra requests wait for a slot
     max_concurrent: int = 2

@@ -7,17 +7,18 @@ from GitHub_Connector.fetch import Comparison, FileChange
 from GitHub_Connector.schemas import AnalysisRequest, ChangeType
 
 
-def test_analyze_runs_without_an_llm(monkeypatch):
+@contextmanager
+def fake_fetch(repo, head, base, deadline):
     # replaces the clone with one changed file, so no git or network is needed
-    @contextmanager
-    def fake_fetch(repo, head, base, deadline):
-        yield Comparison(
-            repo=repo,
-            head="a" * 40,
-            base="b" * 40,
-            changes=[FileChange("src/app.py", ChangeType.MODIFIED)],
-        )
+    yield Comparison(
+        repo=repo,
+        head="a" * 40,
+        base="b" * 40,
+        changes=[FileChange("src/app.py", ChangeType.MODIFIED)],
+    )
 
+
+def test_analyze_runs_without_an_llm(monkeypatch):
     monkeypatch.setattr(analysis, "fetch", fake_fetch)
     monkeypatch.setattr(runs, "save", lambda *args: None)
 

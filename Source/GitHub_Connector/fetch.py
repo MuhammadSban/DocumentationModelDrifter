@@ -99,7 +99,7 @@ class _Git:
         if proc is None:
             if overall:
                 raise _deadline_passed()
-            raise AnalysisError(ErrorCode.TIMEOUT, f"A git call took longer than {self.timeout:g} s")
+            raise AnalysisError(ErrorCode.ANALYSIS_FAILED, f"A git call took longer than {self.timeout:g} s")
         if check and proc.returncode != 0:
             raise subprocess.CalledProcessError(proc.returncode, cmd, proc.stdout, proc.stderr)
         return proc
@@ -116,7 +116,7 @@ class _Git:
 def _deadline_passed() -> AnalysisError:
     # words the overall deadline failure
     return AnalysisError(
-        ErrorCode.TIMEOUT,
+        ErrorCode.ANALYSIS_FAILED,
         f"The analysis took longer than {get_settings().analysis_deadline:g} s",
     )
 
@@ -177,7 +177,7 @@ def _rmtree(path: Path) -> None:
 def fetch(
     repo: str, head: str, base: str | None = None, deadline: float | None = None
 ) -> Iterator[Comparison]:
-    # clones repo blobless and yields the comparison, git calls past deadline (monotonic) fail with TIMEOUT
+    # clones repo blobless and yields the comparison, git calls past deadline (monotonic) fail with ANALYSIS_FAILED
     clone_root = get_settings().clone_dir
     if clone_root is not None:
         clone_root.mkdir(parents=True, exist_ok=True)
