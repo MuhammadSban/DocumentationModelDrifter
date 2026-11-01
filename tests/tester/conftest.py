@@ -30,7 +30,7 @@ class FakeTarget:
 
     def analyze(self, raw: bytes):
         if self.analyze_status:
-            return self.analyze_status, {"code": "LLM_UNAVAILABLE", "message": "down"}
+            return self.analyze_status, {"code": "ANALYSIS_FAILED", "message": "down"}
         time.sleep(self.analyze_delay)
         invalid = 400, {"code": "INVALID_REQUEST", "message": "bad request"}
         try:

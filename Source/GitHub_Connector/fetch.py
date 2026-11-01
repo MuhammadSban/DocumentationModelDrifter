@@ -39,9 +39,6 @@ SKIP_BINARY = "BINARY_FILE"
 SKIP_TOO_LARGE = "FILE_TOO_LARGE"
 SKIP_NOT_UTF8 = "NOT_UTF8"
 
-# names the doc-budget skip, ours alone, so the conformance test strips it (T12-Q7)
-SKIP_OVER_BUDGET = "OVER_DOC_BUDGET"
-
 # caps how many paths one prefetch names, so a repo full of docs cannot overflow the argument list
 WARM_PATHS = 500
 

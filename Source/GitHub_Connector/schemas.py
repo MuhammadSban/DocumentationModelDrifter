@@ -41,13 +41,12 @@ class IssueType(str, Enum):
 
 
 class ErrorCode(str, Enum):
-    # lists the contract's failure codes, LLM_UNAVAILABLE is ours beyond the pod's
+    # lists the contract's failure codes
     INVALID_REQUEST = "INVALID_REQUEST"
     REPOSITORY_NOT_FOUND = "REPOSITORY_NOT_FOUND"
     COMMIT_NOT_FOUND = "COMMIT_NOT_FOUND"
     TIMEOUT = "TIMEOUT"
     WRITE_FAILED = "WRITE_FAILED"
-    LLM_UNAVAILABLE = "LLM_UNAVAILABLE"
 
 
 class AnalysisRequest(BaseModel):
@@ -72,7 +71,7 @@ class Skipped(BaseModel):
 
 
 class Finding(BaseModel):
-    # flags one doc file for human review, empty in v1.1 and filled by the LLM in v1.2
+    # flags one doc file for human review, never produced by this system (contract deviation 1)
     finding_id: str
     issue_type: str
     code_file: str

@@ -46,12 +46,6 @@ class AnalysisSettings(BaseSettings):
     # runs at most this many analyses at once, extra requests wait for a slot
     max_concurrent: int = 2
 
-    # names the model the drift check asks, a provider switch is a config change (roadmap v1.2)
-    llm_model: str = "gemini-3.8-flash"
-
-    # caps the documentation sent to the drift check, measured in raw bytes
-    doc_budget_bytes: int = 200 * 1024
-
 
 @lru_cache
 def get_settings() -> AnalysisSettings:

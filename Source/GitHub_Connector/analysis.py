@@ -9,23 +9,17 @@ import uuid
 from datetime import datetime, timezone
 
 from GitHub_Connector import rules, runs
-from GitHub_Connector.fetch import SKIP_OVER_BUDGET, fetch
+from GitHub_Connector.fetch import fetch
 from GitHub_Connector.schemas import (
     AnalysisError,
     AnalysisRequest,
     AnalysisResult,
-    Category,
     Change,
     ErrorCode,
     Skipped,
     Status,
 )
 from GitHub_Connector.settings import build_label, get_settings
-
-try:
-    from LLM_Shell import llm
-except ImportError:  # keeps the app starting, LLM_Shell is not in this repo yet
-    llm = None
 
 # matches owner/name and 7-40 hex before any network call, \Z since $ would accept a trailing newline
 REPOSITORY = re.compile(r"^[A-Za-z0-9-]+/[A-Za-z0-9._-]+\Z")
@@ -62,8 +56,6 @@ def slot() -> threading.BoundedSemaphore:
 def analyze(request: AnalysisRequest) -> AnalysisResult:
     # runs one analysis in a slot, starting the deadline only once the slot is free
     validate(request)
-    if llm is None:
-        raise AnalysisError(ErrorCode.LLM_UNAVAILABLE, "The drift check is not installed (LLM_Shell is missing)")
     with slot():
         return _analyze(request, time.monotonic() + get_settings().analysis_deadline)
 
@@ -81,9 +73,6 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
             for c in cmp.changes
         ]
         skipped = [Skipped(path=s.path, reason=s.reason) for s in cmp.skipped]
-        code, docs, over_budget = _inputs(cmp, changes, skipped)
-        issues = llm.check(code, docs, deadline, len(over_budget))
-        skipped += over_budget
         head, base = cmp.head, cmp.base
 
     result = AnalysisResult(
@@ -95,7 +84,7 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
         tool_version=build_label(),
         status=Status.SUCCESS,
         error=None,
-        issues=sorted(issues, key=lambda f: (f.documentation_file or "", f.code_file)),
+        issues=[],  # stays empty, this system has no prose detector (contract deviation 1)
         changes=sorted(changes, key=lambda c: c.path),
         skipped=sorted(skipped, key=lambda s: s.path),
         created_at=_now(),
@@ -106,57 +95,6 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
         raise AnalysisError(ErrorCode.WRITE_FAILED, "The run file could not be saved") from exc
     return result
 
-
-def _inputs(cmp, changes: list[Change], skipped: list[Skipped]) -> tuple[list, list, list[Skipped]]:
-    # builds what the drift check reads: the changed code, and the docs at head that fit the budget
-    done = {s.path for s in skipped}
-    # leaves out the docs, they are sent whole at head, and anything already skipped was never read
-    wanted = [c for c in changes if c.category != Category.DOCUMENTATION and c.path not in done]
-    # reads the base side at old_path, or a rename would look like a file that never existed
-    base = cmp.read_many([c.old_path or c.path for c in wanted], "base")
-    head = cmp.read_many([c.path for c in wanted], "head")
-    code = [
-        llm.CodeFile(
-            path=c.path,
-            category=c.category,
-            base=_text(base.get(c.old_path or c.path)),
-            head=_text(head.get(c.path)),
-        )
-        for c in wanted
-    ]
-
-    # reads every candidate in one call, a size pass first would fetch each blob on its own
-    candidate = [
-        path
-        for path in cmp.tree("head")
-        if rules.classify(path) == Category.DOCUMENTATION and not rules.is_unsupported(path)
-    ]
-    docs: list[llm.DocFile] = []
-    over_budget: list[Skipped] = []
-    budget, used = get_settings().doc_budget_bytes, 0
-    for path, raw in cmp.read_many(candidate, "head").items():
-        # drops a doc that is not readable text with no record, an untouched file was never ours to check
-        text = None if b"\0" in raw[:8000] else _text(raw)
-        if text is None:
-            continue
-        if used + len(raw) > budget:
-            # records the one skip the gather owns, never twice for a path the connector skipped already
-            if path not in done:
-                over_budget.append(Skipped(path=path, reason=SKIP_OVER_BUDGET))
-            continue
-        used += len(raw)
-        docs.append(llm.DocFile(path=path, text=text))
-    return code, docs, over_budget
-
-
-def _text(raw: bytes | None) -> str | None:
-    # decodes one file as UTF-8, None where it is absent or not text
-    if raw is None:
-        return None
-    try:
-        return raw.decode()
-    except UnicodeDecodeError:
-        return None
 
 
 def _now() -> str:
