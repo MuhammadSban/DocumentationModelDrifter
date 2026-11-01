@@ -11,7 +11,7 @@ Each owner decides everything inside their model: kinds, id scheme, attributes, 
 | Structural | Enrique | `generate_structural(files) -> dict` and `structural.schema.json`; element lists `nodes`, `edges` |
 | Behavioral | Barshan | `generate_behavioral(files) -> dict` and `behavioral.schema.json`; element lists of the owner's choice |
 | Ownership | Muhammad | `propose_ownership(head_sha, records) -> dict` and `ownership.schema.json`; rules, never diffed |
-| Core | Kaan | `parse_files`, `write_model`, `CommitRecord`, scope, the diff, the ownership checker, the CLI |
+| Core | Kaan | `parse_files`, `write_model`, `CommitRecord` (defined in `ownership_model.py`), scope, the diff, the ownership checker, the CLI |
 
 ## The element rule (structural and behavioral)
 
@@ -48,7 +48,7 @@ flowchart TB
     end
 
     subgraph OW[Ownership]
-        Log[git integration: every commit up to head,<br/>newest first, as CommitRecord<br/>sha, author_email, author_date, parent_count, paths]
+        Log[git integration: every commit up to head,<br/>newest first, as CommitRecord<br/>sha, author_email, parents, paths]
         Log -- init and /generate --> Prop["propose_ownership<br/>(owner)"] --> Write[write_model: ownership.json]
         Log -- non-merge commits base..head --> Check[checker: first matching rule wins,<br/>no rule means anyone,<br/>a rename is judged on its old path]
         Rules["ownership.json, validated<br/>against the schema (owner)"] --> Check
