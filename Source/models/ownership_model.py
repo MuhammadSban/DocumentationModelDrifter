@@ -129,7 +129,7 @@ def _walk(records: list[CommitRecord]) -> tuple[list[tuple[CommitRecord, tuple[s
         touched: list[str] = []
         for touch in record.paths:
             head_name = canonical.get(touch.path, touch.path)
-            if touch.change_type == "RENAMED":
+            if touch.change_type == "RENAMED" and touch.old_path:
                 # credits the file's older history to the name it carries at head
                 canonical[touch.old_path] = head_name
             if head_name not in newest:
@@ -199,7 +199,7 @@ def check_ownership(rules: dict, commits: list[CommitRecord]) -> list[dict]:
 def _changed(commit: CommitRecord) -> list[str]:
     # lists the paths one commit changes, each once and in path order; a rename counts under its
     # old path, so the owners travel with the file (spec 3.2)
-    return sorted({touch.old_path if touch.change_type == "RENAMED" else touch.path for touch in commit.paths})
+    return sorted({touch.old_path if touch.change_type == "RENAMED" and touch.old_path else touch.path for touch in commit.paths})
 
 
 def _match(path: str, patterns: list[tuple[str, tuple[str, ...]]]) -> tuple[str, ...] | None:
