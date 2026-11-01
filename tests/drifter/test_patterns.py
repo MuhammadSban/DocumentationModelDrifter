@@ -28,3 +28,9 @@ def test_exact_path_matches_only_itself():
     assert matches("src/app.py", "src/app.py")
     assert not matches("src/app.pyc", "src/app.py")
     assert not matches("lib/src/app.py", "src/app.py")
+
+
+def test_double_star_crosses_a_newline_in_a_file_name():
+    # git allows a newline in a name, which must not slip past a folder rule
+    assert matches("src/a\nb.py", "src/**")
+    assert matches("src/x\n/b.py", "**/*.py")
