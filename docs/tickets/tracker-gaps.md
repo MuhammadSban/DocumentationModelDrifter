@@ -29,7 +29,7 @@ into a tracker. `docs/base/phase4.md` owns the schedule; this file owns the deta
 
 Nothing in this section exists yet, and none of it is in `docs/base/specifications.md`: the spec
 describes one check of one commit, and the GitHub Action of Phase 5. The watch list in
-`Source/Frontend_Archive/index.html` is the only thing that currently polls, and it is a browser
+`Source/Frontend/index.html` is the only thing that currently polls, and it is a browser
 page, so it tracks nothing once the tab is closed.
 
 | # | Missing | Fix | Check that closes it |

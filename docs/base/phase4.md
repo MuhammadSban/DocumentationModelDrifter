@@ -45,9 +45,9 @@ The spec (§3.2, §5.2, §6.1, §7.1) fixes what each piece must output; the con
 What exists on `main` (2026-11-01):
 
 - **Reusable, in Source/GitHub_Connector:** fetch.py (clone, resolve short SHA, first parent, diff, read blobs, timeouts), runs.py (write-once run files), course.py (system /test/setup and /test/report with line coverage), api.py routing.
-- **Started:** `Source/models/` holds `common.py` (`parse_files`, `write_model`, and `glob`, the one matcher classification, scope.json and ownership share), `structural_model.py` (the structural generator) and `ownership_model.py` (propose and check); `Source/drifter/check.py` runs a check through one reader interface (`read_sources`), on a local checkout (`LocalReader`) or on the connector's clone (its `Comparison`, with the batched blob fetch in `fetch.py`), with scope, the four drift_error codes, a generator registry (structural only), diff by id and the ownership check; `Source/drifter/cli.py` is `drifter check`, installed by `pyproject.toml`; every /analyze result carries `drift` and `drift_error`; `Source/Tester/` serves the tester at /tester; `tests/` holds the connector, drift, drifter, structural, common, ownership, tester and diagram tests.
-- **Not contract 2.4.0:** run files are lost on redeploy. (Done on `main`, merged from contract-alignment: features in /health, mapping-v1.1.yaml, config_version mapping-v1.1, unmapped, contract error codes, one skip reason, 80 s deadline, CHANGE_LIMIT_EXCEEDED, one active test session; all 10 golden cases pass. The console path already points at Frontend_Archive.)
-- **Missing entirely:** the behavioral generator, `drifter init` and `update`, /generate, the shared seam test, the durable store.
+- **Started, outside the plan's layout:** `Source/models/` holds `common.py` (`parse_files`, `write_model`), `structural_model.py` (the structural generator) and `ownership_model.py` (propose and check); `Source/drifter/check.py` (moved from `Source/orchestration.py`) runs a local check with scope, diff by id and the ownership check, with FILLERs for behavioral and remote repositories; `Source/Tester/` serves the tester at /tester; `tests/` holds the connector, structural, common, tester and diagram tests.
+- **Not contract 2.4.0:** run files are lost on redeploy. (Done on `main`, merged from contract-alignment: features in /health, mapping-v1.1.yaml, config_version mapping-v1.1, unmapped, contract error codes, one skip reason, 80 s deadline, CHANGE_LIMIT_EXCEEDED, one active test session; all 10 golden cases pass. The console path already points at Frontend.)
+- **Missing entirely:** the behavioral generator, `Source/drifter/`, the CLI, `drift` on /analyze, /generate, packaging, the durable store.
 
 ## Roadmap: v1, v1.1, v1.2
 
@@ -195,7 +195,7 @@ Decided 2026-11-01 as recommended, with the exceptions in D5 and D11 above; kept
 
 ### Q4 Where new code goes
 
-**The decision.** Today Source/ holds GitHub_Connector (the v1 service) and Frontend_Archive. Phase 4 adds the core, the CLI, plugins, the tester and tests.
+**The decision.** Today Source/ holds GitHub_Connector (the v1 service) and Frontend. Phase 4 adds the core, the CLI, plugins, the tester and tests.
 
 **Why it matters.** Spec §7.1 says one codebase runs as CLI, GitHub Action and hosted service, and §7.1 adoption says a repository installs drifter with pip from a release tag. So the core must be importable without FastAPI or the web app, and must not live inside the web service folder.
 

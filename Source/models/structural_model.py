@@ -123,8 +123,9 @@ def _imports(tree, mod, package, path, known, edges) -> dict[str, str]:
     for stmt, in_function in _walk(tree):
         if isinstance(stmt, ast.Import):
             for alias in stmt.names:
-                if alias.name in known:
-                    _edge(edges, "imports", mod, alias.name, path)
+                target = _imported(alias.name, known)
+                if target:
+                    _edge(edges, "imports", mod, target, path)
                 if not in_function:
                     # binds a for import a.b.c, and x to a.b.c for import a.b.c as x
                     local = alias.asname or alias.name.split(".")[0]
@@ -134,14 +135,29 @@ def _imports(tree, mod, package, path, known, edges) -> dict[str, str]:
             if base is None:
                 continue
             for alias in stmt.names:
-                submodule = f"{base}.{alias.name}"
-                target = submodule if submodule in known else base
-                if target in known:
+                submodule = _imported(f"{base}.{alias.name}", known)
+                module = _imported(base, known)
+                target = submodule or module
+                if target:
                     _edge(edges, "imports", mod, target, path)
                 if not in_function and alias.name != "*":
                     local = alias.asname or alias.name
-                    names[local] = submodule if submodule in known else f"{base}:{alias.name}"
+                    names[local] = submodule or f"{module or base}:{alias.name}"
     return names
+
+
+def _imported(name: str, known: set[str]) -> str | None:
+    # finds the module an import names: the id itself, or the one id ending in it, since a
+    # repository whose code root is not src/ is imported with that root on the path, so
+    # Source/models/common.py is imported as models.common. Only a dotted name is matched that
+    # way, so `import json` can never reach a module of this repository called utils.json, and
+    # only a single match counts, so an ambiguous import is never guessed at.
+    if name in known:
+        return name
+    if "." not in name:
+        return None
+    matches = [module for module in known if module.endswith("." + name)]
+    return matches[0] if len(matches) == 1 else None
 
 
 def _walk(node, in_function=False):
