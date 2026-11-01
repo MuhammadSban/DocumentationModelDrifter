@@ -173,3 +173,23 @@ def test_drift_is_byte_identical_across_runs(tmp_path, monkeypatch):
     assert json.dumps(first.drift.model_dump(mode="json"), sort_keys=True) == json.dumps(
         second.drift.model_dump(mode="json"), sort_keys=True
     )
+
+
+def test_the_local_reader_keeps_renames_and_commits_with_no_paths(tmp_path):
+    _repo(tmp_path, {**CODE, **_models(CODE)})
+    work = tmp_path / "work"
+    root = subprocess.run(["git", "-C", str(work), "rev-parse", "HEAD"],
+                          check=True, capture_output=True, text=True).stdout.strip()
+    blob = subprocess.run(["git", "-C", str(work), "rev-parse", ":src/app.py"],
+                          check=True, capture_output=True, text=True).stdout.strip()
+    _git(work, "update-index", "--force-remove", "src/app.py")
+    _git(work, "update-index", "--add", "--cacheinfo", f"100644,{blob},src/main.py")
+    _git(work, "commit", "-qm", "rename", author="bob@x.com")
+    _git(work, "commit", "-q", "--allow-empty", "-m", "empty", author="ana@x.com")
+
+    sources = local_sources(work, "HEAD", base=root)
+
+    assert [(c.author_email, [(t.change_type, t.path, t.old_path) for t in c.paths]) for c in sources.commits] == [
+        ("ana@x.com", []),
+        ("bob@x.com", [("RENAMED", "src/main.py", "src/app.py")]),
+    ]

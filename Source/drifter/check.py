@@ -229,9 +229,8 @@ def _history(repo: Path, head: str, base: str | None) -> list[CommitRecord]:
 
 
 def _parse_history(raw: str) -> list[CommitRecord]:
-    # reads the commit records out of one `git log` run with LOG_ARGS, whichever clone ran it.
-    # Every field ends in NUL, so a path is read as git stores it, never quoted: a header opens
-    # with \x01, then each change is a status and one path, or two for a rename or copy.
+    # reads the commit records out of one LOG_ARGS log: \x01 opens a header, then each change
+    # is a status and one path, or two for a rename or copy
     tokens = raw.split("\x00")
     records, header, touches, i = [], None, [], 0
     while i < len(tokens):

@@ -67,5 +67,5 @@ def glob(pattern: str) -> re.Pattern:
         else:
             out.append(re.escape(pattern[i]))
             i += 1
-    # DOTALL lets ".*" cross a newline, which git allows in a file name
+    # compiles with DOTALL, so ".*" crosses a newline, which git allows in a file name
     return re.compile("".join(out) + r"\Z", re.DOTALL)
