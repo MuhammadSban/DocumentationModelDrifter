@@ -99,7 +99,9 @@ These are the possible kinds of nodes:
 - with a leading `src/` dropped from files below it (`src/__init__.py` itself is `src`), and
 - with a trailing `.__init__` dropped, so a package's `__init__.py` has the package's id (`src/shop/__init__.py` is `shop`).
 
-A root-level `__init__.py` is `__init__`. Only `src/` is dropped: code under any other folder keeps it in its id (`Source/pkg/mod.py` is `Source.pkg.mod`), so its imports of `pkg.mod` do not become edges.
+A root-level `__init__.py` is `__init__`. Only `src/` is dropped: code under any other folder keeps it in its id (`Source/pkg/mod.py` is `Source.pkg.mod`).
+
+An import is matched against those ids by name, or by the one id that ends in it: an import of `pkg.mod` finds `Source.pkg.mod`, because that root is what sits on the import path when the code runs. Only a dotted name is matched that way, so `import json` never reaches a `utils/json.py`, and only a single match counts, so an ambiguous import gives no edge. Ids are unaffected: this decides edges only.
 
 No two files share a module id. The one clash these rules leave, a root `src.py` beside `src/__init__.py`, is not supported.
 

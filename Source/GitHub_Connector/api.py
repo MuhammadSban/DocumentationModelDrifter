@@ -41,8 +41,9 @@ app = FastAPI(
 )
 router = APIRouter(prefix="/system")
 
-# finds the console page beside the connector, Source/ ships whole in the image
-CONSOLE = Path(__file__).resolve().parents[1] / "Frontend_Archive" / "index.html"
+# finds the console beside the connector, Source/ ships whole in the image
+FRONTEND = Path(__file__).resolve().parents[1] / "Frontend"
+CONSOLE = FRONTEND / "index.html"
 
 
 def _json(data: bytes, status: int = 200) -> Response:
@@ -133,6 +134,12 @@ def health() -> dict[str, object]:
 def console() -> FileResponse:
     # serves the console page, kept out of the OpenAPI document so the contract stays the same
     return FileResponse(CONSOLE, media_type="text/html")
+
+
+@app.get("/app.css", include_in_schema=False)
+def stylesheet() -> FileResponse:
+    # serves the design the console and the model viewer share, the one file the page asks for
+    return FileResponse(FRONTEND / "app.css", media_type="text/css")
 
 
 router.include_router(course.router)

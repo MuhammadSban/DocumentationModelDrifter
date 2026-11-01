@@ -10,6 +10,7 @@ from pathlib import Path
 # names the files the generators write into a repository's /models folder
 STRUCTURAL_FILE = "structural.json"
 OWNERSHIP_FILE = "ownership.json"
+SCOPE_FILE = "scope.json"
 
 
 class ModelLoadError(Exception):
@@ -64,11 +65,19 @@ class OwnershipModel:
 
 
 @dataclass(frozen=True)
+class Scope:
+    # which paths count as the code the models describe, as include and exclude patterns (spec 3.2)
+    include: tuple[str, ...]
+    exclude: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class Models:
     # one repository's models, a field being None where that file is not in the folder
     models_dir: Path
     structural: StructuralModel | None
     ownership: OwnershipModel | None
+    scope: Scope | None
 
 
 def load_models(models_dir: str | Path) -> Models:
@@ -77,10 +86,12 @@ def load_models(models_dir: str | Path) -> Models:
     folder = Path(models_dir)
     structural_file = folder / STRUCTURAL_FILE
     ownership_file = folder / OWNERSHIP_FILE
+    scope_file = folder / SCOPE_FILE
     return Models(
         models_dir=folder,
         structural=load_structural(structural_file) if structural_file.is_file() else None,
         ownership=load_ownership(ownership_file) if ownership_file.is_file() else None,
+        scope=load_scope(scope_file) if scope_file.is_file() else None,
     )
 
 
@@ -100,6 +111,15 @@ def load_ownership(path: str | Path) -> OwnershipModel:
     return OwnershipModel(
         schema_version=_field(data, "schema_version", path),
         rules=tuple(_rule(entry, path) for entry in _field(data, "rules", path)),
+    )
+
+
+def load_scope(path: str | Path) -> Scope:
+    # reads one scope.json, which decides which files the code models describe
+    data = _read(path)
+    return Scope(
+        include=tuple(_field(data, "include", path)),
+        exclude=tuple(_field(data, "exclude", path)),
     )
 
 

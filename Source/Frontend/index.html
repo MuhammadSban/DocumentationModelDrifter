@@ -3,17 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#eceef2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">
 <title>DocumentationDrifter Console</title>
+<link rel="stylesheet" href="app.css">
 <style>
+/* the console's own names, mapped onto the shared design in app.css, so both pages carry one
+   set of surfaces, inks and status colours and follow the reader's light or dark setting */
 :root {
-  --bg-canvas:#0B0E13; --bg-panel:#11151C; --bg-raised:#161B24; --bg-overlay:#1C222D;
-  --border-subtle:#1F2630; --border-default:#2A323F; --border-strong:#3A4452;
-  --fg-default:#E4EAF2; --fg-muted:#8A95A5; --fg-subtle:#5A6474; --fg-on-accent:#0B0E13;
-  --idle:#6E7A8A; --info:#58A6FF; --work:#D29922; --ok:#3FB950;
-  --signal:#2DD4BF; --warn:#DB6D28; --error:#F85149; --stale:#A371F7;
-  --font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  --font-mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
-  --ease:cubic-bezier(.2,0,.2,1); --fast:120ms; --base:180ms;
+  --bg-canvas:var(--bg); --bg-panel:var(--panel); --bg-raised:var(--raised);
+  --bg-overlay:var(--panel);
+  --border-subtle:var(--line); --border-default:var(--line); --border-strong:var(--line-strong);
+  --fg-default:var(--text); --fg-muted:var(--muted); --fg-subtle:var(--muted);
+  --fg-on-accent:var(--accent-ink);
+  --info:var(--accent); --work:var(--warn); --signal:var(--accent); --stale:var(--s7);
+  --font-ui:var(--sans); --font-mono:var(--mono);
+  --fast:120ms; --base:180ms;
 }
 * { box-sizing:border-box; margin:0; padding:0; }
 html,body { height:100%; }
@@ -24,7 +30,7 @@ body {
 }
 button,input,select { font:inherit; color:inherit; background:none; border:none; outline:none; }
 button { cursor:pointer; }
-:focus-visible { box-shadow:0 0 0 1px var(--border-strong); border-radius:3px; }
+:focus-visible { box-shadow:0 0 0 1px var(--border-strong); border-radius:6px; }
 .mono { font-family:var(--font-mono); }
 .num { font-variant-numeric:tabular-nums; }
 .label { font-size:10px; font-weight:600; letter-spacing:.10em; text-transform:uppercase; color:var(--fg-muted); }
@@ -41,7 +47,7 @@ header {
 .brand span { font:400 11px var(--font-mono); color:var(--fg-subtle); }
 .apiwrap { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
 #api {
-  height:28px; width:280px; padding:0 8px; border-radius:5px;
+  height:28px; width:280px; padding:0 8px; border-radius:7px;
   font:400 11px var(--font-mono); color:var(--fg-muted);
   border:1px solid transparent; transition:background var(--fast) var(--ease),border-color var(--fast) var(--ease);
 }
@@ -49,12 +55,13 @@ header {
 #api.cross { border-color:var(--warn); color:var(--warn); }
 .hint { font:400 11px var(--font-mono); color:var(--warn); }
 .meter { display:flex; align-items:center; gap:8px; }
-.track { width:64px; height:4px; border-radius:3px; background:var(--border-default); overflow:hidden; }
+.track { width:64px; height:4px; border-radius:6px; background:var(--border-default); overflow:hidden; }
 .track i { display:block; height:100%; background:var(--ok); transition:width var(--base) var(--ease); }
 .track.low i { background:var(--warn); }
 .ctl {
   height:28px; display:flex; align-items:center; gap:8px; padding:0 10px;
-  border:1px solid var(--border-default); border-radius:5px; background:var(--bg-raised);
+  border-radius:7px; background:var(--bg-raised);
+  box-shadow:0 0 0 1px rgb(0 0 0 / .05), 0 1px 2px rgb(0 0 0 / .04);
   font:400 11px var(--font-mono); color:var(--fg-muted);
 }
 .ctl:hover { border-color:var(--border-strong); color:var(--fg-default); }
@@ -70,7 +77,7 @@ main { flex:1; min-width:0; overflow-y:auto; }
 form.add { padding:12px; background:var(--bg-raised); border-bottom:1px solid var(--border-default); }
 form.add .row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
 form.add input {
-  height:32px; width:100%; margin-bottom:8px; padding:0 10px; border-radius:5px;
+  height:32px; width:100%; margin-bottom:8px; padding:0 10px; border-radius:7px;
   background:var(--bg-canvas); border:1px solid var(--border-default);
   font:400 12px var(--font-mono); color:var(--fg-default);
 }
@@ -78,7 +85,7 @@ form.add input::placeholder { color:var(--fg-subtle); }
 form.add input:focus { border-color:var(--border-strong); }
 form.add input.bad { border-color:var(--error); }
 form.add button {
-  height:32px; width:100%; border-radius:5px; background:var(--signal); color:var(--fg-on-accent);
+  height:32px; width:100%; border-radius:7px; background:var(--signal); color:var(--fg-on-accent);
   font-size:10px; font-weight:600; letter-spacing:.10em; text-transform:uppercase;
 }
 form.add button:hover { filter:brightness(1.1); }
@@ -105,12 +112,12 @@ form.add button:hover { filter:brightness(1.1); }
 .row .sub.s { color:var(--signal); }
 .chip-n {
   flex-shrink:0; padding:2px 8px; border-radius:999px; font:600 10px var(--font-mono);
-  color:var(--signal); border:1px solid rgba(45,212,191,.4); background:rgba(45,212,191,.1);
+  color:var(--accent); border:1px solid var(--accent-soft); background:var(--accent-soft);
   font-variant-numeric:tabular-nums;
 }
 .acts { display:none; gap:2px; flex-shrink:0; }
 .row:hover .acts { display:flex; }
-.acts button { width:22px; height:22px; border-radius:3px; color:var(--fg-subtle); font:400 12px var(--font-mono); }
+.acts button { width:22px; height:22px; border-radius:6px; color:var(--fg-subtle); font:400 12px var(--font-mono); }
 .acts button:hover { background:var(--bg-overlay); color:var(--fg-default); }
 
 /* ---------- status indicators ---------- */
@@ -119,7 +126,7 @@ form.add button:hover { filter:brightness(1.1); }
 .dot.ring.pulse { border-color:var(--info); animation:pulse 1.6s var(--ease) infinite; }
 .dot.arc { border:2px solid var(--work); border-right-color:transparent; border-bottom-color:transparent; border-left-color:transparent; animation:spin .9s linear infinite; }
 .dot.tri { width:0; height:0; border-radius:0; border-left:6px solid transparent; border-right:6px solid transparent; border-bottom:10px solid var(--warn); }
-.dot.sq { border-radius:3px; background:var(--idle); }
+.dot.sq { border-radius:6px; background:var(--idle); }
 @keyframes pulse { 0%,100%{opacity:.35} 50%{opacity:1} }
 @keyframes spin { to { transform:rotate(360deg) } }
 @media (prefers-reduced-motion:reduce) {
@@ -132,7 +139,7 @@ form.add button:hover { filter:brightness(1.1); }
 .rtop { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
 .rtop h1 { font-size:14px; font-weight:600; letter-spacing:-.01em; }
 .shas { margin-top:6px; display:flex; align-items:center; gap:8px; font:600 12px var(--font-mono); }
-.shas button { padding:1px 4px; border-radius:3px; }
+.shas button { padding:1px 4px; border-radius:6px; }
 .shas button:hover { background:var(--bg-raised); }
 .shas i { color:var(--fg-subtle); font-style:normal; }
 .counters { margin-top:12px; height:48px; display:flex; border-top:1px solid var(--border-subtle); }
@@ -148,7 +155,7 @@ section.tbl { padding:12px 20px 0; }
 .trow:hover { background:var(--bg-raised); }
 .glyph { font-weight:700; width:20px; text-align:center; }
 .old { display:block; font-size:10px; color:var(--fg-subtle); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.chip { justify-self:end; padding:1px 8px; border-radius:3px; font:400 10px var(--font-mono); border:1px solid; }
+.chip { justify-self:end; padding:1px 8px; border-radius:6px; font:400 10px var(--font-mono); border:1px solid; }
 section.skip { margin:12px 20px 0; border-left:2px solid var(--warn); }
 .shead, .srow { display:grid; grid-template-columns:minmax(0,1fr) 260px; align-items:center; height:28px; padding:0 8px; }
 .shead { background:var(--bg-panel); border-top:1px solid var(--border-subtle); border-bottom:1px solid var(--border-subtle); }
@@ -166,13 +173,13 @@ footer.meta .sel { user-select:all; }
 .notice { display:flex; align-items:center; gap:12px; padding:8px 12px; background:var(--bg-raised); border-left:2px solid var(--stale); }
 .notice b { display:block; font:600 11px var(--font-mono); color:var(--stale); }
 .notice p { margin-top:2px; font-size:11px; color:var(--fg-muted); }
-.notice button { height:28px; padding:0 10px; border:1px solid var(--stale); border-radius:5px; color:var(--stale); font-size:10px; font-weight:600; letter-spacing:.10em; text-transform:uppercase; }
+.notice button { height:28px; padding:0 10px; border:1px solid var(--stale); border-radius:7px; color:var(--stale); font-size:10px; font-weight:600; letter-spacing:.10em; text-transform:uppercase; }
 .notice button:hover { background:var(--bg-overlay); }
 .notice.bad { border-left-color:var(--error); }
 .notice.bad b { color:var(--error); }
 .notice.bad button { border-color:var(--error); color:var(--error); }
 .empty { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:var(--fg-subtle); }
-.empty code { font:400 12px var(--font-mono); color:var(--fg-muted); background:var(--bg-panel); padding:2px 6px; border-radius:3px; }
+.empty code { font:400 12px var(--font-mono); color:var(--fg-muted); background:var(--bg-panel); padding:2px 6px; border-radius:6px; }
 .empty button { color:var(--signal); font:400 12px var(--font-mono); text-decoration:underline; text-underline-offset:3px; }
 </style>
 </head>
@@ -230,9 +237,12 @@ footer.meta .sel { user-select:all; }
 /* ---- contract constants, copied from Source/GitHub_Connector ---- */
 const RE_REPO = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;      // analysis.REPOSITORY
 const RE_SHA  = /^[0-9a-fA-F]{7,40}$/;                    // analysis.SHA
+/* the shared categorical slots in their fixed order, OTHER folding into the neutral one,
+   so a category keeps its colour and no hue is invented (app.css) */
 const CAT = {
-  IMPLEMENTATION:"#58A6FF", DESIGN:"#A371F7", ARCHITECTURE:"#2DD4BF",
-  SPECIFICATION:"#7C8CF8", REQUIREMENT:"#D29922", DOCUMENTATION:"#3FB950", OTHER:"#6E7A8A"
+  IMPLEMENTATION:"var(--s1)", DESIGN:"var(--s2)", ARCHITECTURE:"var(--s3)",
+  SPECIFICATION:"var(--s4)", REQUIREMENT:"var(--s5)", DOCUMENTATION:"var(--s6)",
+  OTHER:"var(--s9)"
 };
 const GLYPH = {
   ADDED:["A","var(--ok)"], MODIFIED:["M","var(--work)"], DELETED:["D","var(--error)"],
