@@ -9,12 +9,14 @@ from GitHub_Connector.schemas import AnalysisRequest, ChangeType
 
 @contextmanager
 def fake_fetch(repo, head, base, deadline):
-    # replaces the clone with one changed file, so no git or network is needed
+    # replaces the clone with one changed file, so no git or network is needed; the empty tree
+    # holds no /models, so the model check reaches MODELS_NOT_FOUND without running git
     yield Comparison(
         repo=repo,
         head="a" * 40,
         base="b" * 40,
         changes=[FileChange("src/app.py", ChangeType.MODIFIED)],
+        _tree={},
     )
 
 
@@ -37,6 +39,7 @@ def test_over_2000_changes_is_a_saved_change_limit_error(monkeypatch):
             head="a" * 40,
             base="b" * 40,
             changes=[FileChange(f"src/m{i}.py", ChangeType.ADDED) for i in range(2001)],
+            _tree={},
         )
 
     saved = []
@@ -48,4 +51,6 @@ def test_over_2000_changes_is_a_saved_change_limit_error(monkeypatch):
     assert result.status == "ERROR"
     assert result.error.code == "CHANGE_LIMIT_EXCEEDED"
     assert (result.changes, result.skipped, result.unmapped, result.issues) == ([], [], [], [])
+    # the model check does not depend on status, so it still reached a no-verdict code (spec 5.2)
+    assert result.drift_error.code == "MODELS_NOT_FOUND"
     assert saved
