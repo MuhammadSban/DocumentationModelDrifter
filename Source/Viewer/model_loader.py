@@ -50,8 +50,9 @@ class StructuralModel:
 
 @dataclass(frozen=True)
 class OwnershipRule:
-    # one file's owners by git author email; a file no rule names is open to anyone (spec 3.2)
-    path: str
+    # one path pattern's owners by git author email; a path no rule matches is open to anyone,
+    # and the rules are tried in order, so the first match wins (spec 3.2)
+    pattern: str
     owners: tuple[str, ...]
 
 
@@ -146,6 +147,6 @@ def _edge(entry: dict, path: str | Path) -> Edge:
 def _rule(entry: dict, path: str | Path) -> OwnershipRule:
     # builds one ownership rule, its owners kept in the file's order (sorted by the generator)
     return OwnershipRule(
-        path=_field(entry, "pattern", path),
+        pattern=_field(entry, "pattern", path),
         owners=tuple(_field(entry, "owners", path)),
     )

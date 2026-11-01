@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 import warnings
+from functools import lru_cache
 
 
 class ParseFailed(Exception):
@@ -41,3 +43,28 @@ def write_model(model: dict) -> str:
     # renders a model in the spec's layout (3.2): sorted keys, 2-space indent, non-ASCII as is,
     # LF line endings and one trailing newline
     return json.dumps(model, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
+
+
+@lru_cache(maxsize=256)
+def glob(pattern: str) -> re.Pattern:
+    # turns a POSIX glob into a regex: "**/" is zero or more folders, "**" anything, "*" one
+    # segment's text. The one matcher scope.json, ownership rules and mapping-v1.1.yaml share,
+    # so a pattern means the same thing in all three (phase4.md Q3)
+    out, i = [], 0
+    while i < len(pattern):
+        if pattern.startswith("**/", i):
+            out.append("(?:.*/)?")
+            i += 3
+        elif pattern.startswith("**", i):
+            out.append(".*")
+            i += 2
+        elif pattern[i] == "*":
+            out.append("[^/]*")
+            i += 1
+        elif pattern[i] == "?":
+            out.append("[^/]")
+            i += 1
+        else:
+            out.append(re.escape(pattern[i]))
+            i += 1
+    return re.compile("".join(out) + r"\Z")

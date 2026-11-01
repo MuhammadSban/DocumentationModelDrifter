@@ -3,8 +3,8 @@
 # committed /models by element id, and judge every non-merge commit between base and head
 # against the ownership rules. Read-only: nothing here writes to the repository.
 #
-#   python3 Source/drifter/check.py --repo . HEAD          # check a local clone
-#   python3 Source/drifter/check.py --repo . HEAD --base X  # against a given base
+#   python3 Source/orchestration.py --repo . HEAD          # check a local clone
+#   python3 Source/orchestration.py --repo . HEAD --base X  # against a given base
 #
 # Ownership is checked, never regenerated and diffed: history grows with the push being checked
 # (spec 3.2). `drifter init` proposes the first ownership.json, a person corrects it, and from
@@ -13,8 +13,6 @@
 # What the lower layers still owe, each marked FILLER, so `grep -n FILLER` is the to-do list:
 #
 #   behavioral_differences   the behavioral generator is not built
-#   remote_sources           the connector cannot read a remote repo's history or /models yet
-#   scope matching           must use the mapping-v1.1.yaml glob, one matcher shared (spec 3.2)
 
 from __future__ import annotations
 
@@ -24,9 +22,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from models.common import ParseFailed, parse_files
+from models.common import ParseFailed, glob, parse_files
 from models.ownership_model import CommitRecord, PathTouch, check_ownership
 from models.structural_model import generate_structural
 
@@ -35,6 +33,9 @@ MODEL_FILES = ("behavioral.json", "ownership.json", "scope.json", "structural.js
 
 # defaults drifter init writes into scope.json (spec 3.2)
 DEFAULT_SCOPE = {"exclude": ["tests/**"], "include": ["**/*.py"]}
+
+# caps one in-scope file, over this there is no verdict (spec 5.2)
+MAX_FILE_BYTES = 1024 * 1024
 
 # maps git's status letters to the ownership model's change types
 LETTERS = {"A": "ADDED", "M": "MODIFIED", "D": "DELETED", "R": "RENAMED", "C": "COPIED", "T": "TYPE_CHANGED"}
@@ -122,9 +123,8 @@ def _difference(change: str, element: dict) -> dict:
 
 
 def in_scope(paths: list[str], scope: dict) -> list[str]:
-    # keeps the paths scope.json includes and does not exclude.
-    # FILLER as a pattern language: only `**/*.ext` and `dir/**` are understood, which covers the
-    # defaults; spec 3.2 asks for the full mapping-v1.1.yaml glob, anything else is an exact path.
+    # keeps the paths scope.json includes and does not exclude, matched with the one glob that
+    # mapping-v1.1.yaml also uses, so a pattern means the same everywhere (phase4.md Q3)
     include = scope.get("include", DEFAULT_SCOPE["include"])
     exclude = scope.get("exclude", DEFAULT_SCOPE["exclude"])
     kept = [p for p in paths if any(_matches(p, pattern) for pattern in include)]
@@ -133,11 +133,7 @@ def in_scope(paths: list[str], scope: dict) -> list[str]:
 
 def _matches(path: str, pattern: str) -> bool:
     # matches one scope pattern against a repo-relative path
-    if pattern.startswith("**/"):
-        return path.endswith(pattern[3:].lstrip("*"))
-    if pattern.endswith("/**"):
-        return path.startswith(pattern[:-2])
-    return path == pattern
+    return glob(pattern).match(path) is not None
 
 
 # ------------------------------------------------------------- reading one commit, locally or not
@@ -159,15 +155,52 @@ def local_sources(repo: Path, head: str, base: str | None = None) -> Sources:
     return Sources(files=files, models=models, commits=_history(repo, head_sha, base))
 
 
-def remote_sources(repository: str, head: str, base: str | None = None) -> Sources:
-    # FILLER. the same three reads against a repository the connector clones.
-    # fetch() yields a Comparison, which is one diff, so two calls are missing: the history the
-    # ownership check judges (`git log --topo-order --name-status -M` over the same clone, parsed
-    # as _history() below does) and /models at the commit (cmp.read_many(MODEL_FILES, "head")).
-    # The in-scope files are already reachable through cmp.tree("head") and cmp.read_many().
-    raise NotImplementedError(
-        f"cannot read {repository} at {head}: the connector has no history or /models call yet"
-    )
+def remote_sources(cmp) -> Sources:
+    # reads the three things one check needs from the clone the connector already opened: the
+    # committed /models at the commit, the in-scope files, and the commits the ownership check
+    # judges. cmp is the connector's Comparison, passed in so this module still runs no git
+    # itself. The three no-verdict codes are raised here, before any generator runs (phase4.md Q2).
+    tree = cmp.tree()
+    missing = [name for name in MODEL_FILES if f"models/{name}" not in tree]
+    if missing:
+        raise DriftError("MODELS_NOT_FOUND", f"models/{missing[0]} is missing at {cmp.head}")
+    committed = cmp.read([f"models/{name}" for name in MODEL_FILES])
+    models = {name: _model(f"models/{name}", committed[f"models/{name}"]) for name in MODEL_FILES}
+    paths = in_scope(sorted(tree), models["scope.json"])
+    raw = cmp.read(paths)
+    # judges size, then encoding, then syntax, each before any generator runs (phase4.md Q2).
+    # Size is judged on what arrived: a blobless clone cannot report it any earlier.
+    big = [path for path in sorted(raw) if len(raw[path]) > MAX_FILE_BYTES]
+    if big:
+        raise DriftError("FILE_TOO_LARGE", f"{big[0]} is {len(raw[big[0]])} bytes, over 1 MB")
+    files = _decode(raw)
+    # parses every in-scope file once before any generator runs, so a generator may assume each
+    # one parses and one bad file fails the whole check (spec 3.2)
+    try:
+        parse_files(files)
+    except ParseFailed as exc:
+        raise DriftError(exc.code, str(exc)) from None
+    return Sources(files=files, models=models, commits=_parse_history(cmp.log()))
+
+
+def _decode(raw: dict[str, bytes]) -> dict[str, str]:
+    # turns each in-scope file's bytes into text; one that is not UTF-8 ends the check (spec 5.2)
+    files = {}
+    for path, data in raw.items():
+        try:
+            files[path] = data.decode("utf-8")
+        except UnicodeDecodeError:
+            raise DriftError("PARSE_FAILED", f"{path} is not UTF-8 text") from None
+    return files
+
+
+def _model(path: str, raw: bytes | str) -> dict:
+    # parses one committed model file, a file that is not readable JSON ending the check
+    try:
+        text = raw.decode("utf-8") if isinstance(raw, bytes) else raw
+        return json.loads(text)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise DriftError("INVALID_MODELS", f"{path} is not valid JSON: {exc}") from None
 
 
 def _read_models(repo: Path, commit: str) -> dict[str, dict]:
@@ -178,10 +211,7 @@ def _read_models(repo: Path, commit: str) -> dict[str, dict]:
             raw = _git(repo, "show", f"{commit}:models/{name}")
         except subprocess.CalledProcessError:
             raise DriftError("MODELS_NOT_FOUND", f"models/{name} is missing at {commit}") from None
-        try:
-            models[name] = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise DriftError("INVALID_MODELS", f"models/{name} is not valid JSON: {exc}") from None
+        models[name] = _model(f"models/{name}", raw)
     return models
 
 
@@ -192,8 +222,12 @@ def _history(repo: Path, head: str, base: str | None) -> list[CommitRecord]:
         parents = _git(repo, "rev-parse", f"{head}^@").split()
         base = parents[0] if parents else None
     span = [f"{base}..{head}"] if base else [head]
-    raw = _git(repo, "log", "--topo-order", "--name-status", "-M",
-               "--format=%x00%H%x1f%ae%x1f%P", *span)
+    return _parse_history(_git(repo, "log", "--topo-order", "--name-status", "-M",
+                               "--format=%x00%H%x1f%ae%x1f%P", *span))
+
+
+def _parse_history(raw: str) -> list[CommitRecord]:
+    # reads the commit records out of one git log, whichever clone ran it
     records = []
     for block in raw.split("\x00"):
         if not block.strip():
@@ -241,7 +275,7 @@ def main() -> None:
     # checks a local clone at a commit
     args = sys.argv[1:]
     if "--repo" not in args:
-        print(__doc__ or "usage: check.py --repo PATH [COMMIT] [--base SHA]")
+        print(__doc__ or "usage: orchestration.py --repo PATH [COMMIT] [--base SHA]")
         return
     repo = Path(args[args.index("--repo") + 1]).resolve()
     base = args[args.index("--base") + 1] if "--base" in args else None

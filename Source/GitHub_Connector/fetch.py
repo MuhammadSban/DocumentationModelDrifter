@@ -61,6 +61,80 @@ class Comparison:
     changes: list[FileChange] = field(default_factory=list)
     skipped: list[SkippedFile] = field(default_factory=list)
     _git: _Git | None = None
+    _tree: dict[str, str] | None = None
+
+    def tree(self) -> dict[str, str]:
+        # maps every readable file at head to its object, so a caller chooses what to read before
+        # any of it is downloaded; symlinks and submodules are left out, as unread.
+        # No sizes: ls-tree -l reports them only by fetching every blob, which is the file-by-file
+        # crawl the batch below exists to avoid, so size is judged after the download.
+        if self._tree is None:
+            raw = self._git.run("ls-tree", "-r", "-z", self.head).stdout
+            self._tree = {}
+            for entry in raw.decode("utf-8", "surrogateescape").split("\0"):
+                if not entry:
+                    continue
+                meta, _, path = entry.partition("\t")
+                mode, _, sha = meta.split()
+                if mode in REGULAR:
+                    self._tree[path] = sha
+        return self._tree
+
+    def read(self, paths: list[str]) -> dict[str, bytes]:
+        # returns each path's bytes at head, downloading every blob in one fetch so a check never
+        # crawls file by file; a batch that does not bring them all fails at once (D11)
+        tree = self.tree()
+        unknown = [path for path in paths if path not in tree]
+        if unknown:
+            raise AnalysisError(ErrorCode.ANALYSIS_FAILED, f"{unknown[0]} is not a file at {self.head}")
+        if not paths:
+            return {}
+        shas = sorted({tree[path] for path in paths})
+        proc = self._git.run(
+            "fetch", "--no-tags", "--no-write-fetch-head", "--filter=blob:none", "--stdin", "origin",
+            input=_lines(shas), check=False,
+        )
+        if proc.returncode != 0:
+            raise AnalysisError(ErrorCode.ANALYSIS_FAILED, f"{len(shas)} files could not be downloaded")
+        blobs = self._blobs(shas)
+        return {path: blobs[tree[path]] for path in paths}
+
+    def _blobs(self, shas: list[str]) -> dict[str, bytes]:
+        # reads objects the batch already brought, with lazy fetching off (git 2.44+ honours the
+        # flag), so a missing one is the batch having failed and not a slow object-by-object fetch
+        self._git.env["GIT_NO_LAZY_FETCH"] = "1"
+        try:
+            raw = self._git.run("cat-file", "--batch", input=_lines(shas)).stdout
+        finally:
+            del self._git.env["GIT_NO_LAZY_FETCH"]
+        blobs: dict[str, bytes] = {}
+        at = 0
+        while at < len(raw):
+            # reads "<sha> blob <size>" then that many bytes and the newline after them
+            end = raw.index(b"\n", at)
+            header = raw[at:end].split(b" ")
+            if len(header) != 3:
+                raise AnalysisError(
+                    ErrorCode.ANALYSIS_FAILED,
+                    f"the download did not bring {header[0].decode()}, so the batch failed",
+                )
+            size = int(header[2])
+            blobs[header[0].decode()] = raw[end + 1:end + 1 + size]
+            at = end + 1 + size + 1
+        return blobs
+
+    def log(self) -> str:
+        # returns the commits the ownership check judges, newest first: those base..head, or the
+        # head alone for a root commit (spec 3.1). Text, so the check owns the parsing.
+        span = f"{self.base}..{self.head}" if self.base else self.head
+        return self._git.out(
+            "log", "--topo-order", "--name-status", "-M", "--format=%x00%H%x1f%ae%x1f%P", span
+        )
+
+
+def _lines(values: list[str]) -> bytes:
+    # feeds one value per line to a git command that reads its input
+    return ("\n".join(values) + "\n").encode()
 
 
 class _Git:
