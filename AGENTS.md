@@ -7,3 +7,17 @@ Model-drift tool: keeps a repository's architecture models (`/models`) in step w
 - **Think before coding.** State your assumptions before implementing. If a request has more than one reasonable reading, list them and ask; don't pick one silently. If something is unclear, stop and say what's confusing. Push back when a simpler approach exists.
 - **Surgical changes.** Touch only what the task needs. Don't reformat, refactor, or "improve" nearby code, and match the existing style. If you notice unrelated dead code, mention it instead of deleting it. Do remove imports or functions that your own change made unused. Every changed line should trace back to the request.
 - **Verifiable goals.** Turn each task into a check you can run: for a bug, write a failing test that reproduces it, then make it pass. For multi-step work, give a short plan with a verify step for each item, and don't call it done until the checks pass.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` is the glossary, `docs/adr/` holds the ADRs. See `docs/agents/domain.md`.
