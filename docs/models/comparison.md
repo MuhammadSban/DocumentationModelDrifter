@@ -27,4 +27,6 @@ flowchart TB
         A -- yes --> Ok3([owner: no entry])
         A -- no --> V[VIOLATION<br/>names commit, path, author, owners]
     end
+
+    S ~~~ O
 ```

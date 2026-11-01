@@ -54,6 +54,8 @@ flowchart TB
         Rules["ownership.json, validated<br/>against the schema (owner)"] --> Check
         Check --> Viol[VIOLATION<br/>author, commit, owners, path]
     end
+
+    SB ~~~ OW
 ```
 
 `propose()` returns rules sorted by path, each one exact path with its owners as sorted lowercase emails: `{"rules": [{"owners": ["a@x.com"], "pattern": "src/app.py"}], "schema_version": 1}`. Inside it is Muhammad's: `derive()`, the window of 10, the 50-file limit and the vendored folders as a config file in the tool, a bot being an email containing `[bot]`, and no `email:` prefix.

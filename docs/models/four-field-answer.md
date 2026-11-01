@@ -15,7 +15,7 @@ Test T-26 sends case L2 (adds one function) to the system under test and compare
 Other tests differ only in what is compared: the error tests T-08 to T-13 check the HTTP status and error code; T-32 (no verdict) checks `drift: null` and `drift_error.code`. T-18 to T-21 skip on a system without `prose_detector`, which is ours.
 
 ```mermaid
-flowchart LR
+flowchart TB
     accTitle: How a tester grades T-26
     accDescr: Once per run the tester reads GET /system/health. If it lists model_drift, it posts case L2 to the system under test and compares the drift key with the expected answer, equal in order passes, any difference fails. If model_drift is missing, the test is skipped, if /health gives no 200 within 90 seconds, the test is an error. Every outcome lands in the tester report with a message.
 

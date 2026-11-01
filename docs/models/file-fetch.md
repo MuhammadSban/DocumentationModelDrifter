@@ -5,7 +5,7 @@ Question: how does one check get every file it needs from GitHub within the 80 s
 One fresh clone per check, every needed file in one download, nothing kept afterwards. Decided as D11 in `docs/base/phase4.md`, from measurements on real repositories.
 
 ```mermaid
-flowchart LR
+flowchart TB
     accTitle: How a check gets the repository's files
     accDescr: A check clones without file contents, lists the files it needs at the commit, downloads all of them in one request, and reads them with lazy fetching off. If every file is there the generators run and the temporary clone is deleted, if a file is missing the batch failed and the check stops at once with 500 ANALYSIS_FAILED.
 

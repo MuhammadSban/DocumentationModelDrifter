@@ -5,7 +5,7 @@ Question: what happens between a request and the four-field answer, and where ca
 Two kinds of stop: an **HTTP error** answers 400, 404 or 500 and saves nothing; **no verdict** keeps HTTP 200 and status SUCCESS, with `drift: null`, a `drift_error` code and CLI exit 2. A check past its 80 s deadline answers 500 ANALYSIS_FAILED.
 
 ```mermaid
-flowchart LR
+flowchart TB
     accTitle: One check, step by step
     accDescr: A request is validated, its commits resolved, the files and /models read at the commit and parsed, then the generators and the ownership check feed the comparison, which builds the four-field answer. Each step names the HTTP error or the no-verdict code it can give. The answer goes to the CLI, the hosted service, and in Phase 5 to a pull-request check.
 
