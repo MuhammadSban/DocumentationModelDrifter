@@ -2,7 +2,7 @@
 
 Purpose: keep a repository's architecture documentation (the three models in `/models`) in step with its code. See `base/specifications.md` §1.1–1.2.
 
-`CONTEXT.md` at the repository root is the glossary: the terms the spec and code use, such as drift, accepting drift and acceptance criterion.
+`GLOSSARY.md` at the repository root is the glossary: the terms the spec and code use, such as drift, accepting drift and acceptance criterion.
 
 `adr/` holds architecture decision records: why a hard-to-reverse choice was made. Read them before reversing one.
 

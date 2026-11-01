@@ -20,4 +20,4 @@ The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready
 
 ### Domain docs
 
-Single-context: `CONTEXT.md` is the glossary, `docs/adr/` holds the ADRs. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` is the glossary, `docs/adr/` holds the ADRs. See `docs/agents/domain.md`.

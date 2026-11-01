@@ -253,7 +253,7 @@ Nothing in `Source/` implements 2.4.0 yet. `docs/base/phase4.md` lists the work;
 | `docs/models/` | `cross-team-test.png` and `four-field-answer.png` show the `/health` read and feature skips; `models-folder.png` uses the structural kinds of `structure.md` |
 
 Unchanged: the requirements REQ-01 to REQ-07, the cases L-pre to L6 and what each expects,
-`CONTEXT.md` and ADR 0001.
+`GLOSSARY.md` and ADR 0001.
 
 ## 7. Still open after 2.4.0
 
