@@ -71,7 +71,7 @@ paths, methods, inputs, responses, and behavior must match the shared specificat
 their internal implementations." [6] Staff may pair either team's tester with either team's system,
 so both teams build to one contract.
 
-That contract is docs/contract/ (version 2.4.0, pending Team 16's agreement; 2.3.0 was agreed by Teams 15 and 16 on 2026-10-31). It builds
+That contract is docs/contract/ (version 2.4.0, pending Team 16's agreement; no version is agreed yet). It builds
 on Team 16's v1.1 package [7], in which Team 16 checks prose documentation. Team 15 checks models
 instead, which the contract allows through two deviations (5.1). Team 16 builds no models.
 
@@ -231,13 +231,26 @@ PARSE_FAILED, so generators may assume every file parses.
   - Comparison: regenerate at the commit, then set difference by element id.
 - **Ownership**
   - Question: Who may change what?
-  - Contents: rules. Each rule is a path pattern and its owners, given as git author emails.
+  - Contents: rules. Each rule is a path pattern and its owners, given as git author emails in
+    lowercase.
     Rules are tried in order and the first match wins. A path no rule matches is open to anyone.
-  - Source: drifter init proposes a first file from git history (how, open, see [Q11](#q11-open-decisions)). People
-    then correct it by hand, like a GitHub CODEOWNERS file.
+    The file is `{"rules": [{"owners": [...], "pattern": "..."}], "schema_version": 1}`.
+  - Source: drifter init proposes the first file from every commit reachable from the checked
+    commit. For each file that exists there and is not vendored, it takes the file's last 10
+    commits, following renames and skipping merges, bot commits and commits that change more than
+    50 files. The file gets one rule: its exact path, owned by every author of those commits. A
+    file with no such commit gets no rule, and the rules are sorted by path. A bot commit is one
+    whose author email contains `[bot]`, as GitHub apps' do; vendored means under a `vendor/`,
+    `third_party/` or `node_modules/` folder at any depth. These settings are fixed in the tool,
+    not stored in /models. People then correct the file by hand, like a GitHub CODEOWNERS file,
+    and may add broader rules after the proposed ones: for files created later, or for /models
+    itself, which no proposed rule covers because init writes it.
   - Comparison: not regenerated per push. Every non-merge commit between the base and the
     checked commit is judged: each file it changes must have, as its git author, one of the
-    owners of that file's path. Co-authors do not count, and bots get no special case (list a
+    owners of that file's path, compared in lowercase. A rename is judged under its old
+    path: the owners travel with the file, so they may move it, and a non-owner cannot move an
+    owned file out from under its rule. The rule itself stays on the old path; people move it to
+    the new path in ownership.json. Co-authors do not count, and bots get no special case (list a
     bot's email to allow it). A violation names the commit, the path, the author and the owners.
 
 Why ownership is checked differently: it is mined from history, and history grows with every push,
@@ -248,14 +261,16 @@ ownership question directly: was this change made by someone allowed to make it?
 Scope. scope.json holds include and exclude path patterns. It decides which files feed the
 structural and behavioral generators; drifter init writes the defaults, include `**/*.py` and exclude
 `tests/**`. Ownership rules apply to every path, whatever the scope says. Editing the scope without
-regenerating the models shows up as drift by itself. The pattern rules for scope.json and
-ownership.json are still to be fixed (open, see [Q11](#q11-open-decisions)).
+regenerating the models shows up as drift by itself. The pattern rules for scope.json and for
+hand-written ownership rules are still to be fixed (open, see [Q11](#q11-open-decisions)); init
+proposes only exact paths.
 
 Layout of every model file, so that every run produces the same bytes:
 
 - Keys sorted; 2-space indent; UTF-8 with non-ASCII characters written as they are, not escaped.
 - LF line endings and exactly one trailing newline.
-- Lists sorted by element id.
+- Lists sorted by element id, except ownership.json's rules, which keep their order because the
+  first match wins. A rule's owners are sorted as strings.
 - No timestamps, absolute paths or line numbers, so moving code without changing it is not drift.
 - A schema_version field; a schema change bumps the version.
 
@@ -412,7 +427,7 @@ inspected for criteria that cannot be decided from responses alone (AC-04, AC-09
 ### 5.1 The pod contract
 
 The cross-team interface is the pod contract in docs/contract/, version 2.4.0, pending Team 16's
-agreement (2.3.0 was agreed on 2026-10-31). It builds on Team 16's v1.1 package [7] and wins over this file for anything
+agreement (no version is agreed yet). It builds on Team 16's v1.1 package [7] and wins over this file for anything
 another team's tester or system sees.
 
 | File | Holds |
@@ -678,8 +693,8 @@ demonstration.
 
 ### 9.2 Risks requiring pod agreement
 
-None open: the pod contract in docs/contract/ settles the interface, the testing contract and the
-fixtures. Later changes follow its section 10.
+Team 16's agreement to the pod contract in docs/contract/, which settles the interface, the
+testing contract and the fixtures; it is pending. Later changes follow its section 10.
 
 ## Q10 References
 
@@ -713,9 +728,9 @@ Proposed 2026-10-31, pending Team 16's agreement.
 
 ## Q11 Open decisions
 
-#### Settled by the pod contract (2026-10-30)
+#### Proposed in the pod contract (pending Team 16's agreement)
 
-- Team 16's agreement to the interface and the testing contract: agreed to docs/contract/ 2.3.0; 2.4.0 pending.
+- Team 16's agreement to the interface and the testing contract: pending; docs/contract/ 2.4.0 is proposed.
 - The shared fixture: Team 16's fixture serves the shared tests; Team 15 builds the model fixture.
 - Saving answers by id: every /analyze result is saved durably and returned by GET
   /system/analysis/{analysis_id}.
@@ -727,10 +742,10 @@ Proposed 2026-10-31, pending Team 16's agreement.
   least states and transitions (3.2). It comes first, with the path pattern rules below: the
   fixture commits L0 to L7, and so T-24 to T-31 and T-33, depend on them; only T-32 does not. Structural is settled in docs/base/structure.md, except
   its JSON Schema.
-- Path pattern rules for scope.json and ownership.json, including whether scope.json names source
-  roots besides src/ (structure.md drops only src/ from module ids).
+- Path pattern rules for scope.json and for hand-written ownership rules (init proposes only
+  exact paths, 3.2), including whether scope.json names source roots besides src/ (structure.md
+  drops only src/ from module ids).
 - The Annex XI claim (1.1): whether to keep the specific Annex XI items or only the general
   Art. 53(1)(a) claim.
-- What drifter init proposes as the first ownership.json.
 - The labelled cases L-pre and L0 to L7 (4.2), to be revised in a separate pass. That pass should
   also add a parse-failure case for PARSE_FAILED.

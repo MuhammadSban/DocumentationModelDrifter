@@ -65,7 +65,7 @@ paths:
           description: The session already ran or is running (also after an abort)
           content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
         '500':
-          description: The tester aborted, source "tester"; the available results are stored for GET /test/report
+          description: The tester aborted, source "tester", including at its 570 s run limit (pod-contract.md section 6); the available results are stored for GET /test/report
           content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
 
   /test/report:
@@ -87,6 +87,9 @@ paths:
           content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
         '409':
           description: The suite has not ended; retry the lookup later
+          content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
+        '500':
+          description: The stored report could not be read, source "tester"
           content: {application/json: {schema: {$ref: '#/components/schemas/TestError'}}}
 
 components:

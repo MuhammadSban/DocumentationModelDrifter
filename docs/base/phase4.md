@@ -42,7 +42,7 @@ spec §4.2 already fixes element kinds in the expected answers (L2 "node", L3 an
 spec §3.2 vs §4.2
 teammates
 treat these four kind names as constraints on their formats, or revise §4.2 with them
-Status 2026-10-31: #2 and #3 are fixed in the spec (§4.1 now uses the pod's AC meanings, see CONTEXT.md); #4 and #5 are fixed in contract 2.3.0, agreed with Team 16; #1 is Team 16's to fix and is recorded in contract §9; #6 is fixed for structural (spec §4.2 uses the kinds in structure.md) and waits on the behavioral format for L4. Contract 2.4.0 is proposed and pending Team 16's agreement: §1's example kind becomes "method", tests skip instead of failing on a missing feature (T-18, T-19, T-21 on our system), and §5 lists the acceptance criteria.
+Status 2026-10-31: #2 and #3 are fixed in the spec (§4.1 now uses the pod's AC meanings, see CONTEXT.md); #4 and #5 are fixed in contract 2.3.0, not yet agreed with Team 16; #1 is Team 16's to fix and is recorded in contract §9; #6 is fixed for structural (spec §4.2 uses the kinds in structure.md) and waits on the behavioral format for L4. Contract 2.4.0 is proposed and pending Team 16's agreement: §1's example kind becomes "method", tests skip instead of failing on a missing feature (T-18, T-19, T-21 on our system), and §5 lists the acceptance criteria.
 Not a mismatch but a gap: our current GitHub_Connector does not meet either OpenAPI file (see Inputs). That is the main risk to a working tester run with Team 16, and it is ours to fix.
 Inputs and starting point
 The spec (§3.2, §5.2, §6.1, §7.1) fixes what each piece must output; the contract (§3, §4, §6) fixes how it is tested. What already exists in the repo covers only the git reading.
@@ -113,11 +113,11 @@ What
 Needs
 Done when
 A
-Align the hosted service to contract 2.4.0: features: [model_drift] in /health, mapping-v1.1.yaml, config_version: mapping-v1.1, unmapped, contract error codes, one skip reason, issues: [], 80 s deadline, one active test session (409 otherwise), durable store, drop the LLM_Shell import, keep one clone per repository and fetch only missing commits, so a full tester run of about 34 analyses fits in 600 s
+Align the hosted service to contract 2.4.0: features: [model_drift] in /health, mapping-v1.1.yaml, config_version: mapping-v1.1, unmapped, contract error codes, one skip reason, issues: [], 80 s deadline, one active test session (409 otherwise), durable store, drop the LLM_Shell import, keep one clone per repository and fetch only missing commits, so a full tester run of about 34 analyses fits in 570 s
 nothing
 all 10 cases of golden-outputs.json match on the nine compared fields; a second /analyze on the same repository runs no new clone
 B
-Tester: /test/setup, /test/run, /test/report; tests as a table of (id, components, criteria, feature, run); the runner reads GET /health once and skips every row whose feature the target does not list, so no test checks features itself; golden comparator; 90 s per call, no retry, 600 s budget
+Tester: /test/setup, /test/run, /test/report; tests as a table of (id, components, criteria, feature, run); the runner reads GET /health once and skips every row whose feature the target does not list, so no test checks features itself; golden comparator; 90 s per call, no retry, stop at 570 s of the 600 s run limit
 nothing
 runs against Team 16's deployed system; report validates against pod-tester.openapi.yml
 C
