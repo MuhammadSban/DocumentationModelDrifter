@@ -29,7 +29,7 @@ class ChangeType(str, Enum):
 
 
 class Status(str, Enum):
-    # marks a run's outcome, every saved v1 run is SUCCESS
+    # marks a run's outcome, ERROR only for CHANGE_LIMIT_EXCEEDED, saved like any result
     SUCCESS = "SUCCESS"
     ERROR = "ERROR"
 

@@ -17,6 +17,7 @@ from GitHub_Connector.schemas import (
     Category,
     Change,
     ChangeType,
+    ErrorBody,
     ErrorCode,
     Skipped,
     Status,
@@ -83,6 +84,13 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
             and not rules.is_mapped(c.path)
         ]
         head, base = cmp.head, cmp.base
+        status, error = Status.SUCCESS, None
+        limit = rules.max_changed_files()
+        if len(changes) > limit:
+            # saves an ERROR result with empty lists, a 200 and not an HTTP error (v1.1 SPEC section 4, step 4)
+            status = Status.ERROR
+            error = ErrorBody(code="CHANGE_LIMIT_EXCEEDED", message=f"{len(changes)} changed files is over the limit of {limit}")
+            changes, skipped, unmapped = [], [], []
 
     result = AnalysisResult(
         analysis_id="an-" + uuid.uuid4().hex,
@@ -91,8 +99,8 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
         base_commit=base,
         config_version=rules.config_version(),
         tool_version=build_label(),
-        status=Status.SUCCESS,
-        error=None,
+        status=status,
+        error=error,
         issues=[],  # stays empty, this system has no prose detector (contract deviation 1)
         changes=sorted(changes, key=lambda c: (c.path, c.old_path or "")),
         skipped=sorted(skipped, key=lambda s: s.path),

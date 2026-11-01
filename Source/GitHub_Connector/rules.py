@@ -23,6 +23,7 @@ class _Mapping:
     extensions: frozenset[str]
     filenames: frozenset[str]
     sources: frozenset[str]
+    max_changed_files: int
 
 
 def _mapping() -> _Mapping:
@@ -48,6 +49,7 @@ def _load(path: Path, _mtime: int, _size: int) -> _Mapping:
         extensions=frozenset(ext.lower() for ext in data["supported_extensions"]),
         filenames=frozenset(data["supported_filenames"]),
         sources=frozenset(m["source"] for m in data.get("mappings") or []),
+        max_changed_files=data["max_changed_files"],
     )
 
 
@@ -98,3 +100,8 @@ def is_unsupported(path: str) -> bool:
 def is_mapped(path: str) -> bool:
     # says whether a path is the source of an entry in mappings
     return path in _mapping().sources
+
+
+def max_changed_files() -> int:
+    # caps how many changed paths one analysis takes, more is CHANGE_LIMIT_EXCEEDED
+    return _mapping().max_changed_files

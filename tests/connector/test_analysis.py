@@ -26,3 +26,26 @@ def test_analyze_runs_without_an_llm(monkeypatch):
 
     assert result.issues == []
     assert [c.path for c in result.changes] == ["src/app.py"]
+
+
+def test_over_2000_changes_is_a_saved_change_limit_error(monkeypatch):
+    @contextmanager
+    def big_fetch(repo, head, base, deadline):
+        # changes one more file than mapping-v1.1.yaml's max_changed_files allows
+        yield Comparison(
+            repo=repo,
+            head="a" * 40,
+            base="b" * 40,
+            changes=[FileChange(f"src/m{i}.py", ChangeType.ADDED) for i in range(2001)],
+        )
+
+    saved = []
+    monkeypatch.setattr(analysis, "fetch", big_fetch)
+    monkeypatch.setattr(runs, "save", lambda *args: saved.append(args))
+
+    result = analysis.analyze(AnalysisRequest(repository="owner/repo", commit_id="a" * 40))
+
+    assert result.status == "ERROR"
+    assert result.error.code == "CHANGE_LIMIT_EXCEEDED"
+    assert (result.changes, result.skipped, result.unmapped, result.issues) == ([], [], [], [])
+    assert saved
