@@ -8,6 +8,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
+import orchestration
 from GitHub_Connector import rules, runs
 from GitHub_Connector.fetch import fetch
 from GitHub_Connector.schemas import (
@@ -17,6 +18,8 @@ from GitHub_Connector.schemas import (
     Category,
     Change,
     ChangeType,
+    Drift,
+    DriftErrorBody,
     ErrorBody,
     ErrorCode,
     Skipped,
@@ -76,6 +79,7 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
             for c in cmp.changes
         ]
         skipped = [Skipped(path=s.path, reason=s.reason) for s in cmp.skipped]
+        drift, drift_error = _drift(cmp)
         # lists implementation paths with no mapping entry, a deletion excluded (v1.1 SPEC section 6.1)
         unmapped = [
             c.path for c in changes
@@ -102,6 +106,8 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
         status=status,
         error=error,
         issues=[],  # stays empty, this system has no prose detector (contract deviation 1)
+        drift=drift,
+        drift_error=drift_error,
         changes=sorted(changes, key=lambda c: (c.path, c.old_path or "")),
         skipped=sorted(skipped, key=lambda s: s.path),
         unmapped=sorted(unmapped),
@@ -112,6 +118,16 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
     except OSError as exc:
         raise AnalysisError(ErrorCode.STORAGE_FAILED, "The run file could not be saved") from exc
     return result
+
+
+def _drift(cmp) -> tuple[Drift | None, DriftErrorBody | None]:
+    # checks the code against the committed models on the clone change detection already made.
+    # It runs whatever status change detection reached, and a no-verdict code leaves status alone
+    # and drift null, so a check that could not be completed is never read as aligned (spec 5.2)
+    try:
+        return Drift(**orchestration.answer(orchestration.remote_sources(cmp))), None
+    except orchestration.DriftError as exc:
+        return None, DriftErrorBody(**exc.body())
 
 
 def _now() -> str:

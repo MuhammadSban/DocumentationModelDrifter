@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from models.common import glob
+
 SCHEMA_VERSION = 1
 
 # lists the change types a commit may report, an unknown one is a contract break
@@ -15,9 +17,10 @@ CHANGE_TYPES = frozenset({"ADDED", "MODIFIED", "DELETED", "RENAMED", "COPIED", "
 BOT_MARK = "[bot]"
 
 # proposal defaults, which a person then corrects by hand like a CODEOWNERS file
-WINDOW = 30  # commits per path that name its owners, so a departed author does not own it forever
+WINDOW = 10  # commits per path that name its owners, so a departed author does not own it forever
 MAX_FILES = 50  # a commit touching more is a sweep and names no owner
-SKIP = ("models/",)  # the system's own folder, owned by the system in v1, so no rule is proposed
+SKIP = ("models/",)  # the folder init writes itself, at the root only, so no rule is proposed
+VENDORED = ("vendor/", "third_party/", "node_modules/")  # third-party code, at any depth
 
 
 class OwnershipInputError(Exception):
@@ -85,6 +88,7 @@ def propose_ownership(
     max_files: int = MAX_FILES,
     bots: tuple[str, ...] = (),
     skip: tuple[str, ...] = SKIP,
+    vendored: tuple[str, ...] = VENDORED,
 ) -> dict:
     # mines history into one rule per file: the path, and every author who changed it recently.
     # A file no author owns gets no rule, which leaves it open to anyone (spec 3.2).
@@ -97,12 +101,12 @@ def propose_ownership(
     live = {
         path
         for path, change_type in newest.items()
-        if change_type != "DELETED" and not _under(path, skip)
+        if change_type != "DELETED" and not _unowned(path, skip, vendored)
     }
     owners = _owners(walked, live, window, max_files, bots)
     return {
         "rules": [
-            {"owners": sorted(owners[path]), "path": path}
+            {"owners": sorted(owners[path]), "pattern": path}
             for path in sorted(live)
             if owners[path]
         ],
@@ -110,9 +114,12 @@ def propose_ownership(
     }
 
 
-def _under(path: str, folders: tuple[str, ...]) -> bool:
-    # tells a path inside one of folders, matched at the root or any folder below it
-    return any("/" + f.strip("/") + "/" in "/" + path for f in folders if f.strip("/"))
+def _unowned(path: str, skip: tuple[str, ...], vendored: tuple[str, ...]) -> bool:
+    # tells a path no rule is proposed for: the folder init writes, at the root only, so a
+    # src/models/ of the repository's own keeps its owners; or vendored code at any depth
+    return any(path.startswith(folder) for folder in skip) or any(
+        "/" + folder.strip("/") + "/" in "/" + path for folder in vendored
+    )
 
 
 def _walk(records: list[CommitRecord]) -> tuple[list[tuple[CommitRecord, tuple[str, ...]]], dict[str, str]]:
@@ -154,7 +161,7 @@ def _owners(
         for path in touched:
             if path in owners and counted[path] < window:
                 counted[path] += 1
-                owners[path].add(record.author_email)
+                owners[path].add(record.author_email.lower())
     return owners
 
 
@@ -170,42 +177,42 @@ def check_ownership(rules: dict, commits: list[CommitRecord]) -> list[dict]:
     # judges every non-merge commit: each file it changes must have its git author among the
     # owners of the first rule matching that path. A path no rule matches is open to anyone.
     # Returns the contract's OwnershipViolation objects, sorted by commit then path.
-    patterns = [(rule["path"], tuple(rule["owners"])) for rule in rules.get("rules", ())]
+    patterns = [(rule["pattern"], tuple(rule["owners"])) for rule in rules.get("rules", ())]
     violations: list[dict] = []
     for commit in commits:
         if len(commit.parents) > 1:
             # a merge is never judged, it carries no change of its own (spec 3.2)
             continue
+        author = commit.author_email.lower()
         for path in _changed(commit):
             owners = _match(path, patterns)
-            if owners is not None and commit.author_email not in owners:
+            if owners is None:
+                continue
+            # compares in lowercase, since a hand-written rule may name an owner in any case
+            lowered = sorted(owner.lower() for owner in owners)
+            if author not in lowered:
                 violations.append({
-                    "author": commit.author_email,
+                    "author": author,
                     "change": "VIOLATION",
                     "commit": commit.sha,
-                    "owners": sorted(owners),
+                    "owners": lowered,
                     "path": path,
                 })
     return sorted(violations, key=lambda v: (v["commit"], v["path"]))
 
 
 def _changed(commit: CommitRecord) -> list[str]:
-    # lists the paths one commit changes, both sides of a rename, each once and in path order
-    paths = set()
-    for touch in commit.paths:
-        paths.add(touch.path)
-        if touch.old_path:
-            paths.add(touch.old_path)
-    return sorted(paths)
+    # lists the paths one commit changes, each once and in path order. A rename counts under its
+    # old path alone: the owners travel with the file, so they may move it, and a non-owner cannot
+    # move an owned file out from under its rule (spec 3.2).
+    return sorted({touch.old_path or touch.path for touch in commit.paths})
 
 
 def _match(path: str, patterns: list[tuple[str, tuple[str, ...]]]) -> tuple[str, ...] | None:
-    # returns the owners of the first rule matching path, None where no rule does. v1 patterns
-    # are an exact path or a folder as "dir/**"; the full pattern language is open (spec Q11).
+    # returns the owners of the first rule matching path, None where no rule does. The pattern is
+    # matched with the one glob mapping-v1.1.yaml also uses (phase4.md Q3), so an exact path, a
+    # folder as "dir/**" and "**/*.py" all mean here what they mean there.
     for pattern, owners in patterns:
-        if pattern.endswith("/**"):
-            if path.startswith(pattern[:-2]):
-                return owners
-        elif pattern == path:
+        if glob(pattern).match(path):
             return owners
     return None

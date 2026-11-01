@@ -44,6 +44,7 @@ Diagrams of the planned system. Each is a Markdown file whose Mermaid block is t
 
 ## tickets/
 
+- `tickets/tracker-gaps.md` — open work: what the wired drift check still owes, and what one check still needs to become a tracker that watches a repository on its own. Each row has a fix and a check that closes it. `base/phase4.md` owns the schedule; this file owns the detail.
 - `tickets/contract-contradictions.md` — open work: each place where the contract, the spec, the diagrams, the course PDF or Team 16's v1.1 package disagree, with a fix, a check that closes it, and an owner. A ticket whose check passes moves to the file's closed table.
 
 ## history/

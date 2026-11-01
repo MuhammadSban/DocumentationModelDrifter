@@ -131,10 +131,10 @@ def _ownership(model: OwnershipModel | None) -> str:
         f"<b>{len(owners)}</b> owners",
     ]
     rows = _table(
-        ("path", "owners"),
+        ("pattern", "owners"),
         [
             (
-                f'<span class="mono">{escape(rule.path)}</span>',
+                f'<span class="mono">{escape(rule.pattern)}</span>',
                 _owners(rule.owners),
             )
             for rule in model.rules

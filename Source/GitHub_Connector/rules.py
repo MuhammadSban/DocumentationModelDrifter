@@ -12,6 +12,7 @@ import yaml
 
 from GitHub_Connector.schemas import Category
 from GitHub_Connector.settings import get_settings
+from models.common import glob
 
 
 @dataclass(frozen=True)
@@ -38,7 +39,7 @@ def _load(path: Path, _mtime: int, _size: int) -> _Mapping:
     # reads one version of the mapping, patterns compiled in file order
     data = yaml.safe_load(path.read_text("utf-8"))
     categories = [
-        (_glob(pattern), Category(entry["category"]))
+        (glob(pattern), Category(entry["category"]))
         for entry in data["categories"]
         for pattern in entry["patterns"]
     ]
@@ -51,28 +52,6 @@ def _load(path: Path, _mtime: int, _size: int) -> _Mapping:
         sources=frozenset(m["source"] for m in data.get("mappings") or []),
         max_changed_files=data["max_changed_files"],
     )
-
-
-def _glob(pattern: str) -> re.Pattern:
-    # turns a POSIX glob into a regex: "**/" is zero or more folders, "**" anything, "*" one segment's text
-    out, i = [], 0
-    while i < len(pattern):
-        if pattern.startswith("**/", i):
-            out.append("(?:.*/)?")
-            i += 3
-        elif pattern.startswith("**", i):
-            out.append(".*")
-            i += 2
-        elif pattern[i] == "*":
-            out.append("[^/]*")
-            i += 1
-        elif pattern[i] == "?":
-            out.append("[^/]")
-            i += 1
-        else:
-            out.append(re.escape(pattern[i]))
-            i += 1
-    return re.compile("".join(out) + r"\Z")
 
 
 def config_version() -> str:
