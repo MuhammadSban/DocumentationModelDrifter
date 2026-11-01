@@ -12,6 +12,10 @@ _Avoid_: docs, diagrams
 A difference between what the code is and what the models say it is.
 _Avoid_: issue, finding (those are the pod's prose findings)
 
+**Element**:
+One thing the structural or behavioral model describes, such as a class, an import or a transition, known by an id that stays the same while the thing does.
+_Avoid_: node (one structural kind), entry
+
 **Accepting drift**:
 A person committing updated models after a false verdict; the git history of `/models` records who and when.
 _Avoid_: approving, review decision (the pod's Phase 5 mechanism for the same thing)

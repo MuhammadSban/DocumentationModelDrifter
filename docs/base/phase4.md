@@ -1,7 +1,7 @@
 Phase 4 build plan: drift checker
 Oct 31, 2026 · @Kaan Kanadasi
 Summary
-Revised 2026-10-31: the three teammates own the structural, behavioral and ownership formats, so this plan builds everything that does not depend on them first and leaves one narrow seam for their work.
+Revised 2026-10-31: the three teammates own the structural, behavioral and ownership formats, so this plan builds everything that does not depend on them first and leaves one narrow seam for their work. Revised 2026-11-01: the roadmap v1, v1.1, v1.2 below replaces build steps A to G.
 Team 16's package matches docs/contract/ exactly where it should: golden-outputs.json and mapping-v1.1.yaml are byte-identical, and the system OpenAPI differs only by our two documented deviations plus three small test-route additions. Six smaller mismatches are listed below; none blocks a working tester against Team 16.
 What can be built now, with no model format: the hosted service aligned to the contract (T-01 to T-21), the tester (all 33 tests, with T-24 to T-33 reporting skip until goldens exist), and a model-agnostic core: canonical writer, generic comparison by id, orchestrator, CLI and drift_error handling. The teammates then plug in three generators behind one interface.
 Alignment check
@@ -64,95 +64,97 @@ What exists today in Source/GitHub_Connector (v1, built for an LLM prose check):
 • Reusable: fetch.py (clone, resolve short SHA, first parent, diff, read blobs, timeouts), runs.py (write-once run files), course.py (system /test/setup and /test/report with line coverage), api.py routing.
 • Not contract 2.4.0: run files are lost on redeploy. (Done on branch contract-alignment: features in /health, mapping-v1.1.yaml, config_version mapping-v1.1, unmapped, contract error codes, one skip reason, 80 s deadline, CHANGE_LIMIT_EXCEEDED, one active test session; all 10 golden cases pass. The console path already points at Frontend_Archive.)
 • Missing entirely: generators, comparison, orchestrator, CLI, /generate, the tester, tests, packaging.
-Architecture: one seam for the teammates
-The core never looks inside a model. Each model is a plugin the teammates write; the core only asks it four things, so their format can change without touching the core, the CLI, the service or the tester.
-The plugin interface (structural and behavioral; proposed names):
-Member
-What it does
-Who decides its content
-name
-"structural" or "behavioral", the file stem and the key in drift
-fixed by spec
-schema
-JSON Schema for the file; failing it gives INVALID_MODELS
-teammate
-generate(files) -> dict
-pure function, in-scope files in, model out; no git, clock or network (spec §7.1)
-teammate
-elements(model) -> {id: (kind, file, attrs)}
-flattens a model so comparison can diff by id
-teammate
-Ownership is different (spec §3.2): it is never regenerated. Its plugin gives schema, propose(history) -> dict for init, and rules(model) -> [(pattern, owners)]. The core's checker turns rules plus the commit log into VIOLATION entries, whose shape the contract already fixes.
-Format-free core (buildable now):
-Module
-Job
-Fixed by
-canonical
-writes any dict with the spec's layout: sorted keys, 2-space indent, LF, one newline, lists sorted by id
-spec §3.2
-compare
-ADDED, REMOVED, MODIFIED by id from two elements() maps, sorted by id
-spec §3.2 table
-ownership_check
-judges each non-merge commit base..head against rules()
-spec §3.2, contract OwnershipViolation
-check (orchestrator)
-reads /models, validates against each schema, reads in-scope files, raises the four drift_error codes, calls the plugins, builds the four-field answer
-spec §5.2, one-check diagram
-cli
-init, update, check, exit codes 0, 1, 2
-spec §5.2
-hosted wiring
-drift and drift_error on every /analyze, POST /generate
-contract §1
-Until the plugins exist, core tests use a tiny fake plugin that lives only in tests/, so no format is invented in product code.
-Build steps
-Steps A to D need no model format and can start today, in parallel. Steps E to G wait for the teammates.
-Step
-What
-Needs
-Done when
-A
-Align the hosted service to contract 2.4.0: features: [model_drift] in /health, mapping-v1.1.yaml, config_version: mapping-v1.1, unmapped, contract error codes, one skip reason, issues: [], 80 s deadline, one active test session (409 otherwise), drop the LLM_Shell import (all done); still open: durable store, keep one clone per repository and fetch only missing commits, so a full tester run of about 34 analyses fits in 570 s
-nothing
-all 10 cases of golden-outputs.json match on the nine compared fields; a second /analyze on the same repository runs no new clone
-B
-Tester: /test/setup, /test/run, /test/report; tests as a table of (id, components, criteria, feature, run); the runner reads GET /health once and skips every row whose feature the target does not list, so no test checks features itself; golden comparator; 90 s per call, no retry, stop at 570 s of the 600 s run limit
-nothing
-runs against Team 16's deployed system; report validates against pod-tester.openapi.yml
-C
-Format-free core: canonical, compare, check, drift_error codes, plugin interface, CLI, drift key, /generate
-A for the hosted part
-fake-plugin tests: aligned, each change type, each drift_error, exit codes 0, 1, 2
-D
-Ownership checker engine and the git commit log in fetch.py
-pattern syntax (question below)
-scripted-author repo: non-owner gives one VIOLATION, owner gives none
-E
-Three plugins
-teammates
-each plugin's snippet goldens; byte-identical on Linux and Windows
-F
-Model fixture L-pre to L7 and model-golden-outputs.json
-E
-contract §3 checklist done, contract version bumped
-G
-Tester turns on T-24 to T-33
-F
-full suite against our system: T-24 to T-33 pass
-A and B together give a working cross-team run with Team 16 for T-01 to T-23, which is the Phase 4 demonstration minus the drift tests.
+Roadmap: v1, v1.1, v1.2
+Decided 2026-11-01 in a design session (decisions D1 to D12 below). It replaces build steps A to G. Each version ends in checks anyone can run; a version is done only when its checks pass. Phase 5 (release tag, GitHub Action, T-22, T-23) is out of this roadmap.
+
+| Who | Owns |
+| --- | --- |
+| Kaan | core (`Source/drifter/`, `Source/models/common.py`), hosted service, CLI, model fixture and goldens |
+| Enrique | structural model (`Source/models/structural_model.py`) and the tester |
+| Barshan | behavioral model (`Source/models/behavioral_model.py`) |
+| Muhammad | ownership model (`Source/models/ownership_model.py`, moved from `Source/Modelers/`) |
+
+The model owners start now, in parallel with v1 (D8). Behavioral comes first: fixture L0 to L7, and so T-24 to T-31 and T-33, wait on its format.
+
+### v1: the contract service (Kaan)
+
+Needs no model format. Builds on branch `contract-alignment`, where /health features, contract error codes, mapping-v1.1.yaml, the 80 s deadline, CHANGE_LIMIT_EXCEEDED and one active session are done.
+
+| Item | Done when |
+| --- | --- |
+| Durable store (D6): a Railway volume behind `runs.py`; `runs_dir` from `RAILWAY_VOLUME_MOUNT_PATH`; on Railway without a volume the app refuses to start; /health reports `storage: volume` (or `ephemeral` locally); the container starts as root, hands the volume to `drifter`, then drops to it with `setpriv` (fallback `RAILWAY_RUN_UID=0`); scheduled volume backups on | a result saved before a redeploy is returned byte for byte after it (T-14, T-16); /health says `volume` on Railway |
+| Base image (D11): `FROM python:3.12-slim-trixie`, which brings git 2.47 (`GIT_NO_LAZY_FETCH` needs 2.44 or later) | `git --version` in the container is 2.44 or later |
+| Fresh blobless clone per check, no clone cache (D11) | step A's old "one clone per repository" check is dropped |
+| Our tester against Team 16's system, and against ours | T-01 to T-17 pass on both; one full run is timed and logs each call's time |
+
+### v1.1: the drift core (Kaan, with structural plugged in)
+
+| Item | Done when |
+| --- | --- |
+| File reader (D11): after `ls-tree` at head, fetch every needed blob in one `git fetch --filter=blob:none --stdin`; read with lazy fetching off, so a failed batch is 500 ANALYSIS_FAILED at once | a local test: reading succeeds after the batch and fails without it; the clone holds exactly 2 promisor packs |
+| Seam (D9, `docs/models/model-seam.png`): reuse `parse_files` and `write_model`; flatten each model's top-level lists to `{id: element}`; diff by id (ADDED, REMOVED, MODIFIED) | fake-plugin tests in tests/ cover each change type |
+| Orchestrator: scope.json, the four drift_error codes, the four-field answer | a test per drift_error code; aligned true only when all three lists are empty |
+| `drift` and `drift_error` on every /analyze, POST /generate | T-32 passes at L-pre (MODELS_NOT_FOUND) |
+| Ownership checker and commit log (D10): `CommitRecord` in `common.py` (no `author_login`; lowercase email, no prefix); first matching rule wins; no rule means anyone; a rename is judged under its old path; one glob matcher shared with mapping-v1.1.yaml | scripted-author repo: a non-owner gives one VIOLATION, an owner none |
+| CLI (D12): `drifter init`, `update`, `check` on a local checkout (commit defaults to HEAD); `pyproject.toml` with a `drifter` entry point | `pip install -e .`; check exits 0, 1 and 2 in tests |
+| Shared seam test in tests/common/: element rule, unique ids, sorted lists, valid against the schema, `write_model` round trip | passes for structural |
+| Timing on real repositories, generators included | on Railway, one full check of pytest and of Django each finishes; Django under 60 s |
+
+### v1.2: all three models and the drift tests
+
+| Item | Who | Done when |
+| --- | --- | --- |
+| `structural.schema.json` | Enrique | seam test passes; byte-identical on Linux and Windows |
+| Behavioral format, `generate_behavioral`, `behavioral.schema.json` | Barshan | own snippet goldens and the seam test pass; byte-identical on Linux and Windows |
+| `propose(head_sha, records)` returning spec §3.2's rule list; PR #7 fixes (a bot is an email containing `[bot]`; no `email:` prefix); `ownership.schema.json` | Muhammad | own goldens pass; output validates against the schema |
+| Model fixture `MuhammadSban/doc-tracker-model-fixtures`, public, commits L-pre to L7 (spec §4.2) | Kaan | contract §3 checklist done |
+| `docs/contract/model-golden-outputs.json`, contract version bump | Kaan | Team 16 told; tester turns on T-24 to T-33 |
+| Full suite against our system | Enrique, Kaan | T-24 to T-33 pass |
+
+### Left out, flagged (each needs a conscious decision)
+
+- A retry of the batch blob fetch after a dropped connection.
+- A GitHub token for higher anonymous rate limits.
+- A clone cache per repository; a per-session warm-up in /test/setup.
+- Detecting a file over 1 MB before downloading it.
+- A shallow clone for structural and behavioral if a real repository passes the deadline; `--no-renames` for /generate over long history.
+- A Storage Bucket instead of the volume, for zero-downtime deploys or replicas; `runs.py` is the only file to change.
+
+### Needs a person, not code
+
+- Muhammad invites Barshan to the repository, so issues can be assigned.
+- The model fixture repository must exist and be public before L-pre (T-32).
+- Team 16: registry URL (contract §8), the session-release rule, the cover message, tickets 3, 4 and 11, and agreement to a contract version.
+
+### Decisions of 2026-11-01
+
+| # | Decision |
+| --- | --- |
+| D1 | Team 15's design work stops at the seam; each model's kinds, ids, attributes, mining rules and schema belong to its owner. |
+| D2 | Owners as in the table above. |
+| D3 | The roadmap covers v1, v1.1 and v1.2 only. |
+| D4 | Work continues on `durable-store`, rebased onto `contract-alignment`. |
+| D5 | Q1 to Q8 below are decided as recommended, except: generators take `{path: text}` as spec §3.2 says (not parsed trees); models live in `Source/models/`, the core in `Source/drifter/`. |
+| D6 | Results on a Railway volume behind `runs.py`, failing loudly without one. Not horizontally scalable, deliberately: the spec caps checks at 2 at once. |
+| D7 | This roadmap lives here; one GitHub issue per item, labelled `ready-for-human`. |
+| D8 | Model owners start now; behavioral first. |
+| D9 | The seam in `docs/models/model-seam.png`. |
+| D10 | Kaan writes the ownership checker and the commit log; `CommitRecord` is the shared type. |
+| D11 | A fresh blobless clone per check, one batched blob fetch, reads with lazy fetching off (`docs/models/file-fetch.png`). Measured: fixture 1 to 3 s, pytest 9 to 13 s, Django 38 to 41 s per check; reading blob by blob took 163 to 221 s on pytest. |
+| D12 | CLI as in v1.1. |
+
 Contract test map
-Against our system, 21 of 33 tests depend only on steps A and B; the ten drift tests need E and F; two are Phase 5.
+Against our system, 21 of 33 tests need only v1 and the tester; the ten drift tests need v1.1 and v1.2; two are Phase 5.
 Tests
 Needs
 Against our system
 Against Team 16
 T-01 to T-16
-A
+v1
 pass
 pass
 T-17 (five runs)
-A
+v1
 pass
 pass
 T-18 to T-21 (prose findings)
@@ -164,20 +166,20 @@ none
 skip (Phase 5)
 skip
 T-24 to T-31 (L0 to L7)
-C, E, F
-skip until F, then pass
+v1.2
+skip until v1.2, then pass
 skip (no model_drift)
 T-32 (L-pre, MODELS_NOT_FOUND)
-C and the L-pre commit only
-could pass before E (see questions)
+v1.1 and the L-pre commit
+passes at v1.1
 skip
 T-33 (/generate at L0)
-C, E, F
-skip until F
+v1.2
+skip until v1.2
 skip (no model_drift)
-The tester itself (B) runs every row on day one; until F it reports T-24 to T-33 as skip with "expected answers not yet published".
+The tester runs every row on day one; until v1.2 it reports T-24 to T-33 as skip with "expected answers not yet published".
 Design questions
-Round 1 is open in the thread. Each question below says what is being decided, why it matters, the options with their costs, and the recommendation. Answer in the thread with the question number.
+Decided 2026-11-01 as recommended, with the exceptions in D5 and D11 above; kept for the reasoning. Each question below says what is being decided, why it matters, the options with their costs, and the recommendation. Answer in the thread with the question number.
 Q1 Who compares the models
 The decision. A check regenerates a model from the code and diffs it against the committed one. Somebody must write that diff. Either the core diffs every model the same way, or each teammate writes the diff for their own model.
 Why it matters. The diff output is fixed by the contract: each difference is {change, file, id, kind}, sorted by id, and T-24 to T-31 compare it byte for byte with the expected answer, order included. Three separate diffs mean three chances to sort differently or to call the same thing MODIFIED in one model and REMOVED plus ADDED in another.
