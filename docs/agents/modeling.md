@@ -16,5 +16,5 @@ Rules for two jobs: designing a model format (a file in `/models`: structural, b
 - **Mermaid first.** A diagram is a Mermaid block in a Markdown file in `docs/models/`, beside its prose, so it is reviewed and diffed like code. Hand-written SVG only where Mermaid cannot express the layout, with its source committed beside it.
 - **Less is more.** Pick the simplest type that carries the shape, strip decoration, and split a crowded diagram instead of adding to it. A grid of facts is a Markdown table, not a diagram.
 - **Type follows shape:** flowchart for a pipeline or decision logic, state diagram for a lifecycle, sequence diagram for calls over time, class or ER diagram for a file's schema, context or component flowchart for structure.
-- **Generated pictures.** Each PNG is rendered from its Markdown file with `python docs/models/render.py`; edit the Markdown, never the PNG.
+- **One copy.** The Mermaid block is the only copy of a diagram: GitHub draws it, and `python docs/models/render.py` makes a PNG on demand, for a report or slide. Rendered PNGs are never committed.
 - **Accessible.** Every Mermaid block carries `accTitle` and `accDescr`. Every distinction is carried by words, shape or line style, so the diagram reads the same in greyscale. A part not built yet is dashed and labelled with the version that builds it.

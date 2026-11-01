@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# ignores diagrams rendered on demand, the Mermaid in docs/models/*.md is the only copy
+docs/models/*.png

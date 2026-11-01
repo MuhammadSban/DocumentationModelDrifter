@@ -29,7 +29,7 @@ The pod contract with Team 16. Both teams' registry rows link it. It follows Tea
 
 ## models/
 
-Diagrams of the planned system. Each is a Markdown file whose Mermaid block is the source; the PNG beside it is rendered with `python models/render.py`. `agents/modeling.md` has the rules for modeling and drawing.
+Diagrams of the planned system. Each is a Markdown file whose Mermaid block is the source; GitHub draws it, and `python models/render.py` renders a PNG on demand (not committed). `agents/modeling.md` has the rules for modeling and drawing.
 
 - `models/who-talks-to-what.md` — the developer, GitHub and a tester reach one drifter core (orchestrator, GitHub integration, three generators, comparison) through the CLI, the GitHub Action (Phase 5) and the hosted service, which serves the pod contract's routes and adds change detection and a result store; the repository is only read. Read it first to understand the system.
 - `models/behavioral-model.md` — lifecycle of a repository under the tool: init proposes the models, a person commits them, and each push ends Aligned, Drifted or Failed. Only structural and behavioral are regenerated; ownership is checked against its rules (spec §3.2).
