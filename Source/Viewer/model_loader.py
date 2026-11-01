@@ -146,6 +146,6 @@ def _edge(entry: dict, path: str | Path) -> Edge:
 def _rule(entry: dict, path: str | Path) -> OwnershipRule:
     # builds one ownership rule, its owners kept in the file's order (sorted by the generator)
     return OwnershipRule(
-        path=_field(entry, "path", path),
+        path=_field(entry, "pattern", path),
         owners=tuple(_field(entry, "owners", path)),
     )

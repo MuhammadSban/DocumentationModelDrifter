@@ -15,9 +15,10 @@ CHANGE_TYPES = frozenset({"ADDED", "MODIFIED", "DELETED", "RENAMED", "COPIED", "
 BOT_MARK = "[bot]"
 
 # proposal defaults, which a person then corrects by hand like a CODEOWNERS file
-WINDOW = 30  # commits per path that name its owners, so a departed author does not own it forever
+WINDOW = 10  # commits per path that name its owners, so a departed author does not own it forever (spec 3.2)
 MAX_FILES = 50  # a commit touching more is a sweep and names no owner
-SKIP = ("models/",)  # the system's own folder, owned by the system in v1, so no rule is proposed
+SKIP = ("vendor/", "third_party/", "node_modules/")  # vendored folders at any depth get no rule (spec 3.2)
+MODELS = "models/"  # the root /models folder, which init writes, gets no rule (spec 3.2)
 
 
 class OwnershipInputError(Exception):
@@ -97,12 +98,12 @@ def propose_ownership(
     live = {
         path
         for path, change_type in newest.items()
-        if change_type != "DELETED" and not _under(path, skip)
+        if change_type != "DELETED" and not _under(path, skip) and not path.startswith(MODELS)
     }
     owners = _owners(walked, live, window, max_files, bots)
     return {
         "rules": [
-            {"owners": sorted(owners[path]), "path": path}
+            {"owners": sorted(owners[path]), "pattern": path}
             for path in sorted(live)
             if owners[path]
         ],
@@ -154,7 +155,7 @@ def _owners(
         for path in touched:
             if path in owners and counted[path] < window:
                 counted[path] += 1
-                owners[path].add(record.author_email)
+                owners[path].add(record.author_email.lower())
     return owners
 
 
@@ -170,7 +171,9 @@ def check_ownership(rules: dict, commits: list[CommitRecord]) -> list[dict]:
     # judges every non-merge commit: each file it changes must have its git author among the
     # owners of the first rule matching that path. A path no rule matches is open to anyone.
     # Returns the contract's OwnershipViolation objects, sorted by commit then path.
-    patterns = [(rule["path"], tuple(rule["owners"])) for rule in rules.get("rules", ())]
+    patterns = [
+        (rule["pattern"], tuple(owner.lower() for owner in rule["owners"])) for rule in rules.get("rules", ())
+    ]
     violations: list[dict] = []
     for commit in commits:
         if len(commit.parents) > 1:
@@ -178,9 +181,10 @@ def check_ownership(rules: dict, commits: list[CommitRecord]) -> list[dict]:
             continue
         for path in _changed(commit):
             owners = _match(path, patterns)
-            if owners is not None and commit.author_email not in owners:
+            author = commit.author_email.lower()
+            if owners is not None and author not in owners:
                 violations.append({
-                    "author": commit.author_email,
+                    "author": author,
                     "change": "VIOLATION",
                     "commit": commit.sha,
                     "owners": sorted(owners),
@@ -190,13 +194,9 @@ def check_ownership(rules: dict, commits: list[CommitRecord]) -> list[dict]:
 
 
 def _changed(commit: CommitRecord) -> list[str]:
-    # lists the paths one commit changes, both sides of a rename, each once and in path order
-    paths = set()
-    for touch in commit.paths:
-        paths.add(touch.path)
-        if touch.old_path:
-            paths.add(touch.old_path)
-    return sorted(paths)
+    # lists the paths one commit changes, each once and in path order; a rename counts under its
+    # old path, so the owners travel with the file (spec 3.2)
+    return sorted({touch.old_path if touch.change_type == "RENAMED" else touch.path for touch in commit.paths})
 
 
 def _match(path: str, patterns: list[tuple[str, tuple[str, ...]]]) -> tuple[str, ...] | None:
