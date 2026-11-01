@@ -57,3 +57,18 @@ def test_a_rename_is_judged_under_its_old_path_only():
     by_stranger = CommitRecord("c" * 40, "stranger@x.com", ("b" * 40,), (move,))
     assert check_ownership(owned, [by_owner]) == []
     assert [v["path"] for v in check_ownership(owned, [by_stranger])] == ["src/old.py"]
+
+
+def test_rules_match_with_the_mapping_glob():
+    head, records = history(("b@x.com", ["src/a/b.py", "lib/c/d.py"]))
+    owned = rules(("src/**", ["a@x.com"]), ("**/*.py", ["c@x.com"]))
+    assert [(v["path"], v["owners"]) for v in check_ownership(owned, records)] == [
+        ("lib/c/d.py", ["c@x.com"]),
+        ("src/a/b.py", ["a@x.com"]),
+    ]
+
+
+def test_a_path_with_glob_characters_gets_no_rule():
+    # a proposed exact path is read as a glob, so "src/*.py" would claim every file beside it
+    head, records = history(("a@x.com", ["src/*.py", "src/?.py", "src/app.py"]))
+    assert [r["pattern"] for r in propose_ownership(head, records)["rules"]] == ["src/app.py"]

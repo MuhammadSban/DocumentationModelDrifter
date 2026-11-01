@@ -18,7 +18,7 @@ a file, whether or not anything was wrong (spec §3.2). So:
 | Propose | `propose_ownership(head_sha, records)` | once, at `drifter init`; a person then corrects it by hand |
 | Check | `check_ownership(rules, commits)` | every push, against the committed `models/ownership.json` |
 
-Both are pure: no git, network, clock or randomness. The module imports only `dataclasses`.
+Both are pure: no git, network, clock or randomness. The module imports only `dataclasses` and the shared `glob` from `models/common.py`.
 
 ## Input
 
@@ -63,8 +63,9 @@ author among the owners of the **first rule** matching that path. Both sides of 
 judged, and so are deletions. Output is the contract's `OwnershipViolation`, keys fixed at
 `{author, change, commit, owners, path}`, sorted by commit then path.
 
-Patterns in v1 are an exact path or a folder as `dir/**`. The full pattern language is open
-(spec §Q11), so anything else is treated as an exact path.
+Patterns use the mapping-v1.1.yaml glob, the one matcher scope.json and classification share
+(spec §3.2): `**/` zero or more folders, `**` anything, `*` and `?` within one segment. Since
+rules are read as globs, init proposes no rule for a path containing `*` or `?`.
 
 ## Verification
 

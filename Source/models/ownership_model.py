@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from models.common import glob
+
 SCHEMA_VERSION = 1
 
 # lists the change types a commit may report, an unknown one is a contract break
@@ -19,6 +21,7 @@ WINDOW = 10  # commits per path that name its owners, so a departed author does 
 MAX_FILES = 50  # a commit touching more is a sweep and names no owner
 SKIP = ("vendor/", "third_party/", "node_modules/")  # vendored folders at any depth get no rule (spec 3.2)
 MODELS = "models/"  # the root /models folder, which init writes, gets no rule (spec 3.2)
+GLOB_CHARS = ("*", "?")  # a path holding these gets no rule, since rules are read as globs
 
 
 class OwnershipInputError(Exception):
@@ -99,6 +102,7 @@ def propose_ownership(
         path
         for path, change_type in newest.items()
         if change_type != "DELETED" and not _under(path, skip) and not path.startswith(MODELS)
+        and not any(c in path for c in GLOB_CHARS)
     }
     owners = _owners(walked, live, window, max_files, bots)
     return {
@@ -200,12 +204,9 @@ def _changed(commit: CommitRecord) -> list[str]:
 
 
 def _match(path: str, patterns: list[tuple[str, tuple[str, ...]]]) -> tuple[str, ...] | None:
-    # returns the owners of the first rule matching path, None where no rule does. v1 patterns
-    # are an exact path or a folder as "dir/**"; the full pattern language is open (spec Q11).
+    # returns the owners of the first rule matching path, None where no rule does; patterns use
+    # the mapping-v1.1.yaml glob (spec 3.2)
     for pattern, owners in patterns:
-        if pattern.endswith("/**"):
-            if path.startswith(pattern[:-2]):
-                return owners
-        elif pattern == path:
+        if glob(pattern).match(path):
             return owners
     return None
