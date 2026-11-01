@@ -14,7 +14,7 @@ classDiagram
         include: every .py file
         exclude: everything under tests/
         defaults written by init
-        open: pattern syntax
+        patterns: mapping-v1.1.yaml glob
     }
     class structural["structural.json"] {
         what exists, how parts relate
@@ -40,7 +40,7 @@ classDiagram
         no match: open to anyone
         every path, scope ignored
         rename judged at its old path
-        open: hand-written patterns
+        patterns: mapping-v1.1.yaml glob
     }
 
     scope ..> structural : picks the files for

@@ -213,9 +213,10 @@ and skip on every system.
   6.1 and golden case c3 also list RENAMED, COPIED and TYPE_CHANGED paths, and v1.1 SPEC
   section 0 says the OpenAPI wins. The contract follows SPEC 6.1 (§9); Team 16's OpenAPI text
   should say the same.
-- A full run makes about 45 calls, about 34 of which analyze a commit. Keeping one clone per
-  repository and fetching only missing commits keeps a run well inside 600 s. Team 15 plans
-  it (`docs/base/phase4.md` step A); Team 16 may want the same.
+- A full run makes about 45 calls, about 34 of which analyze a commit. Team 15 makes a fresh
+  clone without file contents per check and downloads every needed file in one batch, which
+  takes 1 to 3 s on the fixtures and keeps a run well inside 600 s; it keeps no clone between
+  checks (`docs/models/file-fetch.md`). Team 16 may want the same.
 
 ## 5. What changes for Team 15's code
 
@@ -228,7 +229,7 @@ Nothing in `Source/` implements 2.4.0 yet. `docs/base/phase4.md` lists the work;
 | System `/test/setup` | one active session: 409 for a new id until the last session's report is read, or for 720 s after its setup | A |
 | System deadline | stop a check at 80 s, so its 500 arrives before the tester's 90 s timeout; a third concurrent check waits within that deadline | A |
 | System `/analyze` | run the model check whatever `status` is; sort ownership violations by SHA then path, and owners, as strings | A, C |
-| System storage and fetch | keep one clone per repository; fetch only missing commits | A |
+| System storage and fetch | a fresh clone without file contents per check, one batched file download (`docs/models/file-fetch.md`) | A |
 | Tester runner | read `/health` once; one table of tests with a feature column; skip, `error` on a failed `/health`, stop at 570 s | B |
 | Tester T-17 | no `drift` comparison | B |
 | Tester T-22, T-23 | fixed skip messages | B |

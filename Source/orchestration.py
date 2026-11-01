@@ -14,7 +14,7 @@
 #
 #   behavioral_differences   the behavioral generator is not built
 #   remote_sources           the connector cannot read a remote repo's history or /models yet
-#   scope matching           scope.json's pattern language is open (spec Q11)
+#   scope matching           must use the mapping-v1.1.yaml glob, one matcher shared (spec 3.2)
 
 from __future__ import annotations
 
@@ -124,7 +124,7 @@ def _difference(change: str, element: dict) -> dict:
 def in_scope(paths: list[str], scope: dict) -> list[str]:
     # keeps the paths scope.json includes and does not exclude.
     # FILLER as a pattern language: only `**/*.ext` and `dir/**` are understood, which covers the
-    # defaults; the full rules are open (spec Q11), so anything else is treated as an exact path.
+    # defaults; spec 3.2 asks for the full mapping-v1.1.yaml glob, anything else is an exact path.
     include = scope.get("include", DEFAULT_SCOPE["include"])
     exclude = scope.get("exclude", DEFAULT_SCOPE["exclude"])
     kept = [p for p in paths if any(_matches(p, pattern) for pattern in include)]
