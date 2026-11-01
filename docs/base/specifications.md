@@ -13,8 +13,8 @@ Names. Documentation Tracker is the pod's shared product. DocumentationModelDrif
 implementation of it. Its command line tool is called drifter.
 
 Which document wins. This file is Team 15's top-level specification: requirements and acceptance
-criteria. Specs under openspec/specs/ (none yet) refine one piece each and cite the REQ and AC ids they serve.
-When the two disagree, this file is corrected first and the piece spec follows. For anything another
+criteria. Specs for one piece live as GitHub issues and cite the REQ and AC ids they serve.
+When the two disagree, this file is corrected first and the issue follows. For anything another
 team's tester or system sees (routes, JSON, tests), the pod contract in docs/contract/ wins over
 this file (Section 5). The course's docs/base/student-facing-spec.docx.pdf wins over both.
 
@@ -619,9 +619,9 @@ Postmortems use precision and recall on planted changes.
   pull request, and runs the check on its own checkout. Standard runners are free for public
   repositories.
 - Distribution: reuse pip and GitHub release tags. No PyPI or Marketplace publishing.
-- Team process: reuse OpenSpec [4] for the team's own specs and tickets. Each ticket is an
-  OpenSpec change whose scenarios are agreed before coding, and each scenario becomes one test.
-  OpenSpec manages documents only and does not read code, so it is not part of the product.
+- Team process: reuse GitHub Issues for the team's own specs and tickets, one issue per
+  roadmap item (docs/base/phase4.md, D7). Each issue's checks are agreed before coding, and each
+  check becomes one test. Issues hold documents only, so they are not part of the product.
 
 ### 8.2 GenAI use
 
@@ -683,8 +683,7 @@ code-review entry. https://github.com/mattpocock/skills/tree/main. Accessed: 202
 Software Engineering." arXiv:2608.25174, 2026. https://arxiv.org/pdf/2608.25174. Accessed:
 2026-10-30.
 
-[4] Fission AI. "OpenSpec: spec-driven schema." https://openspec.dev/docs/schemas/spec-driven.
-Accessed: 2026-10-30.
+[4] Removed 2026-11-01: OpenSpec, replaced by GitHub Issues (8.1).
 
 [5] European Commission, AI Act Service Desk. "Annex XI: Technical documentation referred to in
 Article 53(1), point (a)." https://ai-act-service-desk.ec.europa.eu/en/ai-act/annex-11. Accessed:
