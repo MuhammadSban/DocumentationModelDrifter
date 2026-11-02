@@ -312,6 +312,16 @@ def test_of_two_bad_files_the_first_in_path_order_wins_every_run(tmp_path, monke
     assert first == second
 
 
+
+def test_a_schema_error_wins_over_an_element_rule_error_in_an_earlier_file(tmp_path, monkeypatch, capsysbinary):
+    # checks every schema before any element rule, so models are judged rule by rule, each in path order
+    broken = {"models/behavioral.json": write_model({"states": [ELEMENT, ELEMENT]}),
+              "models/structural.json": write_model(UNKNOWN_EDGE)}
+
+    error = _no_verdict(tmp_path, monkeypatch, capsysbinary, {}, broken)
+
+    assert error["code"] == "INVALID_MODELS" and "models/structural.json" in error["message"]
+
 # ------------------------------------------ ownership: each non-merge commit judged by its author (#16)
 
 
