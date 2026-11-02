@@ -1,6 +1,7 @@
 # checks the ownership model against spec 3.2, docs/models/model-seam.md and docs/models/comparison.md
 
-from models.ownership_model import CommitRecord, PathTouch, check_ownership, propose_ownership
+from drifter.check import check_ownership
+from models.ownership_model import CommitRecord, PathTouch, propose_ownership
 
 
 def history(*commits):

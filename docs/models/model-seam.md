@@ -11,7 +11,7 @@ Each owner decides everything inside their model: kinds, id scheme, attributes, 
 | Structural | Enrique | `generate_structural(files) -> dict` and `structural.schema.json`; element lists `nodes`, `edges` |
 | Behavioral | Barshan | `generate_behavioral(files) -> dict` and `behavioral.schema.json`; element lists of the owner's choice |
 | Ownership | Muhammad | `propose_ownership(head_sha, records) -> dict` and `ownership.schema.json`; rules, never diffed |
-| Core | Kaan | `parse_files`, `write_model`, `CommitRecord` (defined in `ownership_model.py`), scope, the diff, the ownership checker, the CLI |
+| Core | Kaan | `parse_files`, `write_model`, `CommitRecord` (defined in `ownership_model.py`), scope, the diff and the ownership checker (both in `Source/drifter/check.py`), the CLI |
 
 ## The element rule (structural and behavioral)
 
