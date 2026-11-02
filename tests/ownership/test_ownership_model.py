@@ -50,6 +50,12 @@ def test_check_compares_emails_in_lowercase():
     assert check_ownership(rules(("src/app.py", ["KAAN@x.com"])), [commit]) == []
 
 
+def test_a_merge_is_not_judged_even_when_it_lists_paths():
+    # git log lists no paths for a merge, so only a record built by hand reaches the skip
+    merge = CommitRecord("a" * 40, "stranger@x.com", ("b" * 40, "c" * 40), (PathTouch("src/app.py", "MODIFIED"),))
+    assert check_ownership(rules(("src/app.py", ["owner@x.com"])), [merge]) == []
+
+
 def test_a_rename_is_judged_under_its_old_path_only():
     move = PathTouch("src/new.py", "RENAMED", "src/old.py")
     owned = rules(("src/old.py", ["owner@x.com"]), ("src/new.py", ["other@x.com"]))
