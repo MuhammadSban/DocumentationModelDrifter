@@ -1,4 +1,4 @@
-# saves and loads run files by analysis_id, the one place v3 swaps for a durable store
+# saves and loads run files by analysis_id, in runs_dir: the Railway volume when one is attached (D6)
 
 from __future__ import annotations
 

@@ -8,6 +8,6 @@ Keeps a repository's architecture models (`/models`) in step with its code. `doc
 - **Railway:** project `graceful-creativity`, service `DocumentationModelDrifter`, environment `production`
 - **Deploys:** automatically on every push to `main`; `/system/health`'s `tool_version` names the deployed commit
 - **Settings:** set in the Railway dashboard, since this service does not read `railway.toml`: Dockerfile builder, healthcheck `/system/health`, restart on failure
-- **Saved results:** lost on redeploy until the v1 durable store (a volume) is added; `/system/health` says `storage: local` until then
+- **Saved results:** on a Railway volume attached to the service, so they survive a redeploy; `/system/health` says `storage: volume`. Without a volume the app refuses to start on Railway
 
 The `DocumentationDrifter` service in the same project deploys the separate repository `MuhammadSban/DocumentationDrifter`. It is a different deployment; leave it as it is.
