@@ -26,7 +26,7 @@ class AnalysisSettings(BaseSettings):
     # resolves owner/name to <base><owner>/<name>.git, tests point it at local bare repos
     remote_base_url: str = "https://github.com/"
 
-    # stores run files, wiped on redeploy and restart until v3 makes it durable
+    # stores run files when no Railway volume is attached, wiped on redeploy and restart
     runs_dir: Path = REPO_ROOT / "runs"
 
     # holds temporary clones, None means the system temp folder
@@ -45,5 +45,21 @@ class AnalysisSettings(BaseSettings):
 
 @lru_cache
 def get_settings() -> AnalysisSettings:
-    # caches the settings, tests clear the cache after repointing the environment
-    return AnalysisSettings()
+    # caches the settings, tests clear the cache after repointing the environment; a Railway
+    # volume, when attached, holds the run files so they survive a redeploy (D6)
+    settings = AnalysisSettings()
+    volume = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH")
+    if volume:
+        settings.runs_dir = Path(volume)
+    return settings
+
+
+def storage() -> str:
+    # names where run files land, for /health: volume survives a redeploy, ephemeral does not
+    return "volume" if os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") else "ephemeral"
+
+
+def require_volume_on_railway() -> None:
+    # refuses to start on Railway without a volume, so saved results are never silently lost (D6)
+    if os.environ.get("RAILWAY_PROJECT_ID") and not os.environ.get("RAILWAY_VOLUME_MOUNT_PATH"):
+        raise RuntimeError("on Railway the run store needs a volume; attach one to this service")

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, Request
@@ -19,7 +21,7 @@ from GitHub_Connector.schemas import (
     ErrorCode,
     GenerateResult,
 )
-from GitHub_Connector.settings import build_label
+from GitHub_Connector.settings import build_label, require_volume_on_railway, storage
 
 # maps every contract error code to its HTTP status, the one table all failures go through
 STATUS_FOR = {
@@ -34,8 +36,16 @@ STATUS_FOR = {
 
 _ERRORS = {400: {"model": ErrorBody}, 404: {"model": ErrorBody}, 500: {"model": ErrorBody}}
 
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    # checks the run store before serving, so a deploy without a volume fails its healthcheck (D6)
+    require_volume_on_railway()
+    yield
+
+
 app = FastAPI(
     title="DocumentationDrifter",
+    lifespan=lifespan,
     openapi_url="/system/openapi.json",
     docs_url=None,  # serves the contract's routes and the console, no docs pages
     redoc_url=None,
@@ -132,7 +142,7 @@ def health() -> dict[str, object]:
         "status": "ok",
         "tool_version": build_label(),
         "config_version": rules.config_version(),
-        "storage": "local",
+        "storage": storage(),
         "features": ["model_drift"],
     }
 
