@@ -565,7 +565,8 @@ One codebase, three ways to run it, all through the orchestrator:
   health) for course testing and other callers.
 
 Generators are pure functions (files in, JSON out): no git, network, clock or randomness. Only the
-GitHub integration runs git.
+git readers run git: the GitHub integration's clone for the hosted service, and the core's
+LocalReader for the CLI on a local checkout.
 
 Adoption. A repository installs drifter with pip from the DocumentationModelDrifter GitHub
 repository at a release tag, and adopts the check with one uses: line pointing at the reusable

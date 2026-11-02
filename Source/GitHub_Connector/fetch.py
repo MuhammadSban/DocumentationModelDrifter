@@ -1,4 +1,4 @@
-# reads the analysed repo with git, the only code in v1 that runs git
+# reads the analysed repo from GitHub with git, the hosted service's reader; the CLI reads a local checkout with drifter.check.LocalReader
 
 from __future__ import annotations
 

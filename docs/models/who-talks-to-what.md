@@ -7,7 +7,7 @@ The developer, GitHub and a tester reach one drifter core through three entry po
 ```mermaid
 flowchart LR
     accTitle: Who talks to what
-    accDescr: The developer runs the CLI, GitHub runs the Action on every push (Phase 5, not built yet), and a tester calls the hosted /system routes. All three call one drifter core, whose GitHub integration reads the analysed repository at one commit. The only write into the repository is the developer committing /models.
+    accDescr: The developer runs the CLI, GitHub runs the Action on every push (Phase 5, not built yet), and a tester calls the hosted /system routes. All three call one drifter core, whose git readers read the analysed repository at one commit: a blobless GitHub clone for the hosted service, the local checkout for the CLI. The only write into the repository is the developer committing /models.
 
     Dev([Developer<br/>decides on drift])
     GH([GitHub<br/>push, pull request])
@@ -19,7 +19,7 @@ flowchart LR
 
     subgraph Core[drifter core: one codebase, three callers]
         Orch[Orchestrator]
-        Git[GitHub integration<br/>the only part that runs git]
+        Git[Git readers<br/>GitHub clone for hosted,<br/>local checkout for the CLI<br/>the only parts that run git]
         Gen[Structural and behavioral generators]
         Own[Ownership check]
         Cmp[Comparison]

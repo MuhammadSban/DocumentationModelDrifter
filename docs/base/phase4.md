@@ -37,7 +37,7 @@ The spec (§3.2, §5.2, §6.1, §7.1) fixes what each piece must output; the con
 | --- | --- |
 | spec §3.2 | four files in /models; canonical layout (sorted keys, 2-space indent, LF, one trailing newline, lists sorted by id, schema_version); scope defaults `**/*.py` minus `tests/**`; ownership = ordered rules, first match wins, author email only |
 | spec §5.2 | four-field answer; drift_error codes; drift stays null with status: SUCCESS; CLI exit codes 0, 1, 2 |
-| spec §7.1 | generators are pure (no git, clock, network); only the GitHub integration runs git; one orchestrator behind CLI, Action and hosted service |
+| spec §7.1 | generators are pure (no git, clock, network); only the git readers run git (the connector's clone, and the core's `LocalReader` for the CLI); one orchestrator behind CLI, Action and hosted service |
 | contract §4 | T-24 to T-31 compare the whole drift object including order; T-32 compares drift and drift_error.code; T-33 compares three file texts byte for byte (structural, behavioral, scope; not ownership) |
 | contract §6 | 90 s per project call, 600 s per tester run, no retries |
 | pod-tester.openapi.yml | tester routes /test/setup, /test/run, /test/report and the suite report shape |
@@ -45,9 +45,9 @@ The spec (§3.2, §5.2, §6.1, §7.1) fixes what each piece must output; the con
 What exists on `main` (2026-11-01):
 
 - **Reusable, in Source/GitHub_Connector:** fetch.py (clone, resolve short SHA, first parent, diff, read blobs, timeouts), runs.py (write-once run files), course.py (system /test/setup and /test/report with line coverage), api.py routing.
-- **Started, outside the plan's layout:** `Source/models/` holds `common.py` (`parse_files`, `write_model`), `structural_model.py` (the structural generator) and `ownership_model.py` (propose and check); `Source/drifter/check.py` (moved from `Source/orchestration.py`) runs a check with scope, diff by id and the ownership check, on a local checkout or on a GitHub repository through the connector's blobless clone (#18), with a FILLER for behavioral; `Source/Tester/` serves the tester at /tester; `tests/` holds the connector, structural, common, tester and diagram tests.
-- **Not contract 2.4.0:** run files are lost on redeploy. (Done on `main`, merged from contract-alignment: features in /health, mapping-v1.1.yaml, config_version mapping-v1.1, unmapped, contract error codes, one skip reason, 80 s deadline, CHANGE_LIMIT_EXCEEDED, one active test session; all 10 golden cases pass. The console path already points at Frontend.)
-- **Missing entirely:** the behavioral generator, `Source/drifter/`, the CLI, `drift` on /analyze, /generate, packaging, the durable store.
+- **Started, outside the plan's layout:** `Source/models/` holds `common.py` (`parse_files`, `write_model`), `structural_model.py` (the structural generator) and `ownership_model.py` (propose and check); `Source/drifter/check.py` (moved from `Source/orchestration.py`) runs a check with scope, diff by id and the ownership check, on a local checkout or on a GitHub repository through the connector's blobless clone (#18), and since #31 regenerates behavioral too, from `Source/models/behavioral_model.py`; `Source/Tester/` serves the tester at /tester; `tests/` holds the connector, structural, common, tester and diagram tests.
+- **Contract 2.4.0:** run files now survive a redeploy on the Railway volume (#27). (Done on `main`, merged from contract-alignment: features in /health, mapping-v1.1.yaml, config_version mapping-v1.1, unmapped, contract error codes, one skip reason, 80 s deadline, CHANGE_LIMIT_EXCEEDED, one active test session; all 10 golden cases pass. The console path already points at Frontend.)
+- **Still missing:** every model's `*.schema.json`. (`Source/drifter/`, the CLI, `drift` on /analyze, /generate, packaging, the durable store and the behavioral generator are done; see the tables below.)
 
 ## Roadmap: v1, v1.1, v1.2
 
@@ -68,8 +68,8 @@ Needs no model format. Builds on `main` (contract-alignment is merged), where /h
 
 | Item | Done when |
 | --- | --- |
-| Durable store (D6): a Railway volume behind `runs.py`; `runs_dir` from `RAILWAY_VOLUME_MOUNT_PATH`; on Railway without a volume the app refuses to start; /health reports `storage: volume` (or `ephemeral` locally); the container starts as root, hands the volume to `drifter`, then drops to it with `setpriv` (fallback `RAILWAY_RUN_UID=0`); scheduled volume backups on | a result saved before a redeploy is returned byte for byte after it (T-14, T-16); /health says `volume` on Railway |
-| Base image (D11): from `python:3.12-slim` today to `FROM python:3.12-slim-trixie`, which brings git 2.47 (`GIT_NO_LAZY_FETCH` needs 2.44 or later) | `git --version` in the container is 2.44 or later |
+| Durable store (D6): a Railway volume behind `runs.py`; `runs_dir` from `RAILWAY_VOLUME_MOUNT_PATH`; on Railway without a volume the app refuses to start; /health reports `storage: volume` (or `ephemeral` locally); the container starts as root, hands the volume to `drifter`, then drops to it with `setpriv` (fallback `RAILWAY_RUN_UID=0`); scheduled volume backups on | a result saved before a redeploy is returned byte for byte after it (T-14, T-16); /health says `volume` on Railway. **Done** (#27, tracker-gaps row 17) |
+| Base image (D11): from `python:3.12-slim` to `FROM python:3.12-slim-trixie`, which brings git 2.47 (`GIT_NO_LAZY_FETCH` needs 2.44 or later) | `git --version` in the container is 2.44 or later. Image pinned to `slim-trixie` (#26) |
 | Fresh blobless clone per check, no clone cache (D11) | step A's old "one clone per repository" check is dropped |
 | Our tester against Team 16's system, and against ours | T-01 to T-17 pass on both; one full run is timed and logs each call's time |
 
@@ -94,7 +94,7 @@ Spec: issue #12. Status as of 2026-11-01, after #13 closed and Muhammad's push o
 | Item | Who | Done when |
 | --- | --- | --- |
 | `structural.schema.json` | Enrique | seam test passes; byte-identical on Linux and Windows |
-| Behavioral format, `generate_behavioral`, `behavioral.schema.json` | Barshan | own snippet goldens and the seam test pass; byte-identical on Linux and Windows |
+| Behavioral format, `generate_behavioral`, `behavioral.schema.json` | Barshan | own snippet goldens and the seam test pass; byte-identical on Linux and Windows. Generator, snippet goldens and seam test done and registered (#31), format in `docs/base/behavioral.md`; `behavioral.schema.json` not written yet |
 | `propose_ownership(head_sha, records)` returning spec §3.2's rule list (done in PRs #7 and #9: `[bot]` emails, no `email:` prefix, `pattern` key, window 10, vendored folders, lowercase emails, renames under the old path; settings stay constants in the module); `ownership.schema.json` | Muhammad | own goldens pass; output validates against the schema |
 | Model fixture `MuhammadSban/doc-tracker-model-fixtures`, public, commits L-pre to L7 (spec §4.2) | Kaan | contract §3 checklist done |
 | `docs/contract/model-golden-outputs.json`, contract version bump | Kaan | Team 16 told; tester turns on T-24 to T-33 |
