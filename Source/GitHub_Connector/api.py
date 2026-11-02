@@ -134,6 +134,7 @@ def index() -> dict:
         "routes": [
             "GET /system/health",
             "POST /system/analyze",
+            "POST /system/generate",
             "GET /system/analysis/{analysis_id}",
             "POST /system/test/setup",
             "GET /system/test/report?session_id=...",
