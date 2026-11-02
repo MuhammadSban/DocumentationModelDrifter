@@ -88,8 +88,10 @@ class Comparison:
         if not paths:
             return {}
         shas = sorted({tree[path] for path in paths})
+        # sends no "have" lines, as git's own lazy fetch does: GitHub leaves out a wanted blob
+        # reachable from a commit the client says it has
         proc = self._git.run(
-            "fetch", "--no-tags", "--no-write-fetch-head", "--filter=blob:none", "--stdin", "origin",
+            "-c", "fetch.negotiationAlgorithm=noop", "fetch", "--no-tags", "--no-write-fetch-head", "--filter=blob:none", "--stdin", "origin",
             input=_lines(shas), check=False,
         )
         if proc.returncode != 0:

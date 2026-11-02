@@ -82,7 +82,7 @@ def test_a_skipped_batch_fails_at_once_instead_of_fetching_lazily(served, monkey
 
     def no_batch(self, *args, **kwargs):
         # answers the batch fetch as if it succeeded without downloading anything
-        if args[0] == "fetch" and "--stdin" in args:
+        if "fetch" in args and "--stdin" in args:
             return subprocess.CompletedProcess(args, 0, b"", b"")
         return run(self, *args, **kwargs)
 
@@ -105,6 +105,21 @@ def test_one_read_leaves_exactly_two_promisor_packs(served):
     assert blobs["src/util.py"] == b"X = 2\n"
     assert len(packs) == 2
     assert list(clones.iterdir()) == []
+
+
+def test_the_batch_tells_the_server_no_commits_it_has(served, tmp_path):
+    # GitHub leaves out a wanted blob reachable from a commit the client says it has, so the
+    # batch must send no "have" lines; stock git sends the blob anyway, so this checks the cause
+    _, head, _ = served
+    trace = tmp_path / "packets.txt"
+
+    with fetch("owner/repo", head) as cmp:
+        cmp._git.env["GIT_TRACE_PACKET"] = str(trace)
+        cmp.read(["src/app.py"])
+
+    sent = [line for line in trace.read_text().splitlines() if "fetch> " in line]
+    assert any("fetch> want " in line for line in sent)
+    assert not [line for line in sent if "fetch> have " in line]
 
 
 def test_a_git_call_over_its_timeout_fails_the_read(served):
