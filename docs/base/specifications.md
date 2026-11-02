@@ -226,7 +226,9 @@ PARSE_FAILED, so generators may assume every file parses.
 - **Behavioral**
   - Question: What may happen, and in what order?
   - Contents: at least states and the transitions between them. Kind names, id scheme, mining
-    rules and the JSON Schema are open (see [Q11](#q11-open-decisions)).
+    rules and the JSON Schema are open (see [Q11](#q11-open-decisions)). A first generator,
+    Source/models/behavioral_model.py, is written but not yet used by a check; what it writes is in
+    docs/models/models-folder.md.
   - Comparison: regenerate at the commit, then set difference by element id.
 - **Ownership**
   - Question: Who may change what?
@@ -564,7 +566,8 @@ One codebase, three ways to run it, all through the orchestrator:
   health) for course testing and other callers.
 
 Generators are pure functions (files in, JSON out): no git, network, clock or randomness. Only the
-GitHub integration runs git.
+git readers run git: the GitHub integration's clone for the hosted service, and the core's
+LocalReader for the CLI on a local checkout.
 
 Adoption. A repository installs drifter with pip from the DocumentationModelDrifter GitHub
 repository at a release tag, and adopts the check with one uses: line pointing at the reusable

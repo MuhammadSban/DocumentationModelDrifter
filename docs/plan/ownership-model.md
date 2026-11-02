@@ -1,11 +1,11 @@
 # Ownership model
 
 **Status: built and verified.** `Source/models/ownership_model.py`, demonstrated by
-`Source/models/ownership_demo.py`, driven by `Source/orchestration.py`.
+`Source/models/ownership_demo.py`, driven by `Source/drifter/check.py`.
 
-Not currently listed in `docs/README.md`. Its substance belongs in the spec: it settles
-**"What drifter init proposes as the first ownership.json"**, one of §Q11's open decisions.
-Fold it into §3.2 or an ADR and delete this file.
+Listed in `docs/README.md` under `plan/`. Its substance is now in spec §3.2, which settled
+**"What drifter init proposes as the first ownership.json"** and wins where this file differs;
+§Q11 no longer lists it. What is left here is the reasoning and the verification record.
 
 ## Two halves
 
@@ -18,7 +18,7 @@ a file, whether or not anything was wrong (spec §3.2). So:
 | Propose | `propose_ownership(head_sha, records)` | once, at `drifter init`; a person then corrects it by hand |
 | Check | `check_ownership(rules, commits)` | every push, against the committed `models/ownership.json` |
 
-Both are pure: no git, network, clock or randomness. The module imports only `dataclasses` and the shared `glob` from `models/common.py`.
+Both are pure: no git, network, clock or randomness. The module imports only `dataclasses` and the shared `glob` and `literal` from `models/common.py`.
 
 ## Input
 
@@ -37,7 +37,7 @@ history with **`git log --topo-order`**, or clock skew can place a parent before
 ## What init proposes
 
 ```json
-{ "rules": [ { "owners": ["ana@x.com"], "path": "src/a.py" } ], "schema_version": 1 }
+{ "rules": [ { "owners": ["ana@x.com"], "pattern": "src/a.py" } ], "schema_version": 1 }
 ```
 
 Settled with Kaan, 2026-10-31:
@@ -52,15 +52,16 @@ Settled with Kaan, 2026-10-31:
 | 9 | `/models` | Owned by the system in v1, so **no rule is proposed** for it. |
 
 Also, not asked but needed: a **merge** names no owner (it carries no change of its own), and a
-commit touching more than 50 files is a **sweep** and names no owner. Only the newest **30**
-commits per file name its owners, so a departed author does not own a file forever. All three are
-keyword arguments, so they are already customisable without a config file.
+commit touching more than 50 files is a **sweep** and names no owner. Only the newest **10**
+commits per file name its owners, so a departed author does not own a file forever. Files under
+a `vendor/`, `third_party/` or `node_modules/` folder at any depth get no rule. The window, the
+file limit and the vendored folders are keyword arguments, so they are already customisable without a config file.
 
 ## What each push checks
 
 For every **non-merge** commit between base and head, each file it changes must have its git
-author among the owners of the **first rule** matching that path. Both sides of a rename are
-judged, and so are deletions. Output is the contract's `OwnershipViolation`, keys fixed at
+author among the owners of the **first rule** matching that path. A rename is judged under its
+**old path** only, so the owners travel with the file; deletions are judged too. Output is the contract's `OwnershipViolation`, keys fixed at
 `{author, change, commit, owners, path}`, sorted by commit then path.
 
 Patterns use the mapping-v1.1.yaml glob, the one matcher scope.json and classification share
@@ -83,9 +84,6 @@ On a repository whose rules were written by hand to match, init reproduces them 
 ## Deferred
 
 - **Behavioral model**, and with it its entry in the orchestrator's `GENERATORS`.
-- **The connector's two missing reads**: a repository's history and its `/models` at a commit.
-  The `Reader` interface in `check.py` marks the seam; `LocalReader` already does both against a local clone.
-- **Pattern language** for `ownership.json` and `scope.json` (spec §Q11).
 - **A tool identity that is not marked `[bot]`** becomes an owner. On this repository
   `noreply@anthropic.com` owns files. The fix is one entry in `bots`, not code.
 - **A mining config file**, if the keyword defaults ever need to differ per repository.
