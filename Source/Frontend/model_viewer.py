@@ -12,6 +12,7 @@ from collections import Counter
 from html import escape
 from pathlib import Path
 
+from Frontend.model_drift import Verdict
 from models.common import glob
 from Frontend.model_loader import (
     OWNERSHIP_FILE,
@@ -43,12 +44,8 @@ MERMAID = "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs"
 STYLE = (Path(__file__).resolve().parent / "app.css").read_text(encoding="utf-8")
 
 
-def render(models: Models) -> str:
-    # renders the whole page: one panel per model, in the order a reader meets them
-    sections = [
-        _structural(models.structural),
-        _ownership(models.ownership, models.scope),
-    ]
+def render(models: Models, verdict: Verdict | None = None) -> str:
+    # renders the standalone page: the shell, the models, and the script that draws them
     return (
         "<!doctype html>\n"
         '<html lang="en">\n<head>\n<meta charset="utf-8">\n'
@@ -58,15 +55,54 @@ def render(models: Models) -> str:
         '<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">\n'
         "<title>Models</title>\n"
         f"<style>{STYLE}</style>\n</head>\n<body>\n<main>\n"
-        f'<div class="top">\n<h1>Models</h1>\n<p class="mono">{escape(str(models.models_dir))}</p>\n</div>\n'
-        + "\n".join(sections)
+        + fragment(models, verdict)
         + "\n</main>\n"
         + _script()
         + "\n</body>\n</html>\n"
     )
 
 
-def _structural(model: StructuralModel | None) -> str:
+def fragment(models: Models, verdict: Verdict | None = None) -> str:
+    # renders the models alone, without a page around them, so the console can put them inside
+    # its own shell: one panel per model, in the order a reader meets them
+    sections = [
+        _structural(models.structural, verdict),
+        _ownership(models.ownership, models.scope, verdict),
+    ]
+    return (
+        f'<div class="top">\n<h1>Models</h1>\n<p class="mono">{escape(models.source)}</p>\n'
+        f"{_compared(verdict)}</div>\n" + "\n".join(sections)
+    )
+
+
+def _compared(verdict: Verdict | None) -> str:
+    # says which two commits the drift check compared, or why it reached no answer, so a page
+    # without a verdict is never read as a page whose models are in step
+    if verdict is None:
+        return ""
+    if verdict.base is None or verdict.note:
+        reason = verdict.note or f"{verdict.head[:7]} has no earlier commit to compare with"
+        return f'<p class="note">Not checked for drift — {escape(reason)}</p>\n'
+    return (
+        f'<p class="note">Drift checked by regenerating each model at '
+        f'<code>{escape(verdict.base[:7])}</code> and <code>{escape(verdict.head[:7])}</code> '
+        "and comparing them whole.</p>\n"
+    )
+
+
+def _chip(model: str, verdict: Verdict | None) -> str:
+    # marks one model with the naive check's answer: changed since the commit before, unchanged,
+    # or not checked, which is its own state and not a quiet pass
+    if verdict is None:
+        return ""
+    if model not in verdict.changed:
+        return '<span class="chip idle">not checked</span>'
+    if verdict.changed[model]:
+        return '<span class="chip warn">drifted from previous commit</span>'
+    return '<span class="chip ok">same as previous commit</span>'
+
+
+def _structural(model: StructuralModel | None, verdict: Verdict | None = None) -> str:
     # shows the code as two models, each answering one question and holding only what that
     # question needs (docs/agents/modeling.md): which parts depend on which, and which types
     # extend which. Everything the question does not need is counted, never drawn, so a diagram
@@ -83,7 +119,7 @@ def _structural(model: StructuralModel | None) -> str:
         ),
         f"<b>{len(model.edges)}</b> {_plural(len(model.edges), 'edge')}",
     ]
-    return _panel("Structural", meta, _components(model) + _classes(model))
+    return _panel("Structural", meta, _components(model) + _classes(model), _chip("structural", verdict))
 
 
 def _components(model: StructuralModel) -> str:
@@ -288,7 +324,7 @@ def _figure(title: str, question: str, source: str | None, omitted: str) -> str:
     )
 
 
-def _ownership(model: OwnershipModel | None, scope: Scope | None) -> str:
+def _ownership(model: OwnershipModel | None, scope: Scope | None, verdict: Verdict | None = None) -> str:
     # shows ownership as one section per contributor: how much of the code they own, the folders
     # they own it in, and who they share it with. Every section carries the same map, so two
     # territories are compared by scanning down the page. A path no rule matches appears in no
@@ -319,7 +355,7 @@ def _ownership(model: OwnershipModel | None, scope: Scope | None) -> str:
         if sections
         else '<p class="none">no rules over code, so every path is open to anyone</p>'
     )
-    return _panel("Ownership", meta, body)
+    return _panel("Ownership", meta, body, _chip("ownership", verdict))
 
 
 def _is_code(pattern: str, scope: Scope | None) -> bool:
@@ -452,10 +488,10 @@ def _script() -> str:
     )
 
 
-def _panel(title: str, meta: list[str], body: str) -> str:
-    # wraps one model in a panel: its title, its counts, then its tables
+def _panel(title: str, meta: list[str], body: str, chip: str = "") -> str:
+    # wraps one model in a panel: its title, the drift chip beside it, its counts, then its tables
     return (
-        f'<section class="panel">\n<h2>{escape(title)}</h2>\n'
+        f'<section class="panel">\n<h2>{escape(title)}{chip}</h2>\n'
         f'<div class="meta">{"".join(f"<span>{item}</span>" for item in meta)}</div>\n'
         f"{body}\n</section>"
     )

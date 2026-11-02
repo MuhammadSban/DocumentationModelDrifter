@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 
+from Frontend import model_drift
+from Frontend.model_loader import OWNERSHIP_FILE, SCOPE_FILE, STRUCTURAL_FILE, models_from_dicts
+from Frontend.model_viewer import render
 from GitHub_Connector import course, rules, runs
 from Tester import api as tester
-from GitHub_Connector.analysis import analyze
+from GitHub_Connector.analysis import analyze, validate
+from GitHub_Connector.fetch import fetch
 from GitHub_Connector.schemas import (
     AnalysisError,
     AnalysisRequest,
@@ -18,7 +23,7 @@ from GitHub_Connector.schemas import (
     ErrorBody,
     ErrorCode,
 )
-from GitHub_Connector.settings import build_label
+from GitHub_Connector.settings import build_label, get_settings
 
 # maps every contract error code to its HTTP status, the one table all failures go through
 STATUS_FOR = {
@@ -140,6 +145,38 @@ def console() -> FileResponse:
 def stylesheet() -> FileResponse:
     # serves the design the console and the model viewer share, the one file the page asks for
     return FileResponse(FRONTEND / "app.css", media_type="text/css")
+
+
+@app.get("/models/view", include_in_schema=False)
+def models_view(repository: str, commit_id: str) -> Response:
+    # renders one commit's models as the page the console's Models view frames: the structural
+    # model regenerated at that commit, the repository's own ownership rules beside it, and the
+    # naive drift chip comparing the commit with the one before it. Kept out of the OpenAPI
+    # document, being the console's own route and not part of the contract.
+    #
+    # A whole page, framed rather than injected: the console styles .dot, .row and .sub for its
+    # watchlist, which are the classes the ownership map draws itself with.
+    validate(AnalysisRequest(repository=repository, commit_id=commit_id))
+    deadline = time.monotonic() + get_settings().analysis_deadline
+    with fetch(repository, commit_id, None, deadline) as cmp:
+        parsed = {
+            name: model
+            for name, model in model_drift.committed(cmp, cmp.head).items()
+            if name in (OWNERSHIP_FILE, SCOPE_FILE)
+        }
+        changed: dict[str, bool] = {}
+        note = None
+        try:
+            parsed[STRUCTURAL_FILE] = model_drift.snapshot(cmp, cmp.head)
+            if cmp.base is not None:
+                changed["structural"] = model_drift.drifted(
+                    model_drift.snapshot(cmp, cmp.base), parsed[STRUCTURAL_FILE]
+                )
+        except model_drift.SnapshotFailed as exc:
+            note = str(exc)
+        models = models_from_dicts(parsed, f"{repository} @ {cmp.head[:7]}")
+        verdict = model_drift.Verdict(head=cmp.head, base=cmp.base, changed=changed, note=note)
+    return Response(render(models, verdict), media_type="text/html")
 
 
 router.include_router(course.router)

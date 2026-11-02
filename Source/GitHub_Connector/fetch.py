@@ -67,24 +67,32 @@ class Comparison:
         # No sizes: ls-tree -l reports them only by fetching every blob, which is the file-by-file
         # crawl the batch below exists to avoid, so size is judged after the download.
         if self._tree is None:
-            raw = self._git.run("ls-tree", "-r", "-z", self.head).stdout
-            self._tree = {}
-            for entry in raw.decode("utf-8", "surrogateescape").split("\0"):
-                if not entry:
-                    continue
-                meta, _, path = entry.partition("\t")
-                mode, _, sha = meta.split()
-                if mode in REGULAR:
-                    self._tree[path] = sha
+            self._tree = self.tree_at(self.head)
         return self._tree
 
-    def read(self, paths: list[str]) -> dict[str, bytes]:
-        # returns each path's bytes at head, downloading every blob in one fetch so a check never
-        # crawls file by file; a batch that does not bring them all fails at once (D11)
-        tree = self.tree()
+    def tree_at(self, commit: str) -> dict[str, str]:
+        # lists any commit in the clone the same way, so a caller that compares two commits reads
+        # both through one clone; only head's listing is cached, being the one read twice
+        raw = self._git.run("ls-tree", "-r", "-z", commit).stdout
+        tree: dict[str, str] = {}
+        for entry in raw.decode("utf-8", "surrogateescape").split("\0"):
+            if not entry:
+                continue
+            meta, _, path = entry.partition("\t")
+            mode, _, sha = meta.split()
+            if mode in REGULAR:
+                tree[path] = sha
+        return tree
+
+    def read(self, paths: list[str], commit: str | None = None) -> dict[str, bytes]:
+        # returns each path's bytes at head, or at another commit of the same clone, downloading
+        # every blob in one fetch so a check never crawls file by file; a batch that does not
+        # bring them all fails at once (D11)
+        at = commit or self.head
+        tree = self.tree() if at == self.head else self.tree_at(at)
         unknown = [path for path in paths if path not in tree]
         if unknown:
-            raise AnalysisError(ErrorCode.ANALYSIS_FAILED, f"{unknown[0]} is not a file at {self.head}")
+            raise AnalysisError(ErrorCode.ANALYSIS_FAILED, f"{unknown[0]} is not a file at {at}")
         if not paths:
             return {}
         shas = sorted({tree[path] for path in paths})

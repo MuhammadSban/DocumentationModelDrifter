@@ -73,8 +73,10 @@ class Scope:
 
 @dataclass(frozen=True)
 class Models:
-    # one repository's models, a field being None where that file is not in the folder
-    models_dir: Path
+    # one repository's models, a field being None where that model is absent. The source names
+    # where they came from, a folder for a checkout or owner/name@sha for a clone, and is shown
+    # to the reader rather than read back.
+    source: str
     structural: StructuralModel | None
     ownership: OwnershipModel | None
     scope: Scope | None
@@ -88,38 +90,63 @@ def load_models(models_dir: str | Path) -> Models:
     ownership_file = folder / OWNERSHIP_FILE
     scope_file = folder / SCOPE_FILE
     return Models(
-        models_dir=folder,
+        source=str(folder),
         structural=load_structural(structural_file) if structural_file.is_file() else None,
         ownership=load_ownership(ownership_file) if ownership_file.is_file() else None,
         scope=load_scope(scope_file) if scope_file.is_file() else None,
     )
 
 
+def models_from_dicts(parsed: dict[str, dict], source: str) -> Models:
+    # builds the same Models from models another module already parsed, keyed by file name, so a
+    # server holding a repository's models in memory does not write them to disk to show them
+    return Models(
+        source=source,
+        structural=structural_from_dict(parsed[STRUCTURAL_FILE], STRUCTURAL_FILE)
+        if STRUCTURAL_FILE in parsed else None,
+        ownership=ownership_from_dict(parsed[OWNERSHIP_FILE], OWNERSHIP_FILE)
+        if OWNERSHIP_FILE in parsed else None,
+        scope=scope_from_dict(parsed[SCOPE_FILE], SCOPE_FILE) if SCOPE_FILE in parsed else None,
+    )
+
+
 def load_structural(path: str | Path) -> StructuralModel:
     # reads one structural.json, as base/structure.md defines it
-    data = _read(path)
-    return StructuralModel(
-        schema_version=_field(data, "schema_version", path),
-        nodes=tuple(_node(entry, path) for entry in _field(data, "nodes", path)),
-        edges=tuple(_edge(entry, path) for entry in _field(data, "edges", path)),
-    )
+    return structural_from_dict(_read(path), path)
 
 
 def load_ownership(path: str | Path) -> OwnershipModel:
     # reads one ownership.json, as propose_ownership writes it
-    data = _read(path)
-    return OwnershipModel(
-        schema_version=_field(data, "schema_version", path),
-        rules=tuple(_rule(entry, path) for entry in _field(data, "rules", path)),
-    )
+    return ownership_from_dict(_read(path), path)
 
 
 def load_scope(path: str | Path) -> Scope:
     # reads one scope.json, which decides which files the code models describe
-    data = _read(path)
+    return scope_from_dict(_read(path), path)
+
+
+def structural_from_dict(data: dict, label: str | Path) -> StructuralModel:
+    # builds one structural model, label naming the source in any error
+    return StructuralModel(
+        schema_version=_field(data, "schema_version", label),
+        nodes=tuple(_node(entry, label) for entry in _field(data, "nodes", label)),
+        edges=tuple(_edge(entry, label) for entry in _field(data, "edges", label)),
+    )
+
+
+def ownership_from_dict(data: dict, label: str | Path) -> OwnershipModel:
+    # builds one ownership model, label naming the source in any error
+    return OwnershipModel(
+        schema_version=_field(data, "schema_version", label),
+        rules=tuple(_rule(entry, label) for entry in _field(data, "rules", label)),
+    )
+
+
+def scope_from_dict(data: dict, label: str | Path) -> Scope:
+    # builds one scope, label naming the source in any error
     return Scope(
-        include=tuple(_field(data, "include", path)),
-        exclude=tuple(_field(data, "exclude", path)),
+        include=tuple(_field(data, "include", label)),
+        exclude=tuple(_field(data, "exclude", label)),
     )
 
 
