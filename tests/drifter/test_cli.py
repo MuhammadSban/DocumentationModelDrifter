@@ -49,9 +49,7 @@ def _commit(path, message, author="ana@x.com"):
 
 def _check(path, monkeypatch, capsysbinary, *args):
     # runs drifter check in path and returns its exit code and stdout bytes
-    monkeypatch.chdir(path)
-    code = cli.main(["check", *args])
-    return code, capsysbinary.readouterr().out
+    return _run(path, monkeypatch, capsysbinary, "check", *args)
 
 
 def test_an_aligned_checkout_prints_the_answer_and_exits_0(tmp_path, monkeypatch, capsysbinary):
@@ -454,3 +452,115 @@ def test_a_root_commit_judges_only_itself(tmp_path, monkeypatch, capsysbinary):
     assert ownership == [
         {"author": "ana@x.com", "change": "VIOLATION", "commit": root, "owners": ["bea@x.com"], "path": "src/app.py"},
     ]
+
+
+# ---------------------------------------------------------------- drifter init and update (#17)
+
+
+def _code_repo(path, files):
+    # commits only code, no /models, as a repository looks before init
+    subprocess.run(["git", "init", "-q", "-b", "main", str(path)], check=True)
+    for name, text in files.items():
+        (path / name).parent.mkdir(parents=True, exist_ok=True)
+        (path / name).write_bytes(text.encode())
+    _commit(path, "first")
+    return path
+
+
+def _run(path, monkeypatch, capsysbinary, *args):
+    # runs one drifter command in path and returns its exit code and stdout bytes
+    monkeypatch.chdir(path)
+    code = cli.main(list(args))
+    return code, capsysbinary.readouterr().out
+
+
+def test_init_writes_four_canonical_files(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, CODE)
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "init")
+
+    assert code == 0
+    written = {p.name: p.read_bytes() for p in (repo / "models").iterdir()}
+    assert written == {
+        "behavioral.json": b'{\n  "schema_version": 1\n}\n',
+        "ownership.json": b'{\n  "rules": [\n    {\n      "owners": [\n        "ana@x.com"\n      ],\n'
+        b'      "pattern": "src/app.py"\n    }\n  ],\n  "schema_version": 1\n}\n',
+        "scope.json": b'{\n  "exclude": [\n    "tests/**"\n  ],\n  "include": [\n    "**/*.py"\n  ]\n}\n',
+        "structural.json": write_model(generate_structural(CODE)).encode(),
+    }
+
+
+def test_init_then_commit_checks_aligned(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, {**CODE, "tests/test_app.py": "def test_x():\n    pass\n"})
+    _run(repo, monkeypatch, capsysbinary, "init")
+    _commit(repo, "add models")
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "check")
+
+    assert code == 0
+
+
+def test_init_refuses_existing_models_unless_forced(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, CODE)
+    (repo / "models").mkdir()
+    (repo / "models" / "scope.json").write_bytes(b"hand made\n")
+
+    refused, _ = _run(repo, monkeypatch, capsysbinary, "init")
+    kept = (repo / "models" / "scope.json").read_bytes()
+    forced, _ = _run(repo, monkeypatch, capsysbinary, "init", "--force")
+
+    assert (refused, kept) == (1, b"hand made\n")
+    assert forced == 0
+    assert (repo / "models" / "scope.json").read_bytes() == write_model(SCOPE).encode()
+
+
+def test_two_inits_give_identical_bytes(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, CODE)
+    _run(repo, monkeypatch, capsysbinary, "init")
+    first = {p.name: p.read_bytes() for p in (repo / "models").iterdir()}
+
+    _run(repo, monkeypatch, capsysbinary, "init", "--force")
+
+    assert {p.name: p.read_bytes() for p in (repo / "models").iterdir()} == first
+
+
+def test_init_from_a_subfolder_writes_the_top_level_models(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, CODE)
+
+    code, _ = _run(repo / "src", monkeypatch, capsysbinary, "init")
+
+    assert code == 0
+    assert sorted(p.name for p in (repo / "models").iterdir()) == list(check.MODEL_FILES)
+    assert not (repo / "src" / "models").exists()
+
+
+def test_update_accepts_drift_and_keeps_hand_edits(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, CODE)
+    _run(repo, monkeypatch, capsysbinary, "init")
+    ownership = b'{"rules": [{"pattern": "src/**", "owners": ["ana@x.com", "bo@x.com"]}], "schema_version": 1}'
+    scope = b'{"include": ["**/*.py"], "exclude": ["tests/**", "docs/**"]}'
+    (repo / "models" / "ownership.json").write_bytes(ownership)
+    (repo / "models" / "scope.json").write_bytes(scope)
+    (repo / "src" / "app.py").write_text(CODE["src/app.py"] + "\n\ndef refund(amount):\n    return -amount\n")
+    _commit(repo, "add refund and hand-edit models")
+    drifted, _ = _run(repo, monkeypatch, capsysbinary, "check")
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "update")
+    _commit(repo, "accept refund")
+    aligned, _ = _run(repo, monkeypatch, capsysbinary, "check")
+
+    assert (drifted, code, aligned) == (1, 0, 0)
+    assert (repo / "models" / "ownership.json").read_bytes() == ownership
+    assert (repo / "models" / "scope.json").read_bytes() == scope
+
+
+def test_update_replaces_a_broken_structural_model(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, CODE)
+    _run(repo, monkeypatch, capsysbinary, "init")
+    (repo / "models" / "structural.json").write_bytes(b"not json")
+    _commit(repo, "break structural.json")
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "update")
+
+    assert code == 0
+    assert (repo / "models" / "structural.json").read_bytes() == write_model(generate_structural(CODE)).encode()
