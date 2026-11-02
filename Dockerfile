@@ -1,6 +1,6 @@
 # serves the /system app, the console at / and the tester at /tester, with git installed and no credentials baked in
 
-FROM python:3.12-slim
+FROM python:3.12-slim-trixie
 
 # installs git, the connector's only tool, and nothing else
 RUN apt-get update \
