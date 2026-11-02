@@ -482,7 +482,7 @@ def test_init_writes_four_canonical_files(tmp_path, monkeypatch, capsysbinary):
     assert code == 0
     written = {p.name: p.read_bytes() for p in (repo / "models").iterdir()}
     assert written == {
-        "behavioral.json": b'{\n  "schema_version": 1\n}\n',
+        "behavioral.json": b'{\n  "schema_version": 1,\n  "states": [],\n  "transitions": []\n}\n',
         "ownership.json": b'{\n  "rules": [\n    {\n      "owners": [\n        "ana@x.com"\n      ],\n'
         b'      "pattern": "src/app.py"\n    }\n  ],\n  "schema_version": 1\n}\n',
         "scope.json": b'{\n  "exclude": [\n    "tests/**"\n  ],\n  "include": [\n    "**/*.py"\n  ]\n}\n',
@@ -552,6 +552,61 @@ def test_update_accepts_drift_and_keeps_hand_edits(tmp_path, monkeypatch, capsys
     assert (drifted, code, aligned) == (1, 0, 0)
     assert (repo / "models" / "ownership.json").read_bytes() == ownership
     assert (repo / "models" / "scope.json").read_bytes() == scope
+
+
+# --------------------------------------------------------------- the behavioral model (#31)
+
+MACHINE = {"src/order.py": (
+    "class Order:\n"
+    "    def advance(self):\n"
+    "        if self.status == 'open':\n"
+    "            self.status = 'paid'\n"
+)}
+
+# adds one elif moving self.status to a new string state, with no structural change
+NEW_STATE = MACHINE["src/order.py"] + (
+    "        elif self.status == 'paid':\n"
+    "            self.status = 'shipped'\n"
+)
+
+
+def test_a_new_elif_state_is_one_added_state_and_one_added_transition(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, MACHINE)
+    _run(repo, monkeypatch, capsysbinary, "init")
+    _commit(repo, "add models")
+    (repo / "src" / "order.py").write_text(NEW_STATE)
+    _commit(repo, "ship paid orders")
+
+    code, out = _check(repo, monkeypatch, capsysbinary)
+
+    assert code == 1
+    answer = json.loads(out)
+    assert (answer["structural"], answer["ownership"]) == ([], [])
+    assert answer["behavioral"] == [
+        {"change": "ADDED", "file": "src/order.py", "kind": "state",
+         "id": 'state:["src/order.py","order:Order","self.status","shipped"]'},
+        {"change": "ADDED", "file": "src/order.py", "kind": "transition",
+         "id": 'transition:["src/order.py","order:Order.advance",'
+               '"state:[\\"src/order.py\\",\\"order:Order\\",\\"self.status\\",\\"paid\\"]",'
+               '"state:[\\"src/order.py\\",\\"order:Order\\",\\"self.status\\",\\"shipped\\"]"]'},
+    ]
+
+
+def test_update_regenerates_behavioral_as_init_writes_it(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, MACHINE)
+    _run(repo, monkeypatch, capsysbinary, "init")
+    _commit(repo, "add models")
+    (repo / "src" / "order.py").write_text(NEW_STATE)
+    _commit(repo, "ship paid orders")
+    _run(repo, monkeypatch, capsysbinary, "init", "--force")
+    initialised = (repo / "models" / "behavioral.json").read_bytes()
+    subprocess.run(["git", "-C", str(repo), "checkout", "-q", "--", "models"], check=True)
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "update")
+
+    assert code == 0
+    assert (repo / "models" / "behavioral.json").read_bytes() == initialised
+    assert b'"shipped"' in initialised
 
 
 def test_update_replaces_a_broken_structural_model(tmp_path, monkeypatch, capsysbinary):

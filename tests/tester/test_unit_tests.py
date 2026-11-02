@@ -1,5 +1,6 @@
 # tests the pytest group runner the /tester page uses
 
+from Tester import unit_tests
 from Tester.unit_tests import run_group
 
 
@@ -18,6 +19,9 @@ def test_summary_has_no_color_codes(monkeypatch):
     assert "\x1b" not in run_group("common")["summary"]
 
 
-def test_empty_group_says_so():
+def test_empty_group_says_so(tmp_path, monkeypatch):
+    # runs the group against an empty folder, since every real group now has tests
+    (tmp_path / "tests" / "behavioral").mkdir(parents=True)
+    monkeypatch.setattr(unit_tests, "REPO_ROOT", tmp_path)
     assert run_group("behavioral") == {"group": "behavioral", "summary": "no tests yet", "tests": [],
                                        "title": "Behavioral model tests"}

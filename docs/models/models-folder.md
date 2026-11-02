@@ -2,12 +2,12 @@
 
 Question: which four files does `/models` hold, and what does each contain?
 
-Every model file shares one layout: a `schema_version`, sorted keys, 2-space indent, LF, one trailing newline, lists sorted by id, no line numbers (spec §3.2). Structural follows `docs/base/structure.md`. Behavioral's names below are illustrative until Barshan settles its format. Ownership is checked, never regenerated.
+Every model file shares one layout: a `schema_version`, sorted keys, 2-space indent, LF, one trailing newline, lists sorted by id, no line numbers (spec §3.2). Structural follows `docs/base/structure.md`. Behavioral follows `docs/base/behavioral.md`. Ownership is checked, never regenerated.
 
 ```mermaid
 classDiagram
     accTitle: The four files in /models
-    accDescr: scope.json picks which files feed the structural and behavioral generators. structural.json holds nodes and edges, behavioral.json at least states and transitions, ownership.json an ordered list of rules. Open items are named in each box.
+    accDescr: scope.json picks which files feed the structural and behavioral generators. structural.json holds nodes and edges, behavioral.json states and transitions, ownership.json an ordered list of rules. Open items are named in each box.
 
     class scope["scope.json"] {
         picks generator input
@@ -28,10 +28,11 @@ classDiagram
     }
     class behavioral["behavioral.json"] {
         what may happen, in what order
-        states, for example PENDING, PAID
-        transitions, for example PENDING to PAID
-        names illustrative
-        open: kinds, ids, schema
+        states: id, kind, file, machine, variable, value
+        transitions: id, kind, file, source, target, trigger, guard
+        string values of a local or self attribute
+        settled in behavioral.md
+        open: JSON Schema
     }
     class ownership["ownership.json"] {
         who may change what

@@ -8,11 +8,13 @@ from pathlib import Path
 import pytest
 
 from drifter.check import DriftError, _element_rule
+from models.behavioral_model import generate_behavioral
 from models.common import write_model
 from models.structural_model import generate_structural
 
 # lists the generators under test; an owner adds one line here to run the seam on theirs
 SEAM_GENERATORS = {
+    "behavioral": generate_behavioral,
     "structural": generate_structural,
 }
 
@@ -33,6 +35,20 @@ SNIPPETS = {
             "class Order(Base):\n"
             "    def cancel(self, reason=None):\n"
             "        payments.charge(0)\n"
+        ),
+    },
+    "machine": {
+        "src/order.py": (
+            "class Order:\n"
+            "    def advance(self):\n"
+            "        if self.status == 'open':\n"
+            "            self.status = 'paid'\n"
+            "        elif self.status == 'paid':\n"
+            "            self.status = 'shipped'\n"
+            "\n"
+            "def step(state):\n"
+            "    if state == 'a':\n"
+            "        state = 'b'\n"
         ),
     },
 }

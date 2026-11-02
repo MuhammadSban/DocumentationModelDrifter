@@ -225,8 +225,9 @@ PARSE_FAILED, so generators may assume every file parses.
   - Comparison: regenerate at the commit, then set difference by element id.
 - **Behavioral**
   - Question: What may happen, and in what order?
-  - Contents: at least states and the transitions between them. Kind names, id scheme, mining
-    rules and the JSON Schema are open (see [Q11](#q11-open-decisions)).
+  - Contents: states and the transitions between them. The format, kinds, id scheme and mining
+    rules are in docs/base/behavioral.md; where it disagrees with this file, this file wins. Its
+    JSON Schema is open (see [Q11](#q11-open-decisions)).
   - Comparison: regenerate at the commit, then set difference by element id.
 - **Ownership**
   - Question: Who may change what?
@@ -712,10 +713,9 @@ Proposed 2026-10-31, pending Team 16's agreement.
 
 #### To settle in Team 15
 
-- Behavioral contents: kind names, id scheme, mining rules and the JSON Schema; it must hold at
-  least states and transitions (3.2). It comes first: the fixture commits L0 to L7, and so
-  T-24 to T-31 and T-33, depend on it; only T-32 does not. Structural is settled in docs/base/structure.md, except
-  its JSON Schema.
+- The JSON Schemas of structural, behavioral and ownership. Behavioral contents are closed:
+  docs/base/behavioral.md freezes the format as generate_behavioral writes it. Structural is
+  settled in docs/base/structure.md.
 - Whether scope.json names source roots besides src/ (structure.md drops only src/ from module
   ids). The pattern syntax itself is settled in 3.2.
 - The Annex XI claim (1.1): whether to keep the specific Annex XI items or only the general

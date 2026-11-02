@@ -9,9 +9,6 @@
 # Ownership is checked, never regenerated and diffed: history grows with the push being checked
 # (spec 3.2). `drifter init` proposes the first ownership.json, a person corrects it, and from
 # then on each push is judged against it.
-#
-# The behavioral generator is not built: until it registers in GENERATORS (v1.2), behavioral
-# reports no differences.
 
 from __future__ import annotations
 
@@ -22,6 +19,7 @@ from pathlib import Path
 from typing import Callable, Protocol
 
 from models.common import ParseFailed, glob, parse_files, write_model
+from models.behavioral_model import generate_behavioral
 from models.ownership_model import CommitRecord, PathTouch, check_ownership, propose_ownership
 from models.structural_model import generate_structural
 
@@ -30,9 +28,6 @@ MODEL_FILES = ("behavioral.json", "ownership.json", "scope.json", "structural.js
 
 # defaults drifter init writes into scope.json (spec 3.2)
 DEFAULT_SCOPE = {"exclude": ["tests/**"], "include": ["**/*.py"]}
-
-# stands in for behavioral.json until its generator registers (spec #12, Further Notes)
-BEHAVIORAL_PLACEHOLDER = {"schema_version": 1}
 
 # caps one in-scope file, over this there is no verdict (spec 5.2)
 MAX_FILE_BYTES = 1024 * 1024
@@ -101,8 +96,11 @@ def answer(sources: Sources) -> dict:
     }
 
 
-# maps each regenerated model to its generator; behavioral joins at v1.2 (model-seam.md)
-GENERATORS: dict[str, Callable[[dict[str, str]], dict]] = {"structural": generate_structural}
+# maps each regenerated model to its generator (model-seam.md)
+GENERATORS: dict[str, Callable[[dict[str, str]], dict]] = {
+    "behavioral": generate_behavioral,
+    "structural": generate_structural,
+}
 
 
 def model_differences(name: str, sources: Sources) -> list[dict]:
@@ -235,12 +233,8 @@ def regenerate_models(reader: Reader) -> dict[str, str]:
 
 
 def _regenerate(files: dict[str, str]) -> dict[str, dict]:
-    # regenerates structural.json and behavioral.json from in-scope files; behavioral is a
-    # placeholder until its generator registers
-    return {
-        f"{name}.json": GENERATORS[name](files) if name in GENERATORS else BEHAVIORAL_PLACEHOLDER
-        for name in ("behavioral", "structural")
-    }
+    # regenerates each model in GENERATORS from in-scope files
+    return {f"{name}.json": generate(files) for name, generate in GENERATORS.items()}
 
 
 class LocalReader:
