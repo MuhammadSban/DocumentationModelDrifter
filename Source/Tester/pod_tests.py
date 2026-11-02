@@ -16,11 +16,16 @@ from Tester.client import NoReply, Reply
 # caps one tester run, contract §6
 RUN_LIMIT = 600.0
 
-GOLDEN = json.loads(
-    (Path(__file__).resolve().parents[2] / "docs" / "contract" / "golden-outputs.json").read_text(encoding="utf-8")
-)
+CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "contract"
+
+GOLDEN = json.loads((CONTRACT / "golden-outputs.json").read_text(encoding="utf-8"))
 REPOSITORY = GOLDEN["fixture_repo"]
 CASES = {case["case"]: case for case in GOLDEN["cases"]}
+
+# holds the expected answers of the drift tests on the model fixture (contract §3)
+MODEL_GOLDEN = json.loads((CONTRACT / "model-golden-outputs.json").read_text(encoding="utf-8"))
+MODEL_REPOSITORY = MODEL_GOLDEN["fixture_repo"]
+MODEL_CASES = {case["case"]: case for case in MODEL_GOLDEN["cases"]}
 
 # names the fields T-01 to T-17 compare with the golden answer; issues are judged only in T-18 to T-21 (contract §3)
 COMPARED = ("head_commit", "base_commit", "config_version", "status", "error", "changes", "skipped", "unmapped")
@@ -175,6 +180,27 @@ def issues(case: str) -> Callable[[Run], str]:
     return check
 
 
+def drift(case: str) -> Callable[[Run], str]:
+    # checks a model fixture case's drift and drift_error against model-golden-outputs.json (contract §4);
+    # an expected drift_error is compared by code only, so a reworded message never fails
+    def check(run: Run) -> str:
+        try:
+            body = _body(run.send("POST", "/analyze", MODEL_CASES[case]["request"]))
+        except Fail as exc:
+            raise Fail(f"{case}: {exc}") from None
+        want = MODEL_CASES[case]["expected"]
+        if body.get("drift", MISSING) != want["drift"]:
+            raise Fail(f"{case}: drift differs from the expected answer")
+        got_error = body.get("drift_error", MISSING)
+        if want["drift_error"] is None:
+            if got_error is not None:
+                raise Fail(f"{case}: drift_error is {'missing' if got_error is MISSING else 'not null'}")
+        elif not isinstance(got_error, dict) or got_error.get("code") != want["drift_error"]["code"]:
+            raise Fail(f"{case}: drift_error.code differs from the expected answer")
+        return f"{case} matches the expected answer"
+    return check
+
+
 def retrieve_saved(run: Run) -> str:
     posted = _body(run.analyze("c1-impl-only"))
     if _body(run.analysis(_id(posted))) != posted:
@@ -274,7 +300,7 @@ TESTS = [
     _row("T-30", "/analyze at L6: one ownership VIOLATION", "C1 C2 C3 C4 C5", "AC-02", **DRIFT),
     _row("T-31", "/analyze at L7: one structural ADDED", "C1 C2 C3 C4 C5", "AC-02", **DRIFT),
     _row("T-32", "/analyze at L-pre: drift: null, drift_error.code MODELS_NOT_FOUND", "C1 C2 C3 C4 C5", "AC-08",
-         **DRIFT),
+         drift("L-pre"), feature="model_drift"),
     _row("T-33", "/generate at L0: structural.json, behavioral.json and scope.json byte-equal to the committed "
          "/models", "C1 C2 C4", "AC-10", **DRIFT),
 ]

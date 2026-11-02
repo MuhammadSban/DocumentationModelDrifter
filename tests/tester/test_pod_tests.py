@@ -14,6 +14,10 @@ def ids(first, last):
     return IDS[IDS.index(first): IDS.index(last) + 1]
 
 
+# names the drift tests whose expected answers are not yet in model-golden-outputs.json
+PENDING_DRIFT = [t for t in ids("T-24", "T-33") if t != "T-32"]
+
+
 def test_table_has_33_tests_in_order():
     assert IDS == [f"T-{i:02d}" for i in range(1, 34)]
 
@@ -25,7 +29,8 @@ def test_target_meeting_the_contract_passes_everything_it_runs(fake):
     assert {got[t]["outcome"] for t in ids("T-01", "T-21")} == {"pass"}
     assert got["T-22"] == {"message": "Phase 5", "outcome": "skip", "test_id": "T-22"}
     assert got["T-23"]["message"] == "checked by inspection"
-    assert {got[t]["message"] for t in ids("T-24", "T-33")} == {PENDING}
+    assert {got[t]["message"] for t in PENDING_DRIFT} == {PENDING}
+    assert got["T-32"]["message"] == "target does not implement model_drift"
     assert report["coverage"]["component"]["covered"] == 6  # all but C7, which only T-22 lists
     assert report["coverage"]["system"]["covered"] == 8  # all but AC-05 (T-22) and AC-09 (T-23)
     assert report["coverage"]["code"] == {"basis": "fake line coverage", "covered": 3, "total": 10}
@@ -50,7 +55,8 @@ def test_failed_health_errors_only_the_tests_that_need_a_feature(fake):
     fake.health_status = 500
     got = outcomes(run_suite(fake.url, "s"))
     assert {(got[t]["outcome"], got[t]["source"]) for t in ids("T-18", "T-21")} == {("error", "system")}
-    assert {got[t]["message"] for t in ids("T-24", "T-33")} == {PENDING}
+    assert {got[t]["message"] for t in PENDING_DRIFT} == {PENDING}
+    assert (got["T-32"]["outcome"], got["T-32"]["source"]) == ("error", "system")
     assert got["T-01"]["outcome"] == "pass"
 
 
@@ -88,3 +94,18 @@ def test_run_limit_ends_the_test_in_progress_and_skips_the_rest(fake):
     assert got["T-02"] == {"message": LIMIT_REACHED, "outcome": "error", "source": "tester", "test_id": "T-02"}
     assert {(got[t]["outcome"], got[t]["message"]) for t in ids("T-03", "T-33")} == {("skip", LIMIT_REACHED)}
     assert report["coverage"]["code"]["covered"] is None
+
+
+def test_t32_passes_when_l_pre_gives_models_not_found(fake):
+    fake.features = ["model_drift"]
+    got = outcomes(run_suite(fake.url, "s"))
+    assert got["T-32"]["outcome"] == "pass"
+    assert {got[t]["message"] for t in PENDING_DRIFT} == {PENDING}
+
+
+def test_t32_fails_naming_the_case_and_field_when_drift_error_differs(fake):
+    fake.features = ["model_drift"]
+    fake.break_drift_case = "L-pre"
+    got = outcomes(run_suite(fake.url, "s"))
+    assert got["T-32"]["outcome"] == "fail"
+    assert "L-pre" in got["T-32"]["message"] and "drift_error" in got["T-32"]["message"]

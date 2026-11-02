@@ -1,0 +1,18 @@
+{
+  "fixture_repo": "kaan-kanadasi/doc-tracker-model-fixtures",
+  "cases": [
+    {
+      "case": "L-pre",
+      "request": {
+        "repository": "kaan-kanadasi/doc-tracker-model-fixtures",
+        "commit_id": "871c9b156d87040346ef667ace936bf72a6a9c1e"
+      },
+      "expected": {
+        "drift": null,
+        "drift_error": {
+          "code": "MODELS_NOT_FOUND"
+        }
+      }
+    }
+  ]
+}

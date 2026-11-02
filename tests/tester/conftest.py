@@ -10,9 +10,10 @@ from urllib.parse import unquote
 
 import pytest
 
-from Tester.pod_tests import CASES, REPOSITORY
+from Tester.pod_tests import CASES, MODEL_CASES, MODEL_REPOSITORY, REPOSITORY
 
 BY_REQUEST = {(c["request"]["commit_id"], c["request"].get("base_commit")): c for c in CASES.values()}
+MODEL_BY_COMMIT = {c["request"]["commit_id"]: c for c in MODEL_CASES.values()}
 CODE = {"basis": "fake line coverage", "covered": 3, "total": 10}
 
 
@@ -24,6 +25,7 @@ class FakeTarget:
         self.analyze_status = None  # a status every /analyze answers with instead of a result
         self.analyze_delay = 0.0
         self.break_case = None  # a case whose changes come back empty
+        self.break_drift_case = None  # a model fixture case whose drift_error code comes back wrong
         self.setup_answer = (201, None)
         self.saved = {}
         self.url = ""
@@ -40,6 +42,8 @@ class FakeTarget:
         if not isinstance(request, dict) or not isinstance(request.get("commit_id"), str) \
                 or not isinstance(request.get("repository"), str) or "/" not in request["repository"]:
             return invalid
+        if request["repository"] == MODEL_REPOSITORY:
+            return self.analyze_model(request["commit_id"])
         if request["repository"] != REPOSITORY:
             return 404, {"code": "REPOSITORY_NOT_FOUND", "message": "no such repository"}
         case = BY_REQUEST.get((request["commit_id"], request.get("base_commit")))
@@ -52,6 +56,17 @@ class FakeTarget:
                 "tool_version": "fake"}
         self.saved[body["analysis_id"]] = body
         return 200, body
+
+    def analyze_model(self, commit_id: str):
+        # answers a model fixture case with its expected drift, and the empty fields of a SUCCESS result
+        case = MODEL_BY_COMMIT.get(commit_id)
+        if case is None:
+            return 404, {"code": "COMMIT_NOT_FOUND", "message": "no such commit"}
+        expected = copy.deepcopy(case["expected"])
+        if case["case"] == self.break_drift_case:
+            expected["drift_error"] = {"code": "INVALID_MODELS", "message": "broken"}
+        return 200, {**expected, "analysis_id": uuid.uuid4().hex, "changes": [], "issues": [],
+                     "repository": MODEL_REPOSITORY, "status": "SUCCESS"}
 
 
 def _handler(fake: FakeTarget):
