@@ -49,6 +49,6 @@ def call(method: str, url: str, payload: object = None, raw: bytes | None = None
     return Reply(status, body, text)
 
 
-def _log(method: str, url: str, status: object, start: float) -> None:
+def _log(method: str, url: str, status: int | str, start: float) -> None:
     # prints one line per call with its time, so a full run can be timed call by call in the host's logs
     print(f"tester call {method} {url} {status} {time.monotonic() - start:.2f} s", flush=True)
