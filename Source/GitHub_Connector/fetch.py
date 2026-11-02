@@ -96,7 +96,10 @@ class Comparison:
         if not paths:
             return {}
         shas = sorted({tree[path] for path in paths})
+        # sends no "have" lines, as git's own lazy fetch does: GitHub leaves out a wanted blob
+        # reachable from a commit the client says it has
         proc = self._git.run(
+            "-c", "fetch.negotiationAlgorithm=noop",
             "fetch", "--no-tags", "--no-write-fetch-head", "--filter=blob:none", "--stdin", "origin",
             input=_lines(shas), check=False,
         )
@@ -134,6 +137,10 @@ class Comparison:
         # head alone for a root commit (spec 3.1). Text, so the check owns the parsing.
         span = f"{self.base}..{self.head}" if self.base else self.head
         return self._git.out(*LOG_ARGS, span)
+
+    def history(self) -> str:
+        # returns every commit reachable from head, for proposing ownership as drifter init does
+        return self._git.out(*LOG_ARGS, self.head)
 
 
 def _lines(values: list[str]) -> bytes:

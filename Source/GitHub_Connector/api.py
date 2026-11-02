@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, Request
@@ -14,7 +16,7 @@ from Frontend.model_loader import OWNERSHIP_FILE, SCOPE_FILE, STRUCTURAL_FILE, m
 from Frontend.model_viewer import render
 from GitHub_Connector import course, rules, runs
 from Tester import api as tester
-from GitHub_Connector.analysis import analyze, validate
+from GitHub_Connector.analysis import analyze, validate, generate
 from GitHub_Connector.fetch import fetch
 from GitHub_Connector.schemas import (
     AnalysisError,
@@ -22,8 +24,9 @@ from GitHub_Connector.schemas import (
     AnalysisResult,
     ErrorBody,
     ErrorCode,
+    GenerateResult,
 )
-from GitHub_Connector.settings import build_label, get_settings
+from GitHub_Connector.settings import build_label, get_settings, require_volume_on_railway, storage
 
 # maps every contract error code to its HTTP status, the one table all failures go through
 STATUS_FOR = {
@@ -38,8 +41,16 @@ STATUS_FOR = {
 
 _ERRORS = {400: {"model": ErrorBody}, 404: {"model": ErrorBody}, 500: {"model": ErrorBody}}
 
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    # checks the run store before serving, so a deploy without a volume fails its healthcheck (D6)
+    require_volume_on_railway()
+    yield
+
+
 app = FastAPI(
     title="DocumentationDrifter",
+    lifespan=lifespan,
     openapi_url="/system/openapi.json",
     docs_url=None,  # serves the contract's routes and the console, no docs pages
     redoc_url=None,
@@ -97,6 +108,12 @@ def post_analyze(request: AnalysisRequest) -> Response:
     return _json(runs.dump(analyze(request)))
 
 
+@router.post("/generate", response_model=GenerateResult, responses=_ERRORS)
+def post_generate(request: AnalysisRequest) -> GenerateResult:
+    # returns the four /models files as drifter init would write them, saving nothing
+    return generate(request)
+
+
 @router.get("/analysis/{analysis_id:path}", response_model=AnalysisResult, responses={404: {}})
 def get_analysis(analysis_id: str) -> Response:
     # serves a saved run byte for byte, any unknown or malformed id gets the same 404
@@ -130,7 +147,7 @@ def health() -> dict[str, object]:
         "status": "ok",
         "tool_version": build_label(),
         "config_version": rules.config_version(),
-        "storage": "local",
+        "storage": storage(),
         "features": ["model_drift"],
     }
 

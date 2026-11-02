@@ -21,8 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Protocol
 
-from models.common import ParseFailed, glob, parse_files
-from models.ownership_model import CommitRecord, PathTouch, check_ownership
+from models.common import ParseFailed, glob, parse_files, write_model
+from models.ownership_model import CommitRecord, PathTouch, check_ownership, propose_ownership
 from models.structural_model import generate_structural
 
 # names the four files /models must hold, as the contract's ModelsFixture requires
@@ -30,6 +30,9 @@ MODEL_FILES = ("behavioral.json", "ownership.json", "scope.json", "structural.js
 
 # defaults drifter init writes into scope.json (spec 3.2)
 DEFAULT_SCOPE = {"exclude": ["tests/**"], "include": ["**/*.py"]}
+
+# stands in for behavioral.json until its generator registers (spec #12, Further Notes)
+BEHAVIORAL_PLACEHOLDER = {"schema_version": 1}
 
 # caps one in-scope file, over this there is no verdict (spec 5.2)
 MAX_FILE_BYTES = 1024 * 1024
@@ -179,11 +182,15 @@ def read_sources(reader: Reader) -> Sources:
         _element_rule(f"models/{name}", models[name])
     _scope_rule(models["scope.json"])
     _ownership_rule(models["ownership.json"])
-    paths = in_scope(sorted(tree), models["scope.json"])
-    raw = reader.read(paths)
+    files = _read_files(reader, in_scope(sorted(tree), models["scope.json"]))
+    return Sources(files=files, models=models, commits=_parse_history(reader.log()))
+
+
+def _read_files(reader: Reader, paths: list[str]) -> dict[str, str]:
     # judges each file in path order by size, then encoding, then syntax, so the first bad file
     # is the one reported (phase4.md Q2). Size is judged on what arrived: a blobless clone cannot
     # report it any earlier. Parsing every file here lets a generator assume each one parses (spec 3.2).
+    raw = reader.read(paths)
     files = {}
     for path in sorted(raw):
         if len(raw[path]) > MAX_FILE_BYTES:
@@ -193,7 +200,47 @@ def read_sources(reader: Reader) -> Sources:
             parse_files({path: files[path]})
         except ParseFailed as exc:
             raise DriftError(exc.code, str(exc)) from None
-    return Sources(files=files, models=models, commits=_parse_history(reader.log()))
+    return files
+
+
+# ------------------------------------------------------------ the first models, for drifter init
+
+
+class HistoryReader(Reader, Protocol):
+    # adds every commit reachable from head to a Reader, for proposing ownership
+    def history(self) -> str:
+        # returns every commit reachable from head as one LOG_ARGS log, newest first
+        ...
+
+
+def generate_models(reader: HistoryReader) -> dict[str, str]:
+    # returns the four /models files' text at the commit, as drifter init writes them: the
+    # default scope, the regenerated models and ownership proposed from all history (spec 3.2)
+    files = _read_files(reader, in_scope(sorted(reader.tree()), DEFAULT_SCOPE))
+    models = _regenerate(files)
+    models["ownership.json"] = propose_ownership(reader.head, _parse_history(reader.history()))
+    models["scope.json"] = DEFAULT_SCOPE
+    return {name: write_model(models[name]) for name in MODEL_FILES}
+
+
+def regenerate_models(reader: Reader) -> dict[str, str]:
+    # returns structural.json and behavioral.json's text at the commit, as drifter update writes
+    # them. Only the committed scope.json is read, so a broken model being replaced cannot block it.
+    if "models/scope.json" not in reader.tree():
+        raise DriftError("MODELS_NOT_FOUND", f"models/scope.json is missing at {reader.head}")
+    scope = _model("models/scope.json", reader.read(["models/scope.json"])["models/scope.json"])
+    _scope_rule(scope)
+    files = _read_files(reader, in_scope(sorted(reader.tree()), scope))
+    return {name: write_model(model) for name, model in _regenerate(files).items()}
+
+
+def _regenerate(files: dict[str, str]) -> dict[str, dict]:
+    # regenerates structural.json and behavioral.json from in-scope files; behavioral is a
+    # placeholder until its generator registers
+    return {
+        f"{name}.json": GENERATORS[name](files) if name in GENERATORS else BEHAVIORAL_PLACEHOLDER
+        for name in ("behavioral", "structural")
+    }
 
 
 class LocalReader:
@@ -239,6 +286,10 @@ class LocalReader:
         # reads the commits base..head, or the head alone for a root commit
         span = f"{self.base}..{self.head}" if self.base else self.head
         return _git(self.repo, *LOG_ARGS, span)
+
+    def history(self) -> str:
+        # reads every commit reachable from the head
+        return _git(self.repo, *LOG_ARGS, self.head)
 
 
 def _decode(path: str, data: bytes) -> str:

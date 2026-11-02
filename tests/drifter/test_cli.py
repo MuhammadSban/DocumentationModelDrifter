@@ -1,5 +1,6 @@
 # checks drifter check on a local checkout: the four-field answer as canonical JSON, exit 0 on
-# no drift and 1 on drift, and the diff by id through a fake generator (issue #14)
+# no drift and 1 on drift, and the diff by id through a fake generator (issue #14); ownership
+# violations on scripted-author repos (#16)
 
 import json
 import subprocess
@@ -18,11 +19,11 @@ SCOPE = {"exclude": ["tests/**"], "include": ["**/*.py"]}
 NO_RULES = {"rules": [], "schema_version": 1}
 
 
-def _repo(path, files, behavioral=None):
+def _repo(path, files, behavioral=None, ownership=NO_RULES):
     # commits files and four /models files that match them, so the check starts aligned
     models = {
         "models/behavioral.json": behavioral or {"schema_version": 1},
-        "models/ownership.json": NO_RULES,
+        "models/ownership.json": ownership,
         "models/scope.json": SCOPE,
         "models/structural.json": generate_structural(files),
     }
@@ -34,18 +35,21 @@ def _repo(path, files, behavioral=None):
     return path
 
 
-def _commit(path, message):
+def _git(path, author):
+    # builds a git command prefix that acts as one scripted author
+    return ["git", "-C", str(path), "-c", f"user.email={author}", "-c", f"user.name={author.split('@')[0]}"]
+
+
+def _commit(path, message, author="ana@x.com"):
     # commits everything in the work tree as one scripted author
-    git = ["git", "-C", str(path), "-c", "user.email=ana@x.com", "-c", "user.name=ana"]
+    git = _git(path, author)
     subprocess.run([*git, "add", "-A"], check=True)
     subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", message], check=True)
 
 
 def _check(path, monkeypatch, capsysbinary, *args):
     # runs drifter check in path and returns its exit code and stdout bytes
-    monkeypatch.chdir(path)
-    code = cli.main(["check", *args])
-    return code, capsysbinary.readouterr().out
+    return _run(path, monkeypatch, capsysbinary, "check", *args)
 
 
 def test_an_aligned_checkout_prints_the_answer_and_exits_0(tmp_path, monkeypatch, capsysbinary):
@@ -298,3 +302,265 @@ def test_of_two_bad_files_the_first_in_path_order_wins_every_run(tmp_path, monke
 
     assert first["code"] == "PARSE_FAILED" and "src/a.py" in first["message"]
     assert first == second
+
+
+# ------------------------------------------ ownership: each non-merge commit judged by its author (#16)
+
+
+def _owned(path, *rules):
+    # commits CODE with ownership rules given as (pattern, owners) pairs, as ana
+    return _repo(path, CODE, ownership={"rules": [{"owners": o, "pattern": p} for p, o in rules], "schema_version": 1})
+
+
+def _append(repo, name, line):
+    # appends one line to a file, creating it and its folders when missing
+    target = repo / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("a") as f:
+        f.write(f"{line}\n")
+
+
+def _edit(repo, name, author, line="edit"):
+    # appends a line to one file and commits it as author, returning the new commit's sha
+    _append(repo, name, line)
+    _commit(repo, "edit", author)
+    return _sha(repo)
+
+
+def _sha(repo, rev="HEAD"):
+    # returns the full sha of one revision
+    proc = subprocess.run(["git", "-C", str(repo), "rev-parse", rev], capture_output=True, check=True, text=True)
+    return proc.stdout.strip()
+
+
+def _ownership(repo, monkeypatch, capsysbinary, *args):
+    # runs drifter check and returns its exit code and the ownership list
+    code, out = _check(repo, monkeypatch, capsysbinary, *args)
+    return code, json.loads(out)["ownership"]
+
+
+def test_a_non_owners_commit_is_one_violation_naming_them_in_lowercase(tmp_path, monkeypatch, capsysbinary):
+    repo = _owned(tmp_path, ("docs/guide.md", ["bea@x.com"]))
+    sha = _edit(repo, "docs/guide.md", "Zed@X.com")
+
+    code, ownership = _ownership(repo, monkeypatch, capsysbinary)
+
+    assert code == 1
+    assert ownership == [
+        {
+            "author": "zed@x.com", "change": "VIOLATION", "commit": sha,
+            "owners": ["bea@x.com"], "path": "docs/guide.md",
+        },
+    ]
+
+
+def test_an_owners_commit_is_no_violation(tmp_path, monkeypatch, capsysbinary):
+    repo = _owned(tmp_path, ("docs/guide.md", ["bea@x.com"]))
+    _edit(repo, "docs/guide.md", "bea@x.com")
+
+    assert _ownership(repo, monkeypatch, capsysbinary) == (0, [])
+
+
+def test_a_merge_commit_is_not_judged(tmp_path, monkeypatch, capsysbinary):
+    # judges only the side branch's own commit, not zed's merge of it into main
+    repo = _owned(tmp_path, ("docs/**", ["bea@x.com"]))
+    git = _git(repo, "zed@x.com")
+    subprocess.run([*git, "checkout", "-q", "-b", "side"], check=True)
+    side = _edit(repo, "docs/side.md", "zed@x.com")
+    subprocess.run([*git, "checkout", "-q", "main"], check=True)
+    _edit(repo, "docs/main.md", "bea@x.com")
+    subprocess.run([*git, "merge", "-q", "--no-ff", "-m", "merge", "side"], check=True)
+
+    _, ownership = _ownership(repo, monkeypatch, capsysbinary)
+
+    assert [(v["commit"], v["path"]) for v in ownership] == [(side, "docs/side.md")]
+
+
+def test_a_rename_is_judged_under_its_old_path_only(tmp_path, monkeypatch, capsysbinary):
+    # gives one violation under the old name only, though bea owns both names
+    repo = _owned(tmp_path, ("docs/old.md", ["bea@x.com"]), ("docs/new.md", ["bea@x.com"]))
+    _edit(repo, "docs/old.md", "bea@x.com", "a line long enough for git to see the same file after the move")
+    subprocess.run(["git", "-C", str(repo), "mv", "docs/old.md", "docs/new.md"], check=True)
+    _commit(repo, "move", "zed@x.com")
+
+    _, ownership = _ownership(repo, monkeypatch, capsysbinary)
+
+    assert [(v["path"], v["author"]) for v in ownership] == [("docs/old.md", "zed@x.com")]
+
+
+def test_a_path_with_no_rule_is_open_to_anyone(tmp_path, monkeypatch, capsysbinary):
+    repo = _owned(tmp_path, ("docs/**", ["bea@x.com"]))
+    _edit(repo, "notes.txt", "zed@x.com")
+
+    assert _ownership(repo, monkeypatch, capsysbinary) == (0, [])
+
+
+def test_of_two_matching_rules_the_first_wins(tmp_path, monkeypatch, capsysbinary):
+    # applies bea's first rule, so zed's ownership by the second rule never counts
+    repo = _owned(tmp_path, ("docs/**", ["bea@x.com"]), ("docs/a.md", ["zed@x.com"]))
+    _edit(repo, "docs/a.md", "zed@x.com")
+
+    _, ownership = _ownership(repo, monkeypatch, capsysbinary)
+
+    assert [(v["path"], v["owners"]) for v in ownership] == [("docs/a.md", ["bea@x.com"])]
+
+
+def test_a_mixed_case_author_matches_a_lowercase_owner(tmp_path, monkeypatch, capsysbinary):
+    repo = _owned(tmp_path, ("docs/**", ["bea@x.com"]))
+    _edit(repo, "docs/a.md", "Bea@X.com")
+
+    assert _ownership(repo, monkeypatch, capsysbinary) == (0, [])
+
+
+def test_violations_sort_by_commit_then_path_and_ignore_scope(tmp_path, monkeypatch, capsysbinary):
+    # judges tests/ and docs/ though scope.json excludes the one and never includes the other
+    repo = _owned(tmp_path, ("**", ["cal@x.com", "bea@x.com"]))
+    base = _sha(repo)
+    for message in ("one", "two"):
+        for name in ("tests/test_z.py", "docs/a.md"):
+            _append(repo, name, f"{message} = 1")
+        _commit(repo, message, "zed@x.com")
+    one, two = _sha(repo, "HEAD~1"), _sha(repo)
+
+    _, ownership = _ownership(repo, monkeypatch, capsysbinary, "--base", base)
+
+    first, second = sorted([one, two])
+    assert [(v["commit"], v["path"]) for v in ownership] == [
+        (first, "docs/a.md"), (first, "tests/test_z.py"), (second, "docs/a.md"), (second, "tests/test_z.py"),
+    ]
+    assert all(v["owners"] == ["bea@x.com", "cal@x.com"] for v in ownership)
+
+
+def test_the_default_base_judges_the_head_commit_only(tmp_path, monkeypatch, capsysbinary):
+    repo = _owned(tmp_path, ("docs/**", ["bea@x.com"]))
+    _edit(repo, "docs/a.md", "zed@x.com", "earlier")
+    head = _edit(repo, "docs/b.md", "zed@x.com", "later")
+
+    _, ownership = _ownership(repo, monkeypatch, capsysbinary)
+
+    assert [(v["commit"], v["path"]) for v in ownership] == [(head, "docs/b.md")]
+
+
+def test_a_root_commit_judges_only_itself(tmp_path, monkeypatch, capsysbinary):
+    # judges ana's root commit, which adds bea's src/app.py, and not zed's later commit
+    repo = _owned(tmp_path, ("src/app.py", ["bea@x.com"]), ("docs/**", ["bea@x.com"]))
+    root = _sha(repo)
+    _edit(repo, "docs/a.md", "zed@x.com")
+
+    _, ownership = _ownership(repo, monkeypatch, capsysbinary, root)
+
+    assert ownership == [
+        {"author": "ana@x.com", "change": "VIOLATION", "commit": root, "owners": ["bea@x.com"], "path": "src/app.py"},
+    ]
+
+
+# ---------------------------------------------------------------- drifter init and update (#17)
+
+
+def _code_repo(path, files):
+    # commits only code, no /models, as a repository looks before init
+    subprocess.run(["git", "init", "-q", "-b", "main", str(path)], check=True)
+    for name, text in files.items():
+        (path / name).parent.mkdir(parents=True, exist_ok=True)
+        (path / name).write_bytes(text.encode())
+    _commit(path, "first")
+    return path
+
+
+def _run(path, monkeypatch, capsysbinary, *args):
+    # runs one drifter command in path and returns its exit code and stdout bytes
+    monkeypatch.chdir(path)
+    code = cli.main(list(args))
+    return code, capsysbinary.readouterr().out
+
+
+def test_init_writes_four_canonical_files(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, CODE)
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "init")
+
+    assert code == 0
+    written = {p.name: p.read_bytes() for p in (repo / "models").iterdir()}
+    assert written == {
+        "behavioral.json": b'{\n  "schema_version": 1\n}\n',
+        "ownership.json": b'{\n  "rules": [\n    {\n      "owners": [\n        "ana@x.com"\n      ],\n'
+        b'      "pattern": "src/app.py"\n    }\n  ],\n  "schema_version": 1\n}\n',
+        "scope.json": b'{\n  "exclude": [\n    "tests/**"\n  ],\n  "include": [\n    "**/*.py"\n  ]\n}\n',
+        "structural.json": write_model(generate_structural(CODE)).encode(),
+    }
+
+
+def test_init_then_commit_checks_aligned(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, {**CODE, "tests/test_app.py": "def test_x():\n    pass\n"})
+    _run(repo, monkeypatch, capsysbinary, "init")
+    _commit(repo, "add models")
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "check")
+
+    assert code == 0
+
+
+def test_init_refuses_existing_models_unless_forced(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, CODE)
+    (repo / "models").mkdir()
+    (repo / "models" / "scope.json").write_bytes(b"hand made\n")
+
+    refused, _ = _run(repo, monkeypatch, capsysbinary, "init")
+    kept = (repo / "models" / "scope.json").read_bytes()
+    forced, _ = _run(repo, monkeypatch, capsysbinary, "init", "--force")
+
+    assert (refused, kept) == (1, b"hand made\n")
+    assert forced == 0
+    assert (repo / "models" / "scope.json").read_bytes() == write_model(SCOPE).encode()
+
+
+def test_two_inits_give_identical_bytes(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, CODE)
+    _run(repo, monkeypatch, capsysbinary, "init")
+    first = {p.name: p.read_bytes() for p in (repo / "models").iterdir()}
+
+    _run(repo, monkeypatch, capsysbinary, "init", "--force")
+
+    assert {p.name: p.read_bytes() for p in (repo / "models").iterdir()} == first
+
+
+def test_init_from_a_subfolder_writes_the_top_level_models(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, CODE)
+
+    code, _ = _run(repo / "src", monkeypatch, capsysbinary, "init")
+
+    assert code == 0
+    assert sorted(p.name for p in (repo / "models").iterdir()) == list(check.MODEL_FILES)
+    assert not (repo / "src" / "models").exists()
+
+
+def test_update_accepts_drift_and_keeps_hand_edits(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, CODE)
+    _run(repo, monkeypatch, capsysbinary, "init")
+    ownership = b'{"rules": [{"pattern": "src/**", "owners": ["ana@x.com", "bo@x.com"]}], "schema_version": 1}'
+    scope = b'{"include": ["**/*.py"], "exclude": ["tests/**", "docs/**"]}'
+    (repo / "models" / "ownership.json").write_bytes(ownership)
+    (repo / "models" / "scope.json").write_bytes(scope)
+    (repo / "src" / "app.py").write_text(CODE["src/app.py"] + "\n\ndef refund(amount):\n    return -amount\n")
+    _commit(repo, "add refund and hand-edit models")
+    drifted, _ = _run(repo, monkeypatch, capsysbinary, "check")
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "update")
+    _commit(repo, "accept refund")
+    aligned, _ = _run(repo, monkeypatch, capsysbinary, "check")
+
+    assert (drifted, code, aligned) == (1, 0, 0)
+    assert (repo / "models" / "ownership.json").read_bytes() == ownership
+    assert (repo / "models" / "scope.json").read_bytes() == scope
+
+
+def test_update_replaces_a_broken_structural_model(tmp_path, monkeypatch, capsysbinary):
+    repo = _code_repo(tmp_path, CODE)
+    _run(repo, monkeypatch, capsysbinary, "init")
+    (repo / "models" / "structural.json").write_bytes(b"not json")
+    _commit(repo, "break structural.json")
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "update")
+
+    assert code == 0
+    assert (repo / "models" / "structural.json").read_bytes() == write_model(generate_structural(CODE)).encode()
