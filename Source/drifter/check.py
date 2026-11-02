@@ -23,7 +23,7 @@ import jsonschema  # type: ignore[import-untyped]
 
 from models.common import ParseFailed, glob, parse_files, write_model
 from models.behavioral_model import generate_behavioral
-from models.ownership_model import CommitRecord, PathTouch, check_ownership, propose_ownership
+from models.ownership_model import CommitRecord, PathTouch, propose_ownership
 from models.structural_model import generate_structural
 
 # names the four files /models must hold, as the contract's ModelsFixture requires
@@ -159,6 +159,50 @@ def in_scope(paths: list[str], scope: dict) -> list[str]:
 def _matches(path: str, pattern: str) -> bool:
     # matches one scope pattern against a repo-relative path
     return glob(pattern).match(path) is not None
+
+
+# ------------------------------------------------------------- the ownership check, per push
+
+
+def check_ownership(rules: dict, commits: list[CommitRecord]) -> list[dict]:
+    # judges every non-merge commit: each file it changes must have its git author among the
+    # owners of the first rule matching that path. A path no rule matches is open to anyone.
+    # Returns the contract's OwnershipViolation objects, sorted by commit then path.
+    patterns = [
+        (rule["pattern"], tuple(owner.lower() for owner in rule["owners"])) for rule in rules.get("rules", ())
+    ]
+    violations: list[dict] = []
+    for commit in commits:
+        if len(commit.parents) > 1:
+            # a merge is never judged, it carries no change of its own (spec 3.2)
+            continue
+        for path in _changed(commit):
+            owners = _match(path, patterns)
+            author = commit.author_email.lower()
+            if owners is not None and author not in owners:
+                violations.append({
+                    "author": author,
+                    "change": "VIOLATION",
+                    "commit": commit.sha,
+                    "owners": sorted(owners),
+                    "path": path,
+                })
+    return sorted(violations, key=lambda v: (v["commit"], v["path"]))
+
+
+def _changed(commit: CommitRecord) -> list[str]:
+    # lists the paths one commit changes, each once and in path order; a rename counts under its
+    # old path, so the owners travel with the file (spec 3.2)
+    return sorted({touch.old_path if touch.change_type == "RENAMED" and touch.old_path else touch.path for touch in commit.paths})
+
+
+def _match(path: str, patterns: list[tuple[str, tuple[str, ...]]]) -> tuple[str, ...] | None:
+    # returns the owners of the first rule matching path, None where no rule does; patterns use
+    # the mapping-v1.1.yaml glob (spec 3.2)
+    for pattern, owners in patterns:
+        if glob(pattern).match(path):
+            return owners
+    return None
 
 
 # ------------------------------------------------------------- reading one commit, locally or not

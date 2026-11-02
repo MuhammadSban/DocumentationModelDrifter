@@ -1,4 +1,4 @@
-# proposes the first models/ownership.json from git history, and judges commits against its rules.
+# proposes the first models/ownership.json from git history; drifter/check.py judges commits against its rules.
 # Ownership is not regenerated per push (spec 3.2): history grows with the push being checked, so
 # comparing a fresh mining against the committed file would flag anyone new touching a file.
 
@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from models.common import glob, literal
+from models.common import literal
 
 SCHEMA_VERSION = 1
 
@@ -171,47 +171,3 @@ def _owners(
 def _is_bot(email: str, bots: tuple[str, ...]) -> bool:
     # tells a bot author, by GitHub's marker anywhere in the email or by the caller's list
     return BOT_MARK in email or email in bots
-
-
-# ------------------------------------------------------------------------- what each push checks
-
-
-def check_ownership(rules: dict, commits: list[CommitRecord]) -> list[dict]:
-    # judges every non-merge commit: each file it changes must have its git author among the
-    # owners of the first rule matching that path. A path no rule matches is open to anyone.
-    # Returns the contract's OwnershipViolation objects, sorted by commit then path.
-    patterns = [
-        (rule["pattern"], tuple(owner.lower() for owner in rule["owners"])) for rule in rules.get("rules", ())
-    ]
-    violations: list[dict] = []
-    for commit in commits:
-        if len(commit.parents) > 1:
-            # a merge is never judged, it carries no change of its own (spec 3.2)
-            continue
-        for path in _changed(commit):
-            owners = _match(path, patterns)
-            author = commit.author_email.lower()
-            if owners is not None and author not in owners:
-                violations.append({
-                    "author": author,
-                    "change": "VIOLATION",
-                    "commit": commit.sha,
-                    "owners": sorted(owners),
-                    "path": path,
-                })
-    return sorted(violations, key=lambda v: (v["commit"], v["path"]))
-
-
-def _changed(commit: CommitRecord) -> list[str]:
-    # lists the paths one commit changes, each once and in path order; a rename counts under its
-    # old path, so the owners travel with the file (spec 3.2)
-    return sorted({touch.old_path if touch.change_type == "RENAMED" and touch.old_path else touch.path for touch in commit.paths})
-
-
-def _match(path: str, patterns: list[tuple[str, tuple[str, ...]]]) -> tuple[str, ...] | None:
-    # returns the owners of the first rule matching path, None where no rule does; patterns use
-    # the mapping-v1.1.yaml glob (spec 3.2)
-    for pattern, owners in patterns:
-        if glob(pattern).match(path):
-            return owners
-    return None

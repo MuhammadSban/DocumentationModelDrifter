@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from drifter.check import check_ownership
 from models.common import write_model
 from models.ownership_model import (
     BOT_MARK,
@@ -20,7 +21,6 @@ from models.ownership_model import (
     WINDOW,
     CommitRecord,
     PathTouch,
-    check_ownership,
     propose_ownership,
 )
 
