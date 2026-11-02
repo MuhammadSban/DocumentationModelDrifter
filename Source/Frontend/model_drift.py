@@ -5,15 +5,17 @@
 # committed /models element by element, reports ADDED / REMOVED / MODIFIED, judges ownership and
 # raises the spec's four no-verdict codes. Nothing here does any of that: it compares two
 # generated models whole, so any change anywhere reads as drift.
+#
+# Every model in check.GENERATORS is covered, so a generator registered there is drawn and checked
+# here without this file changing.
 
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
 
-from drifter.check import DEFAULT_SCOPE, MODEL_FILES, in_scope
+from drifter.check import DEFAULT_SCOPE, GENERATORS, MODEL_FILES, in_scope
 from models.common import ParseFailed
-from models.structural_model import generate_structural
 
 # names the committed model a snapshot reads for its scope; absent, DEFAULT_SCOPE applies
 SCOPE_FILE = "models/scope.json"
@@ -35,24 +37,27 @@ class Verdict:
     note: str | None = None
 
 
-def snapshot(reader, commit: str) -> dict:
-    # regenerates the structural model from the in-scope files at one commit, as the generator
-    # would have written it into /models at that commit
+def snapshot(reader, commit: str) -> dict[str, dict]:
+    # regenerates every model that has a generator from the in-scope files at one commit, keyed by
+    # file name, as the generators would have written them into /models at that commit
     tree = reader.tree_at(commit)
     paths = in_scope(sorted(tree), _scope(reader, tree, commit))
     if not paths:
         raise SnapshotFailed(f"{commit[:7]} has no files in scope")
     raw = reader.read(paths, commit)
     try:
-        return generate_structural({path: raw[path].decode("utf-8") for path in paths})
+        files = {path: raw[path].decode("utf-8") for path in paths}
+        return {f"{name}.json": generate(files) for name, generate in GENERATORS.items()}
     except (ParseFailed, UnicodeDecodeError) as exc:
         raise SnapshotFailed(f"{commit[:7]} could not be parsed: {exc}") from None
 
 
-def drifted(previous: dict, current: dict) -> bool:
-    # the naive check the website shows: drift is the generated model not being exactly the one
-    # the commit before it generated. No element diff, so a reordered field counts as drift.
-    return previous != current
+def drifted(previous: dict[str, dict], current: dict[str, dict]) -> dict[str, bool]:
+    # the naive check the website shows, per model: drift is the generated model not being exactly
+    # the one the commit before it generated. No element diff, so a reordered field counts as drift.
+    return {
+        name.removesuffix(".json"): previous.get(name) != model for name, model in current.items()
+    }
 
 
 def committed(reader, commit: str) -> dict[str, dict]:

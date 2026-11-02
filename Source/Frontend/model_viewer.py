@@ -16,6 +16,8 @@ from Frontend.model_drift import Verdict
 from models.ownership_model import WINDOW
 from models.common import glob
 from Frontend.model_loader import (
+    BEHAVIORAL_FILE,
+    BehavioralModel,
     OWNERSHIP_FILE,
     SCOPE_FILE,
     STRUCTURAL_FILE,
@@ -24,7 +26,9 @@ from Frontend.model_loader import (
     OwnershipModel,
     OwnershipRule,
     Scope,
+    State,
     StructuralModel,
+    Transition,
     load_models,
 )
 
@@ -32,6 +36,9 @@ from Frontend.model_loader import (
 # (dataviz references/palette.md). A ninth contributor and beyond share one neutral slot:
 # a hue is never generated or cycled, and colour only reinforces the name in each heading.
 OWNER_SLOTS = 8
+
+# caps the state machines drawn, the rest counted: a page of fifty lifecycles answers nothing
+MACHINE_SLOTS = 8
 
 # caps the staggered entrance, so a page of forty contributors does not open for two seconds
 STAGGER_STEPS = 8
@@ -68,6 +75,7 @@ def fragment(models: Models, verdict: Verdict | None = None, *, derived: bool = 
     # its own shell: one panel per model, in the order a reader meets them
     sections = [
         _structural(models.structural, verdict),
+        _behavioral(models.behavioral, verdict),
         _ownership(models.ownership, models.scope, verdict, derived=derived),
     ]
     return (
@@ -335,6 +343,121 @@ def _figure(title: str, question: str, source: str | None, omitted: str) -> str:
     return (
         f'<section class="diagram"><h3>{escape(title)}</h3>'
         f'<p class="question">{escape(question)}</p>{drawn}{note}</section>\n'
+    )
+
+
+def _behavioral(model: BehavioralModel | None, verdict: Verdict | None = None) -> str:
+    # shows the code as one state machine per variable: what each may hold, and what moves it.
+    # The question is what may happen and in what order (spec 3.2), so the picture is the
+    # lifecycle itself and everything the question does not need is counted instead of drawn.
+    if model is None:
+        return _missing("Behavioral", BEHAVIORAL_FILE)
+    machines = _group(model)
+    meta = [
+        f"schema_version <b>{escape(str(model.schema_version))}</b>",
+        f"<b>{len(model.states)}</b> {_plural(len(model.states), 'state')}",
+        f"<b>{len(model.transitions)}</b> {_plural(len(model.transitions), 'transition')}",
+        f"<b>{len(machines)}</b> {_plural(len(machines), 'machine')}",
+    ]
+    return _panel("Behavioral", meta, _lifecycles(model, machines), _chip("behavioral", verdict))
+
+
+def _group(model: BehavioralModel) -> dict[tuple[str, str], list[Transition]]:
+    # one machine is one variable's lifecycle, keyed by the machine and the variable both: for a
+    # self attribute the machine is the whole class, so one class holding two such variables runs
+    # two machines, which are two pictures and never one.
+    states = {state.id: state for state in model.states}
+    machines: dict[tuple[str, str], list[Transition]] = {}
+    for transition in model.transitions:
+        state = states.get(transition.source)
+        if state is not None:
+            machines.setdefault((state.machine, state.variable), []).append(transition)
+    return machines
+
+
+def _lifecycles(model: BehavioralModel, machines: dict[tuple[str, str], list[Transition]]) -> str:
+    # draws the busiest machines, one small diagram each, stacked down the page
+    question = "What may each variable hold, and what moves it?"
+    if not machines:
+        return _figure(
+            "Lifecycles",
+            question,
+            None,
+            f"No transition joins two states, so there is no lifecycle to draw. "
+            f"All {len(model.states)} {_plural(len(model.states), 'state')} stand alone.",
+        )
+    states = {state.id: state for state in model.states}
+    busiest = sorted(machines, key=lambda key: (-len(machines[key]), key))[:MACHINE_SLOTS]
+    figures = []
+    for key in busiest:
+        figures.append(
+            f'<p class="caption mono">{escape(key[0])} &middot; {escape(key[1])}</p>'
+            + _drawn(_diagram(key, machines[key], states))
+        )
+    left = len(machines) - len(busiest)
+    note = " ".join(
+        part
+        for part in (
+            f"{left} smaller {_plural(left, 'machine')} left out of these." if left else "",
+            "Only an if or elif comparing a variable with a string literal is mined, so else "
+            "branches, enums and compound conditions are in the code but not in this model "
+            "(base/behavioral.md).",
+        )
+        if part
+    )
+    return (
+        '<section class="diagram"><h3>Lifecycles</h3>'
+        f'<p class="question">{escape(question)}</p>'
+        f'{"".join(figures)}<p class="omitted of">{escape(note)}</p></section>\n'
+    )
+
+
+def _diagram(key: tuple[str, str], transitions: list[Transition], states: dict[str, State]) -> str:
+    # one machine as Mermaid: a node per value it holds, an arrow per function that moves it.
+    # The guard is the source state said again, so the arrow carries the trigger instead.
+    # No [*] start marker: a state with no mined arrival is not therefore where the code begins.
+    names: dict[str, str] = {}
+    for transition in sorted(transitions, key=lambda t: t.id):
+        for end in (transition.source, transition.target):
+            if end in states and end not in names:
+                names[end] = f"s{len(names)}"
+    lines = [
+        "stateDiagram-v2",
+        f"    accTitle: Lifecycle of {key[1]} in {key[0]}",
+        "    accDescr: Each node is a value the variable holds. Each arrow points from the value "
+        "it is changed from to the value it is changed to, labelled with the function that "
+        "changes it.",
+    ]
+    lines += [
+        f'    state "{_mermaid_text(states[state_id].value)}" as {name}'
+        for state_id, name in names.items()
+    ]
+    lines += [
+        f"    {names[t.source]} --> {names[t.target]}: {_mermaid_text(_trigger(t.trigger))}"
+        for t in sorted(transitions, key=lambda t: t.id)
+        if t.source in names and t.target in names
+    ]
+    return "\n".join(lines)
+
+
+def _trigger(trigger: str) -> str:
+    # names the function an arrow belongs to, dropping the module and the class around it: one
+    # machine is one class, so the bare name is unambiguous inside its own picture
+    return trigger.rpartition(":")[2].rpartition(".")[2] or trigger
+
+
+def _mermaid_text(text: str) -> str:
+    # keeps one label to what Mermaid reads as text: no quotes to close the string early, and no
+    # line break to end the statement
+    return text.replace('"', "'").replace("\n", " ").replace("\r", " ")
+
+
+def _drawn(source: str) -> str:
+    # one picture and the Mermaid it was drawn from, which is the one copy of it
+    return (
+        f'<div class="figure"><pre class="mermaid">{escape(source)}</pre></div>'
+        f'<details class="source"><summary>Mermaid source</summary>'
+        f"<pre>{escape(source)}</pre></details>"
     )
 
 
