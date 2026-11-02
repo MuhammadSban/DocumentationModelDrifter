@@ -13,6 +13,7 @@ from html import escape
 from pathlib import Path
 
 from Frontend.model_drift import Verdict
+from models.ownership_model import WINDOW
 from models.common import glob
 from Frontend.model_loader import (
     OWNERSHIP_FILE,
@@ -44,7 +45,7 @@ MERMAID = "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs"
 STYLE = (Path(__file__).resolve().parent / "app.css").read_text(encoding="utf-8")
 
 
-def render(models: Models, verdict: Verdict | None = None) -> str:
+def render(models: Models, verdict: Verdict | None = None, *, derived: bool = False) -> str:
     # renders the standalone page: the shell, the models, and the script that draws them
     return (
         "<!doctype html>\n"
@@ -55,19 +56,19 @@ def render(models: Models, verdict: Verdict | None = None) -> str:
         '<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">\n'
         "<title>Models</title>\n"
         f"<style>{STYLE}</style>\n</head>\n<body>\n<main>\n"
-        + fragment(models, verdict)
+        + fragment(models, verdict, derived=derived)
         + "\n</main>\n"
         + _script()
         + "\n</body>\n</html>\n"
     )
 
 
-def fragment(models: Models, verdict: Verdict | None = None) -> str:
+def fragment(models: Models, verdict: Verdict | None = None, *, derived: bool = False) -> str:
     # renders the models alone, without a page around them, so the console can put them inside
     # its own shell: one panel per model, in the order a reader meets them
     sections = [
         _structural(models.structural, verdict),
-        _ownership(models.ownership, models.scope, verdict),
+        _ownership(models.ownership, models.scope, verdict, derived=derived),
     ]
     return (
         f'<div class="top">\n<h1>Models</h1>\n<p class="mono">{escape(models.source)}</p>\n'
@@ -87,6 +88,19 @@ def _compared(verdict: Verdict | None) -> str:
         f'<p class="note">Drift checked by regenerating each model at '
         f'<code>{escape(verdict.base[:7])}</code> and <code>{escape(verdict.head[:7])}</code> '
         "and comparing them whole.</p>\n"
+    )
+
+
+def _provenance(derived: bool) -> str:
+    # separates ownership the repository declared from ownership mined for it. A proposal read as
+    # a declaration is the one way this panel could mislead, so it never goes unmarked.
+    if not derived:
+        return ""
+    return (
+        '<p class="note">Mined from this repository\'s history: it has committed no '
+        "<code>models/ownership.json</code>, so these are the authors who last changed each file, "
+        f"over their {WINDOW} most recent commits. A proposal to correct by hand, like a first "
+        "CODEOWNERS file, and not ownership this repository has declared.</p>\n"
     )
 
 
@@ -324,7 +338,8 @@ def _figure(title: str, question: str, source: str | None, omitted: str) -> str:
     )
 
 
-def _ownership(model: OwnershipModel | None, scope: Scope | None, verdict: Verdict | None = None) -> str:
+def _ownership(model: OwnershipModel | None, scope: Scope | None, verdict: Verdict | None = None,
+               *, derived: bool = False) -> str:
     # shows ownership as one section per contributor: how much of the code they own, the folders
     # they own it in, and who they share it with. Every section carries the same map, so two
     # territories are compared by scanning down the page. A path no rule matches appears in no
@@ -355,7 +370,7 @@ def _ownership(model: OwnershipModel | None, scope: Scope | None, verdict: Verdi
         if sections
         else '<p class="none">no rules over code, so every path is open to anyone</p>'
     )
-    return _panel("Ownership", meta, body, _chip("ownership", verdict))
+    return _panel("Ownership", meta, _provenance(derived) + body, _chip("ownership", verdict))
 
 
 def _is_code(pattern: str, scope: Scope | None) -> bool:

@@ -11,6 +11,7 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 
+from drifter import check
 from Frontend import model_drift
 from Frontend.model_loader import OWNERSHIP_FILE, SCOPE_FILE, STRUCTURAL_FILE, models_from_dicts
 from Frontend.model_viewer import render
@@ -181,6 +182,15 @@ def models_view(repository: str, commit_id: str) -> Response:
             for name, model in model_drift.committed(cmp, cmp.head).items()
             if name in (OWNERSHIP_FILE, SCOPE_FILE)
         }
+        # the repository's own ownership.json wins. Absent, ownership is mined from history as
+        # drifter init proposes it, rather than the page reporting that it has none: most
+        # repositories have committed no /models at all. The page says which of the two it shows.
+        derived = OWNERSHIP_FILE not in parsed
+        if derived:
+            parsed[OWNERSHIP_FILE] = check.proposed_ownership(cmp)
+        # the scope the page actually trimmed by, so a repository that declares none still shows
+        # code rather than every path in its history
+        parsed.setdefault(SCOPE_FILE, check.DEFAULT_SCOPE)
         changed: dict[str, bool] = {}
         note = None
         try:
@@ -193,7 +203,7 @@ def models_view(repository: str, commit_id: str) -> Response:
             note = str(exc)
         models = models_from_dicts(parsed, f"{repository} @ {cmp.head[:7]}")
         verdict = model_drift.Verdict(head=cmp.head, base=cmp.base, changed=changed, note=note)
-    return Response(render(models, verdict), media_type="text/html")
+    return Response(render(models, verdict, derived=derived), media_type="text/html")
 
 
 router.include_router(course.router)
