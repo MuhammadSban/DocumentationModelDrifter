@@ -42,10 +42,6 @@ Diagrams of the planned system. Each is a Markdown file whose Mermaid block is t
 - `models/cross-team-test.md` — one cross-team test session as `contract/pod-contract.md` defines it: tester and system routes, the T-01 to T-33 loop over both fixtures, and the report. The tester reads `/health` once first and skips each test whose feature the target does not list. It also shows the one-session 409 and the stop at 570 s of the 600 s run.
 - `models/research-evidence.md` — Team 15's tool research, as a table: what runs at runtime, what only serves tests, what is rejected. Team 15's choices, not the pod contract.
 
-## plan/
-
-- `plan/ownership-model.md` — how the ownership model was designed and verified: what init proposes, what each push checks, and what was deferred. Spec §3.2 now holds its substance and wins where they differ.
-
 ## tickets/
 
 - `tickets/tracker-gaps.md` — open work: what the wired drift check still owes, and what one check still needs to become a tracker that watches a repository on its own. Each row has a fix and a check that closes it. `base/phase4.md` owns the schedule; this file owns the detail.
