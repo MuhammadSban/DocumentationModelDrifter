@@ -185,16 +185,16 @@ T-01 to T-23 they are the lists Team 16's tester already uses.
 | T-21 | New findings start PENDING_REVIEW | the findings of T-18 and T-19 | C4 C5 | AC-04 | skip | runs |
 | T-22 | Authorized and unauthorized review decisions | Phase 5 | C7 | AC-05 | skip | skip |
 | T-23 | Read-only analysis, no repository code execution | inspection | C2 | AC-09 | skip | skip |
-| T-24 | `/analyze` at L0: `aligned: true`, three empty lists (pending) | model fixture | C1 C2 C3 C4 C5 | AC-03 | runs | skip |
-| T-25 | `/analyze` at L1: `aligned: true` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-03 | runs | skip |
-| T-26 | `/analyze` at L2: one structural `ADDED` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
-| T-27 | `/analyze` at L3: one structural `REMOVED` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
-| T-28 | `/analyze` at L4: behavioral `ADDED` state and transition (pending) | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
-| T-29 | `/analyze` at L5: `aligned: true` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-03 | runs | skip |
-| T-30 | `/analyze` at L6: one ownership `VIOLATION` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
-| T-31 | `/analyze` at L7: one structural `ADDED` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
-| T-32 | `/analyze` at L-pre: `drift: null`, `drift_error.code` `MODELS_NOT_FOUND` (pending) | model fixture | C1 C2 C3 C4 C5 | AC-08 | runs | skip |
-| T-33 | `/generate` at L0: `structural.json`, `behavioral.json` and `scope.json` byte-equal to the committed `/models` (pending) | model fixture | C1 C2 C4 | AC-10 | runs | skip |
+| T-24 | `/analyze` at L0: `aligned: true`, three empty lists | model fixture | C1 C2 C3 C4 C5 | AC-03 | runs | skip |
+| T-25 | `/analyze` at L1: `aligned: true` | model fixture | C1 C2 C3 C4 C5 | AC-03 | runs | skip |
+| T-26 | `/analyze` at L2: one structural `ADDED` | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
+| T-27 | `/analyze` at L3: one structural `REMOVED` | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
+| T-28 | `/analyze` at L4: behavioral `ADDED` state and transition | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
+| T-29 | `/analyze` at L5: `aligned: true` | model fixture | C1 C2 C3 C4 C5 | AC-03 | runs | skip |
+| T-30 | `/analyze` at L6: one ownership `VIOLATION` | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
+| T-31 | `/analyze` at L7: one structural `ADDED` | model fixture | C1 C2 C3 C4 C5 | AC-02 | runs | skip |
+| T-32 | `/analyze` at L-pre: `drift: null`, `drift_error.code` `MODELS_NOT_FOUND` | model fixture | C1 C2 C3 C4 C5 | AC-08 | runs | skip |
+| T-33 | `/generate` at L0: `structural.json`, `behavioral.json` and `scope.json` byte-equal to the committed `/models` | model fixture | C1 C2 C4 | AC-10 | runs | skip |
 
 The "skip" cells in the last two columns are deviations 1 and 2: Team 15's system has no
 `prose_detector`, and Team 16's has no `model_drift`. T-22 and T-23 are `skip` on every
