@@ -13,7 +13,7 @@ import pytest
 from Tester.pod_tests import CASES, MODEL_CASES, MODEL_REPOSITORY, REPOSITORY
 
 BY_REQUEST = {(c["request"]["commit_id"], c["request"].get("base_commit")): c for c in CASES.values()}
-MODEL_BY_COMMIT = {c["request"]["commit_id"]: c for c in MODEL_CASES.values()}
+MODEL_BY_COMMIT = {c["request"]["commit_id"]: c for c in MODEL_CASES.values() if "drift" in c["expected"]}
 CODE = {"basis": "fake line coverage", "covered": 3, "total": 10}
 
 
@@ -25,7 +25,8 @@ class FakeTarget:
         self.analyze_status = None  # a status every /analyze answers with instead of a result
         self.analyze_delay = 0.0
         self.break_case = None  # a case whose changes come back empty
-        self.break_drift_case = None  # a model fixture case whose drift_error code comes back wrong
+        self.break_generate = None  # a /models file whose text /generate returns changed
+        self.break_drift_case = None  # a model fixture case whose drift_error code, or else drift order, is wrong
         self.setup_answer = (201, None)
         self.saved = {}
         self.url = ""
@@ -63,10 +64,24 @@ class FakeTarget:
         if case is None:
             return 404, {"code": "COMMIT_NOT_FOUND", "message": "no such commit"}
         expected = copy.deepcopy(case["expected"])
-        if case["case"] == self.break_drift_case:
+        if case["case"] == self.break_drift_case and expected["drift"] is None:
             expected["drift_error"] = {"code": "INVALID_MODELS", "message": "broken"}
+        elif case["case"] == self.break_drift_case:
+            expected["drift"]["behavioral"].reverse()
         return 200, {**expected, "analysis_id": uuid.uuid4().hex, "changes": [], "issues": [],
                      "repository": MODEL_REPOSITORY, "status": "SUCCESS"}
+
+    def generate(self, raw: bytes):
+        # answers L0 with its expected /models texts, plus an ownership.json no tester compares
+        request = json.loads(raw)
+        case = MODEL_CASES["L0-generate"]
+        if request != case["request"]:
+            return 404, {"code": "COMMIT_NOT_FOUND", "message": "no such commit"}
+        files = {**case["expected"]["files"], "ownership.json": "{}\n"}
+        if self.break_generate:
+            files[self.break_generate] += " "
+        return 200, {"files": files, "head_commit": request["commit_id"], "repository": MODEL_REPOSITORY,
+                     "tool_version": "fake"}
 
 
 def _handler(fake: FakeTarget):
@@ -104,6 +119,8 @@ def _handler(fake: FakeTarget):
             raw = self.rfile.read(int(self.headers.get("Content-Length", 0)))
             if self.path == "/system/analyze":
                 self._send(*fake.analyze(raw))
+            elif self.path == "/system/generate":
+                self._send(*fake.generate(raw))
             elif self.path == "/system/test/setup":
                 status, body = fake.setup_answer
                 self._send(status, body or {"session_id": json.loads(raw)["session_id"]})

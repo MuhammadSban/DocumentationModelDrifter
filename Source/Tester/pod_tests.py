@@ -201,6 +201,22 @@ def drift(case: str) -> Callable[[Run], str]:
     return check
 
 
+def generated(case: str) -> Callable[[Run], str]:
+    # checks the /models texts /generate returns against model-golden-outputs.json, each byte for byte;
+    # ownership.json is never compared, as people correct it by hand (contract §4)
+    def check(run: Run) -> str:
+        try:
+            body = _body(run.send("POST", "/generate", MODEL_CASES[case]["request"]))
+        except Fail as exc:
+            raise Fail(f"{case}: {exc}") from None
+        files = body.get("files")
+        for name, text in MODEL_CASES[case]["expected"]["files"].items():
+            if not isinstance(files, dict) or files.get(name, MISSING) != text:
+                raise Fail(f"{case}: {name} differs from the expected text")
+        return f"{case}: the three texts match the expected answer"
+    return check
+
+
 def retrieve_saved(run: Run) -> str:
     posted = _body(run.analyze("c1-impl-only"))
     if _body(run.analysis(_id(posted))) != posted:
@@ -249,7 +265,7 @@ def _row(test_id: str, title: str, components: str, criteria: str, check=None, *
 
 
 C1_SHA = CASES["c1-impl-only"]["request"]["commit_id"]
-DRIFT = dict(feature="model_drift", pending=True)
+DRIFT = dict(feature="model_drift")
 PROSE = dict(feature="prose_detector")
 
 # lists contract §4 in order; titles and coverage lists are copied from it
@@ -291,18 +307,19 @@ TESTS = [
     _row("T-21", "New findings start PENDING_REVIEW", "C4 C5", "AC-04", pending_review, **PROSE),
     _row("T-22", "Authorized and unauthorized review decisions", "C7", "AC-05", skip="Phase 5"),
     _row("T-23", "Read-only analysis, no repository code execution", "C2", "AC-09", skip="checked by inspection"),
-    _row("T-24", "/analyze at L0: aligned: true, three empty lists", "C1 C2 C3 C4 C5", "AC-03", **DRIFT),
-    _row("T-25", "/analyze at L1: aligned: true", "C1 C2 C3 C4 C5", "AC-03", **DRIFT),
-    _row("T-26", "/analyze at L2: one structural ADDED", "C1 C2 C3 C4 C5", "AC-02", **DRIFT),
-    _row("T-27", "/analyze at L3: one structural REMOVED", "C1 C2 C3 C4 C5", "AC-02", **DRIFT),
-    _row("T-28", "/analyze at L4: behavioral ADDED state and transition", "C1 C2 C3 C4 C5", "AC-02", **DRIFT),
-    _row("T-29", "/analyze at L5: aligned: true", "C1 C2 C3 C4 C5", "AC-03", **DRIFT),
-    _row("T-30", "/analyze at L6: one ownership VIOLATION", "C1 C2 C3 C4 C5", "AC-02", **DRIFT),
-    _row("T-31", "/analyze at L7: one structural ADDED", "C1 C2 C3 C4 C5", "AC-02", **DRIFT),
+    _row("T-24", "/analyze at L0: aligned: true, three empty lists", "C1 C2 C3 C4 C5", "AC-03", drift("L0"), **DRIFT),
+    _row("T-25", "/analyze at L1: aligned: true", "C1 C2 C3 C4 C5", "AC-03", drift("L1"), **DRIFT),
+    _row("T-26", "/analyze at L2: one structural ADDED", "C1 C2 C3 C4 C5", "AC-02", drift("L2"), **DRIFT),
+    _row("T-27", "/analyze at L3: one structural REMOVED", "C1 C2 C3 C4 C5", "AC-02", drift("L3"), **DRIFT),
+    _row("T-28", "/analyze at L4: behavioral ADDED state and transition", "C1 C2 C3 C4 C5", "AC-02", drift("L4"),
+         **DRIFT),
+    _row("T-29", "/analyze at L5: aligned: true", "C1 C2 C3 C4 C5", "AC-03", drift("L5"), **DRIFT),
+    _row("T-30", "/analyze at L6: one ownership VIOLATION", "C1 C2 C3 C4 C5", "AC-02", drift("L6"), **DRIFT),
+    _row("T-31", "/analyze at L7: one structural ADDED", "C1 C2 C3 C4 C5", "AC-02", drift("L7"), **DRIFT),
     _row("T-32", "/analyze at L-pre: drift: null, drift_error.code MODELS_NOT_FOUND", "C1 C2 C3 C4 C5", "AC-08",
-         drift("L-pre"), feature="model_drift"),
+         drift("L-pre"), **DRIFT),
     _row("T-33", "/generate at L0: structural.json, behavioral.json and scope.json byte-equal to the committed "
-         "/models", "C1 C2 C4", "AC-10", **DRIFT),
+         "/models", "C1 C2 C4", "AC-10", generated("L0-generate"), **DRIFT),
 ]
 
 
