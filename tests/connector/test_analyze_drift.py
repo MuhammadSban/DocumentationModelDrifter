@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from drifter import cli
 from GitHub_Connector import api, rules
 from GitHub_Connector.settings import get_settings
+from models.behavioral_model import generate_behavioral
 from models.common import write_model
 from models.structural_model import generate_structural
 
@@ -38,7 +39,7 @@ def _commit(work, files, author="ana@x.com"):
 def _models(files):
     # renders four /models files that match files, so the commit starts aligned
     return {
-        "models/behavioral.json": write_model({"schema_version": 1}),
+        "models/behavioral.json": write_model({"schema_version": 1, "states": [], "transitions": []}),
         "models/ownership.json": write_model(OWNED),
         "models/scope.json": write_model(SCOPE),
         "models/structural.json": write_model(generate_structural(files)),
@@ -122,6 +123,20 @@ def test_a_structural_model_breaking_its_schema_is_200_success_with_invalid_mode
 
     assert (body["status"], body["drift"], body["drift_error"]["code"]) == ("SUCCESS", None, "INVALID_MODELS")
     assert "models/structural.json" in body["drift_error"]["message"]
+
+
+def test_a_behavioral_model_breaking_its_schema_is_200_success_with_invalid_models(repo):
+    work, publish = repo
+    no_source = {**generate_behavioral(CODE), "transitions": [
+        {"file": "src/app.py", "guard": "s == 'a'", "id": "transition:x", "kind": "transition",
+         "target": "state:y", "trigger": "app:step"}]}
+    head = _commit(work, {**CODE, **_models(CODE), "models/behavioral.json": write_model(no_source)})
+    publish()
+
+    body = _analyze(head).json()
+
+    assert (body["status"], body["drift"], body["drift_error"]["code"]) == ("SUCCESS", None, "INVALID_MODELS")
+    assert "models/behavioral.json" in body["drift_error"]["message"]
 
 
 def test_drift_written_canonically_is_byte_identical_to_drifter_check(repo, capsysbinary):

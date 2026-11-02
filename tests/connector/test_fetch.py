@@ -43,7 +43,7 @@ def served(tmp_path, monkeypatch):
     work = tmp_path / "work"
     subprocess.run(["git", "init", "-q", "-b", "main", str(work)], check=True)
     models = {
-        "models/behavioral.json": write_model({"schema_version": 1}),
+        "models/behavioral.json": write_model({"schema_version": 1, "states": [], "transitions": []}),
         "models/ownership.json": write_model(OWNED),
         "models/scope.json": write_model(SCOPE),
         "models/structural.json": write_model(generate_structural(CODE)),

@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from drifter import check, cli
+from models.behavioral_model import generate_behavioral
 from models.common import write_model
 from models.structural_model import generate_structural
 
@@ -22,7 +23,7 @@ NO_RULES = {"rules": [], "schema_version": 1}
 def _repo(path, files, behavioral=None, ownership=NO_RULES):
     # commits files and four /models files that match them, so the check starts aligned
     models = {
-        "models/behavioral.json": behavioral or {"schema_version": 1},
+        "models/behavioral.json": behavioral or {"schema_version": 1, "states": [], "transitions": []},
         "models/ownership.json": ownership,
         "models/scope.json": SCOPE,
         "models/structural.json": generate_structural(files),
@@ -76,15 +77,17 @@ def test_new_code_is_drift_and_exits_1(tmp_path, monkeypatch, capsysbinary):
 
 # ------------------------------------------------- the diff by id, through a fake behavioral plugin
 
-# commits a behavioral model in the owner's own list names; schema_version is not an element
+# commits a behavioral model valid against its schema, with short ids; schema_version is not an element
+STATE = {"file": "src/app.py", "kind": "state", "machine": "app:Order", "variable": "self.status"}
 COMMITTED = {
     "schema_version": 1,
     "states": [
-        {"file": "src/app.py", "id": "Order.open", "kind": "state"},
-        {"file": "src/app.py", "id": "Order.paid", "kind": "state"},
+        {**STATE, "id": "Order.open", "value": "open"},
+        {**STATE, "id": "Order.paid", "value": "paid"},
     ],
     "transitions": [
-        {"file": "src/app.py", "id": "Order.open->paid", "kind": "transition", "on": "pay"},
+        {"file": "src/app.py", "guard": "self.status == 'open'", "id": "Order.open->paid", "kind": "transition",
+         "source": "Order.open", "target": "Order.paid", "trigger": "app:Order.pay"},
     ],
 }
 
@@ -163,7 +166,7 @@ def test_two_runs_print_the_same_bytes(tmp_path, monkeypatch, capsysbinary):
 
 
 def test_a_repeated_id_in_a_committed_model_gives_no_verdict(tmp_path, monkeypatch, capsysbinary):
-    twice = {**COMMITTED, "transitions": [{"file": "src/app.py", "id": "Order.open", "kind": "transition"}]}
+    twice = {**COMMITTED, "transitions": [{**COMMITTED["transitions"][0], "id": "Order.open"}]}
 
     code, out = _check(_repo(tmp_path, CODE, twice), monkeypatch, capsysbinary)
 
@@ -244,12 +247,18 @@ STRUCTURAL = generate_structural(CODE)
 UNKNOWN_EDGE = {**STRUCTURAL, "edges": [{"file": "src/app.py", "id": "calls:app->app", "kind": "calls",
                                          "source": "app", "target": "app"}]}
 
+# passes the element rule but breaks behavioral.schema.json: a transition without source
+BEHAVIORAL = generate_behavioral({"src/app.py": "def step(s):\n    if s == 'a':\n        s = 'b'\n"})
+NO_SOURCE = {**BEHAVIORAL, "transitions": [{k: v for k, v in t.items() if k != "source"}
+                                           for t in BEHAVIORAL["transitions"]]}
+
 
 @pytest.mark.parametrize(
     "name, text",
     [
         pytest.param("structural.json", "{not json", id="bad-json"),
-        pytest.param("behavioral.json", write_model({"states": [ELEMENT, ELEMENT]}), id="duplicate-id"),
+        pytest.param("behavioral.json", write_model({**BEHAVIORAL, "states": [BEHAVIORAL["states"][0]] * 2}),
+                     id="duplicate-id"),
         pytest.param("behavioral.json", write_model({"states": [{"id": "A", "kind": "state"}]}), id="missing-file"),
         pytest.param("behavioral.json", write_model({"states": ["A"]}), id="element-not-object"),
         pytest.param("structural.json", "[]\n", id="model-not-object"),
@@ -263,6 +272,9 @@ UNKNOWN_EDGE = {**STRUCTURAL, "edges": [{"file": "src/app.py", "id": "calls:app-
         pytest.param("structural.json", write_model(UNKNOWN_EDGE), id="structural-schema-unknown-edge-kind"),
         pytest.param("structural.json", write_model({**STRUCTURAL, "schema_version": 2}), id="structural-schema-version"),
         pytest.param("structural.json", write_model({**STRUCTURAL, "calls": []}), id="structural-schema-unknown-key"),
+        pytest.param("behavioral.json", write_model(NO_SOURCE), id="behavioral-schema-transition-without-source"),
+        pytest.param("behavioral.json", write_model({**BEHAVIORAL, "schema_version": 2}), id="behavioral-schema-version"),
+        pytest.param("behavioral.json", write_model({**BEHAVIORAL, "events": []}), id="behavioral-schema-unknown-key"),
     ],
 )
 def test_a_bad_model_file_is_invalid_models_naming_it(tmp_path, monkeypatch, capsysbinary, name, text):
@@ -315,7 +327,8 @@ def test_of_two_bad_files_the_first_in_path_order_wins_every_run(tmp_path, monke
 
 def test_a_schema_error_wins_over_an_element_rule_error_in_an_earlier_file(tmp_path, monkeypatch, capsysbinary):
     # checks every schema before any element rule, so models are judged rule by rule, each in path order
-    broken = {"models/behavioral.json": write_model({"states": [ELEMENT, ELEMENT]}),
+    twice = BEHAVIORAL["states"][0]
+    broken = {"models/behavioral.json": write_model({**BEHAVIORAL, "states": [twice, twice]}),
               "models/structural.json": write_model(UNKNOWN_EDGE)}
 
     error = _no_verdict(tmp_path, monkeypatch, capsysbinary, {}, broken)

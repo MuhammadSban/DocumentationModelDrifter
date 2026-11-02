@@ -24,7 +24,7 @@ The tool writes it to `models/behavioral.json` and compares it with the committe
 }
 ```
 
-No other top-level keys. `states` and `transitions` are each sorted by `id`. The file has sorted keys, 2-space indent, non-ASCII kept as is, LF line endings and one trailing newline.
+No other top-level keys. `states` and `transitions` are each sorted by `id`. [`Source/models/behavioral.schema.json`](../../Source/models/behavioral.schema.json) is this format as a JSON Schema: a committed `behavioral.json` that breaks it gives INVALID_MODELS naming the file. The file has sorted keys, 2-space indent, non-ASCII kept as is, LF line endings and one trailing newline.
 
 ### Kinds
 

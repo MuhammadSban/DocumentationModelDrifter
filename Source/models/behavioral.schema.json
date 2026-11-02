@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "behavioral.json, schema_version 1 (docs/base/behavioral.md)",
+  "type": "object",
+  "required": ["schema_version", "states", "transitions"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 1},
+    "states": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/state"}
+    },
+    "transitions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/transition"}
+    }
+  },
+  "$defs": {
+    "state": {
+      "type": "object",
+      "required": ["file", "id", "kind", "machine", "value", "variable"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {"type": "string"},
+        "id": {"type": "string"},
+        "kind": {"const": "state"},
+        "machine": {"type": "string"},
+        "value": {"type": "string"},
+        "variable": {"type": "string"}
+      }
+    },
+    "transition": {
+      "type": "object",
+      "required": ["file", "guard", "id", "kind", "source", "target", "trigger"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {"type": "string"},
+        "guard": {"type": "string"},
+        "id": {"type": "string"},
+        "kind": {"const": "transition"},
+        "source": {"type": "string"},
+        "target": {"type": "string"},
+        "trigger": {"type": "string"}
+      }
+    }
+  }
+}

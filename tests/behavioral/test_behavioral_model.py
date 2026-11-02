@@ -1,6 +1,10 @@
 # freezes the behavioral format as generate_behavioral writes it (spec #30, "Behavioral format"):
 # each snippet's exact write_model text; any change here is a format change and bumps schema_version
 
+import json
+from pathlib import Path
+
+import jsonschema
 import pytest
 
 from models.behavioral_model import generate_behavioral
@@ -9,9 +13,15 @@ from models.common import write_model
 EMPTY = '{\n  "schema_version": 1,\n  "states": [],\n  "transitions": []\n}\n'
 
 
+SCHEMA = json.loads((Path(__file__).resolve().parents[2] / "Source" / "models" / "behavioral.schema.json").read_text("utf-8"))
+
+
 def text(files):
-    # renders the behavioral model of files exactly as drifter init writes it
-    return write_model(generate_behavioral(files))
+    # renders the behavioral model of files exactly as drifter init writes it, after checking it
+    # against behavioral.schema.json, so every golden is a valid model
+    model = generate_behavioral(files)
+    jsonschema.validate(model, SCHEMA)
+    return write_model(model)
 
 
 def test_self_attribute_checks_across_methods_share_one_class_machine():
