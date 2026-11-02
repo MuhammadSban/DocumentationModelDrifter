@@ -19,7 +19,7 @@ compared. Compare everything else as section 3 says.
 | `pod-tester.openapi.yml` | the tester API and suite report, as fixed by the course |
 | `mapping-v1.1.yaml` | shared classification rules, skip allowlist and code-to-doc mappings, loaded at runtime |
 | `golden-outputs.json` | expected answers for the 10 cases on Team 16's fixture |
-| `model-golden-outputs.json` | expected answers for T-24 to T-33 (pending, see section 3) |
+| `model-golden-outputs.json` | expected answers for T-24 to T-33 (section 3) |
 
 `spec-v1.1.md` (the package's `SPEC.md`), `mapping-v1.1.yaml` and `golden-outputs.json`
 are byte-identical copies from Team 16's v1.1 package (proposed 2026-10-30). "v1.1 SPEC"
@@ -99,7 +99,7 @@ also after the system restarts or is redeployed.
 | Repository | Built by | Used by | Expected answers |
 | --- | --- | --- | --- |
 | `ParthGupta06/doc-tracker-fixtures` (c0 to c8) | Team 16 | T-01 to T-21 | `golden-outputs.json` |
-| `MuhammadSban/doc-tracker-model-fixtures` | Team 15 | T-24 to T-33 | `model-golden-outputs.json` (pending) |
+| `kaan-kanadasi/doc-tracker-model-fixtures` | Team 15 | T-24 to T-33 | `model-golden-outputs.json` |
 
 **Comparing with `golden-outputs.json`** (as v1.1 SPEC section 9): these fields must be
 equal: `head_commit`, `base_commit`, `config_version`, `status`, `error`, `changes`,
@@ -119,15 +119,15 @@ Commits of the model fixture, oldest first:
 
 | Tag | What the commit does | SHA |
 | --- | --- | --- |
-| L-pre | Python code, no `/models` yet | pending |
-| L0 | `/models` committed as `drifter init` writes it | pending |
-| L1 | comments and whitespace only | pending |
-| L2 | adds one function | pending |
-| L3 | removes one import | pending |
-| L4 | adds a state and a transition into it | pending |
-| L5 | L2's kind of change plus updated `/models` in the same commit | pending |
-| L6 | a non-owner edits an owned path | pending |
-| L7 | a hand edit removes an `inherits` edge from `structural.json` that the code still makes | pending |
+| L-pre | Python code, no `/models` yet | `871c9b156d87040346ef667ace936bf72a6a9c1e` |
+| L0 | `/models` committed as `drifter init` writes it | `9f79b3abadd445010e876177ed42745079397d47` |
+| L1 | comments and whitespace only | `d243a81f82e8294cdba081c76c9daa7916ee3d3b` |
+| L2 | adds one function | `081f2584d21b20ef7a0b2ee36779e69ee5ff9572` |
+| L3 | removes one import | `96d3ef3abc09e659690da6bfea8e62caa9ef1127` |
+| L4 | adds a state and a transition into it | `a36f31280175bc96905f98dc69b820c28ce659e7` |
+| L5 | L2's kind of change plus updated `/models` in the same commit | `4cb24a9407deb003fc19605e51ede8ea0f7b072c` |
+| L6 | a non-owner edits an owned path | `ecd599e93719c3aed79bbf197b66366f2829e869` |
+| L7 | a hand edit removes an `inherits` edge from `structural.json` that the code still makes | `d288268468df65602e9f4b348a95ff561ddd67bd` |
 
 **Publishing the expected answers** (Team 15). The drift tests are published in two groups, each once the
 commits its tests use are fixed for good:
@@ -139,21 +139,19 @@ commits its tests use are fixed for good:
 
 For each group:
 
-- [ ] Fill the SHAs of the commits its tests use in the table above.
-- [ ] Add its tests' expected answers to `model-golden-outputs.json`.
-- [ ] Remove "pending" from its tests in section 4.
+- [x] Fill the SHAs of the commits its tests use in the table above.
+- [x] Add its tests' expected answers to `model-golden-outputs.json`.
+- [x] Remove "pending" from its tests in section 4.
 - [ ] Bump the version (section 10).
 
 ## 4. Test list
 
 Both testers run every test, T-01 to T-33, so each tester checks both systems' detectors.
-T-24 to T-33 are **pending** until their group is published (section 3); a pending test
-is reported as `skip` with the message "expected answers not yet published".
 
 The tester reads `GET /health` once before the first test. If it gives no 200 `Health`
 body within 90 s, the target's features are unknown: each test that needs a feature
 (T-18 to T-21, T-24 to T-33) is `error`, with source `communication` when nothing
-answered and `system` otherwise; a pending test stays `skip`, and the other tests run as
+answered and `system` otherwise, and the other tests run as
 usual. The last two columns say what a test does on a system without `prose_detector` or
 without `model_drift` (section 1, Features). No test is expected to fail on either team's system.
 
