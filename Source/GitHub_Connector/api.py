@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from drifter import check
 from Frontend import model_drift
-from Frontend.model_loader import OWNERSHIP_FILE, SCOPE_FILE, STRUCTURAL_FILE, models_from_dicts
+from Frontend.model_loader import OWNERSHIP_FILE, SCOPE_FILE, models_from_dicts
 from Frontend.model_viewer import render
 from GitHub_Connector import course, rules, runs
 from Tester import api as tester
@@ -195,11 +195,10 @@ def models_view(repository: str, commit_id: str) -> Response:
         changed: dict[str, bool] = {}
         note = None
         try:
-            parsed[STRUCTURAL_FILE] = model_drift.snapshot(cmp, cmp.head)
+            fresh = model_drift.snapshot(cmp, cmp.head)
+            parsed.update(fresh)
             if cmp.base is not None:
-                changed["structural"] = model_drift.drifted(
-                    model_drift.snapshot(cmp, cmp.base), parsed[STRUCTURAL_FILE]
-                )
+                changed = model_drift.drifted(model_drift.snapshot(cmp, cmp.base), fresh)
         except model_drift.SnapshotFailed as exc:
             note = str(exc)
         models = models_from_dicts(parsed, f"{repository} @ {cmp.head[:7]}")

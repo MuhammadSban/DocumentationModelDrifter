@@ -9,6 +9,7 @@ from pathlib import Path
 
 # names the files the generators write into a repository's /models folder
 STRUCTURAL_FILE = "structural.json"
+BEHAVIORAL_FILE = "behavioral.json"
 OWNERSHIP_FILE = "ownership.json"
 SCOPE_FILE = "scope.json"
 
@@ -50,6 +51,39 @@ class StructuralModel:
 
 
 @dataclass(frozen=True)
+class State:
+    # one value a variable takes inside one machine (base/behavioral.md). A machine groups states
+    # by the class or function they live in, so one machine may hold several variables.
+    id: str
+    kind: str
+    file: str
+    machine: str
+    variable: str
+    value: str
+
+
+@dataclass(frozen=True)
+class Transition:
+    # one function or method moving a variable from one value to another. The guard is always
+    # the source state restated, so the trigger is what an arrow carries that its ends do not.
+    id: str
+    kind: str
+    file: str
+    source: str
+    target: str
+    trigger: str
+    guard: str
+
+
+@dataclass(frozen=True)
+class BehavioralModel:
+    # one behavioral model, states and transitions kept in the file's order (sorted by id)
+    schema_version: int
+    states: tuple[State, ...]
+    transitions: tuple[Transition, ...]
+
+
+@dataclass(frozen=True)
 class OwnershipRule:
     # one path pattern's owners by git author email; a path no rule matches is open to anyone,
     # and the rules are tried in order, so the first match wins (spec 3.2)
@@ -78,6 +112,7 @@ class Models:
     # to the reader rather than read back.
     source: str
     structural: StructuralModel | None
+    behavioral: BehavioralModel | None
     ownership: OwnershipModel | None
     scope: Scope | None
 
@@ -87,11 +122,13 @@ def load_models(models_dir: str | Path) -> Models:
     # but malformed raises ModelLoadError rather than loading as empty
     folder = Path(models_dir)
     structural_file = folder / STRUCTURAL_FILE
+    behavioral_file = folder / BEHAVIORAL_FILE
     ownership_file = folder / OWNERSHIP_FILE
     scope_file = folder / SCOPE_FILE
     return Models(
         source=str(folder),
         structural=load_structural(structural_file) if structural_file.is_file() else None,
+        behavioral=load_behavioral(behavioral_file) if behavioral_file.is_file() else None,
         ownership=load_ownership(ownership_file) if ownership_file.is_file() else None,
         scope=load_scope(scope_file) if scope_file.is_file() else None,
     )
@@ -104,6 +141,8 @@ def models_from_dicts(parsed: dict[str, dict], source: str) -> Models:
         source=source,
         structural=structural_from_dict(parsed[STRUCTURAL_FILE], STRUCTURAL_FILE)
         if STRUCTURAL_FILE in parsed else None,
+        behavioral=behavioral_from_dict(parsed[BEHAVIORAL_FILE], BEHAVIORAL_FILE)
+        if BEHAVIORAL_FILE in parsed else None,
         ownership=ownership_from_dict(parsed[OWNERSHIP_FILE], OWNERSHIP_FILE)
         if OWNERSHIP_FILE in parsed else None,
         scope=scope_from_dict(parsed[SCOPE_FILE], SCOPE_FILE) if SCOPE_FILE in parsed else None,
@@ -113,6 +152,11 @@ def models_from_dicts(parsed: dict[str, dict], source: str) -> Models:
 def load_structural(path: str | Path) -> StructuralModel:
     # reads one structural.json, as base/structure.md defines it
     return structural_from_dict(_read(path), path)
+
+
+def load_behavioral(path: str | Path) -> BehavioralModel:
+    # reads one behavioral.json, as base/behavioral.md defines it
+    return behavioral_from_dict(_read(path), path)
 
 
 def load_ownership(path: str | Path) -> OwnershipModel:
@@ -131,6 +175,15 @@ def structural_from_dict(data: dict, label: str | Path) -> StructuralModel:
         schema_version=_field(data, "schema_version", label),
         nodes=tuple(_node(entry, label) for entry in _field(data, "nodes", label)),
         edges=tuple(_edge(entry, label) for entry in _field(data, "edges", label)),
+    )
+
+
+def behavioral_from_dict(data: dict, label: str | Path) -> BehavioralModel:
+    # builds one behavioral model, label naming the source in any error
+    return BehavioralModel(
+        schema_version=_field(data, "schema_version", label),
+        states=tuple(_state(entry, label) for entry in _field(data, "states", label)),
+        transitions=tuple(_transition(entry, label) for entry in _field(data, "transitions", label)),
     )
 
 
@@ -188,6 +241,31 @@ def _edge(entry: dict, path: str | Path) -> Edge:
         source=_field(entry, "source", path),
         target=_field(entry, "target", path),
         file=_field(entry, "file", path),
+    )
+
+
+def _state(entry: dict, path: str | Path) -> State:
+    # builds one state
+    return State(
+        id=_field(entry, "id", path),
+        kind=_field(entry, "kind", path),
+        file=_field(entry, "file", path),
+        machine=_field(entry, "machine", path),
+        variable=_field(entry, "variable", path),
+        value=_field(entry, "value", path),
+    )
+
+
+def _transition(entry: dict, path: str | Path) -> Transition:
+    # builds one transition
+    return Transition(
+        id=_field(entry, "id", path),
+        kind=_field(entry, "kind", path),
+        file=_field(entry, "file", path),
+        source=_field(entry, "source", path),
+        target=_field(entry, "target", path),
+        trigger=_field(entry, "trigger", path),
+        guard=_field(entry, "guard", path),
     )
 
 
