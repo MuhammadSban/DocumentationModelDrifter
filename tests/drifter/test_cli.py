@@ -1,6 +1,6 @@
 # checks drifter check on a local checkout: the four-field answer as canonical JSON, exit 0 on
-# no drift and 1 on drift, and the diff by id through a fake generator (issue #14); no verdict
-# (#15); ownership violations on scripted-author repos (#16)
+# no drift and 1 on drift, and the diff by id through a fake generator (issue #14); ownership
+# violations on scripted-author repos (#16)
 
 import json
 import subprocess
@@ -35,9 +35,14 @@ def _repo(path, files, behavioral=None, ownership=NO_RULES):
     return path
 
 
+def _git(path, author):
+    # builds a git command prefix that acts as one scripted author
+    return ["git", "-C", str(path), "-c", f"user.email={author}", "-c", f"user.name={author.split('@')[0]}"]
+
+
 def _commit(path, message, author="ana@x.com"):
     # commits everything in the work tree as one scripted author
-    git = ["git", "-C", str(path), "-c", f"user.email={author}", "-c", f"user.name={author.split('@')[0]}"]
+    git = _git(path, author)
     subprocess.run([*git, "add", "-A"], check=True)
     subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", message], check=True)
 
@@ -317,10 +322,10 @@ def _append(repo, name, line):
         f.write(f"{line}\n")
 
 
-def _edit(repo, name, author, message="edit"):
+def _edit(repo, name, author, line="edit"):
     # appends a line to one file and commits it as author, returning the new commit's sha
-    _append(repo, name, message)
-    _commit(repo, message, author)
+    _append(repo, name, line)
+    _commit(repo, "edit", author)
     return _sha(repo)
 
 
@@ -359,9 +364,9 @@ def test_an_owners_commit_is_no_violation(tmp_path, monkeypatch, capsysbinary):
 
 
 def test_a_merge_commit_is_not_judged(tmp_path, monkeypatch, capsysbinary):
-    # zed merges a side branch into main; only the side branch's own commit is judged
+    # judges only the side branch's own commit, not zed's merge of it into main
     repo = _owned(tmp_path, ("docs/**", ["bea@x.com"]))
-    git = ["git", "-C", str(repo), "-c", "user.email=zed@x.com", "-c", "user.name=zed"]
+    git = _git(repo, "zed@x.com")
     subprocess.run([*git, "checkout", "-q", "-b", "side"], check=True)
     side = _edit(repo, "docs/side.md", "zed@x.com")
     subprocess.run([*git, "checkout", "-q", "main"], check=True)
@@ -374,7 +379,7 @@ def test_a_merge_commit_is_not_judged(tmp_path, monkeypatch, capsysbinary):
 
 
 def test_a_rename_is_judged_under_its_old_path_only(tmp_path, monkeypatch, capsysbinary):
-    # both names are owned by bea, yet zed's rename is one violation, under the old name
+    # gives one violation under the old name only, though bea owns both names
     repo = _owned(tmp_path, ("docs/old.md", ["bea@x.com"]), ("docs/new.md", ["bea@x.com"]))
     _edit(repo, "docs/old.md", "bea@x.com", "a line long enough for git to see the same file after the move")
     subprocess.run(["git", "-C", str(repo), "mv", "docs/old.md", "docs/new.md"], check=True)
@@ -393,7 +398,7 @@ def test_a_path_with_no_rule_is_open_to_anyone(tmp_path, monkeypatch, capsysbina
 
 
 def test_of_two_matching_rules_the_first_wins(tmp_path, monkeypatch, capsysbinary):
-    # zed owns docs/a.md by the second rule, but the first rule, bea's, is the one that counts
+    # applies bea's first rule, so zed's ownership by the second rule never counts
     repo = _owned(tmp_path, ("docs/**", ["bea@x.com"]), ("docs/a.md", ["zed@x.com"]))
     _edit(repo, "docs/a.md", "zed@x.com")
 
@@ -410,7 +415,7 @@ def test_a_mixed_case_author_matches_a_lowercase_owner(tmp_path, monkeypatch, ca
 
 
 def test_violations_sort_by_commit_then_path_and_ignore_scope(tmp_path, monkeypatch, capsysbinary):
-    # tests/ is excluded and docs/ never included by scope.json, yet both are judged
+    # judges tests/ and docs/ though scope.json excludes the one and never includes the other
     repo = _owned(tmp_path, ("**", ["cal@x.com", "bea@x.com"]))
     base = _sha(repo)
     for message in ("one", "two"):
@@ -439,8 +444,7 @@ def test_the_default_base_judges_the_head_commit_only(tmp_path, monkeypatch, cap
 
 
 def test_a_root_commit_judges_only_itself(tmp_path, monkeypatch, capsysbinary):
-    # ana's first commit adds src/app.py, which the committed rules give to bea; zed's later
-    # commit is not judged when the root is checked
+    # judges ana's root commit, which adds bea's src/app.py, and not zed's later commit
     repo = _owned(tmp_path, ("src/app.py", ["bea@x.com"]), ("docs/**", ["bea@x.com"]))
     root = _sha(repo)
     _edit(repo, "docs/a.md", "zed@x.com")
