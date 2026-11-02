@@ -22,6 +22,7 @@ from GitHub_Connector.schemas import (
     DriftErrorBody,
     ErrorBody,
     ErrorCode,
+    GenerateResult,
     Skipped,
     Status,
 )
@@ -118,6 +119,21 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
     except OSError as exc:
         raise AnalysisError(ErrorCode.STORAGE_FAILED, "The run file could not be saved") from exc
     return result
+
+
+def generate(request: AnalysisRequest) -> GenerateResult:
+    # builds the four /models files at the commit on a fresh clone, as drifter init would; a
+    # no-verdict code such as PARSE_FAILED becomes ANALYSIS_FAILED, the route's only 500
+    validate(request)
+    with slot():
+        deadline = time.monotonic() + get_settings().analysis_deadline
+        with fetch(request.repository, request.commit_id, request.base_commit, deadline) as cmp:
+            try:
+                files = check.generate_models(cmp)
+            except check.DriftError as exc:
+                raise AnalysisError(ErrorCode.ANALYSIS_FAILED, f"{exc.code}: {exc.message}") from None
+            return GenerateResult(repository=request.repository, head_commit=cmp.head,
+                                  tool_version=build_label(), files=files)
 
 
 def _drift(cmp) -> tuple[Drift | None, DriftErrorBody | None]:

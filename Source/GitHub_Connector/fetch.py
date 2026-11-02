@@ -127,6 +127,10 @@ class Comparison:
         span = f"{self.base}..{self.head}" if self.base else self.head
         return self._git.out(*LOG_ARGS, span)
 
+    def history(self) -> str:
+        # returns every commit reachable from head, for proposing ownership as drifter init does
+        return self._git.out(*LOG_ARGS, self.head)
+
 
 def _lines(values: list[str]) -> bytes:
     # feeds one value per line to a git command that reads its input

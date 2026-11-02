@@ -147,6 +147,14 @@ class AnalysisResult(BaseModel):
     drift_error: DriftErrorBody | None = None
 
 
+class GenerateResult(BaseModel):
+    # holds the four /models files' exact text at a commit, as drifter init writes them; never saved
+    repository: str
+    head_commit: str
+    tool_version: str
+    files: dict[str, str]
+
+
 class AnalysisError(Exception):
     # signals a failed analysis, the route maps code to an HTTP status
 
