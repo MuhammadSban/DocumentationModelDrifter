@@ -10,13 +10,14 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from GitHub_Connector import course, rules, runs
 from Tester import api as tester
-from GitHub_Connector.analysis import analyze
+from GitHub_Connector.analysis import analyze, generate
 from GitHub_Connector.schemas import (
     AnalysisError,
     AnalysisRequest,
     AnalysisResult,
     ErrorBody,
     ErrorCode,
+    GenerateResult,
 )
 from GitHub_Connector.settings import build_label
 
@@ -90,6 +91,12 @@ def _describe(error: dict) -> str:
 def post_analyze(request: AnalysisRequest) -> Response:
     # runs one analysis and returns the bytes that were saved
     return _json(runs.dump(analyze(request)))
+
+
+@router.post("/generate", response_model=GenerateResult, responses=_ERRORS)
+def post_generate(request: AnalysisRequest) -> GenerateResult:
+    # returns the four /models files as drifter init would write them, saving nothing
+    return generate(request)
 
 
 @router.get("/analysis/{analysis_id:path}", response_model=AnalysisResult, responses={404: {}})
