@@ -125,6 +125,26 @@ def test_drift_written_canonically_is_byte_identical_to_drifter_check(repo, caps
     assert [v["author"] for v in body["drift"]["ownership"]] == ["bob@x.com"]
 
 
+def test_a_new_elif_state_gives_the_same_behavioral_drift_as_drifter_check(repo, capsysbinary):
+    work, publish = repo
+    machine = "class Order:\n    def advance(self):\n        if self.status == 'open':\n            self.status = 'paid'\n"
+    first = _commit(work, {"src/order.py": machine})
+    assert cli.main(["init", first, "--repo", str(work)]) == 0
+    _commit(work, {})
+    head = _commit(work, {"src/order.py": machine + (
+        "        elif self.status == 'paid':\n            self.status = 'shipped'\n")})
+    publish()
+    capsysbinary.readouterr()
+
+    body = _analyze(head).json()
+
+    out = _cli_check(work, head, capsysbinary)
+    assert write_model(body["drift"]).encode("utf-8") == out
+    assert [(d["change"], d["kind"]) for d in body["drift"]["behavioral"]] == [
+        ("ADDED", "state"), ("ADDED", "transition")]
+    assert (body["drift"]["structural"], body["drift"]["ownership"]) == ([], [])
+
+
 def test_over_the_change_limit_drift_still_equals_drifter_check(repo, monkeypatch, capsysbinary):
     work, publish = repo
     head = _drifted(work)

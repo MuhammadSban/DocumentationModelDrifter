@@ -9,8 +9,13 @@
 - `app.css` — the design both pages share. The console links it; the viewer inlines it, so a saved page needs nothing beside it.
 
 The console's **models** tab frames `GET /models/view?repository=…&commit_id=…`, which regenerates
-the structural model at that commit, shows the repository's own `ownership.json` beside it, and
-marks drift against the commit before. A whole page in a frame, not markup injected into the
+the structural model at that commit, shows ownership beside it, and marks drift against the commit
+before.
+
+Ownership comes from the repository's own `models/ownership.json` where it has one. Where it has
+none — which is most repositories — it is mined from history instead, the way `drifter init`
+proposes the first one, and the panel says on its face that it is a proposal rather than ownership
+the repository has declared. A committed file always wins over a mining. A whole page in a frame, not markup injected into the
 console: the console styles `.dot`, `.row` and `.sub` for its watchlist rows, which are the classes
 the ownership map draws itself with.
 

@@ -12,7 +12,11 @@ from drifter import cli
 from GitHub_Connector import api
 from GitHub_Connector.settings import get_settings
 
-CODE = {"src/app.py": "def charge(amount):\n    return amount\n", "tests/test_app.py": "def test_x():\n    pass\n"}
+CODE = {
+    "src/app.py": "def charge(amount):\n    return amount\n",
+    "src/order.py": "class Order:\n    def pay(self):\n        if self.status == 'open':\n            self.status = 'paid'\n",
+    "tests/test_app.py": "def test_x():\n    pass\n",
+}
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "contract" / "pod-contract.openapi.yml"
 
 
@@ -58,6 +62,8 @@ def test_the_four_texts_equal_drifter_init_byte_for_byte(served):
     assert resp.status_code == 200
     written = {p.name: p.read_bytes() for p in (work / "models").iterdir()}
     assert {name: text.encode("utf-8") for name, text in resp.json()["files"].items()} == written
+    # pins a real behavioral model, so a placeholder on both sides cannot pass
+    assert '"paid"' in resp.json()["files"]["behavioral.json"]
 
 
 @pytest.mark.parametrize("body", [{"repository": "no-slash", "commit_id": "a" * 40}, {"repository": "owner/repo"}])
