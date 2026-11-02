@@ -216,9 +216,15 @@ def generate_models(reader: HistoryReader) -> dict[str, str]:
     # default scope, the regenerated models and ownership proposed from all history (spec 3.2)
     files = _read_files(reader, in_scope(sorted(reader.tree()), DEFAULT_SCOPE))
     models = _regenerate(files)
-    models["ownership.json"] = propose_ownership(reader.head, _parse_history(reader.history()))
+    models["ownership.json"] = proposed_ownership(reader)
     models["scope.json"] = DEFAULT_SCOPE
     return {name: write_model(models[name]) for name in MODEL_FILES}
+
+
+def proposed_ownership(reader: HistoryReader) -> dict:
+    # proposes ownership from all of history, for a caller that wants that one model: drifter init
+    # writing the first /models, or a page showing a repository that has committed none
+    return propose_ownership(reader.head, _parse_history(reader.history()))
 
 
 def regenerate_models(reader: Reader) -> dict[str, str]:

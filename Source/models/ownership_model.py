@@ -16,6 +16,12 @@ CHANGE_TYPES = frozenset({"ADDED", "MODIFIED", "DELETED", "RENAMED", "COPIED", "
 # names a bot in an author email, as GitHub writes dependabot[bot]@users.noreply.github.com
 BOT_MARK = "[bot]"
 
+# automation that commits under its own address, which carries no [bot] marker for the rule above
+# to find. Matched whole and never by domain: a person committing from anthropic.com or openai.com
+# wrote their code and owns it. The Codex CLI writes no address of its own, so the OpenAI entry is
+# for the third-party tooling that writes one on its behalf.
+BOTS = ("noreply@anthropic.com", "noreply@openai.com")
+
 # proposal defaults, which a person then corrects by hand like a CODEOWNERS file
 WINDOW = 10  # commits per path that name its owners, so a departed author does not own it forever (spec 3.2)
 MAX_FILES = 50  # a commit touching more is a sweep and names no owner
@@ -86,7 +92,7 @@ def propose_ownership(
     *,
     window: int = WINDOW,
     max_files: int = MAX_FILES,
-    bots: tuple[str, ...] = (),
+    bots: tuple[str, ...] = BOTS,
     skip: tuple[str, ...] = SKIP,
 ) -> dict:
     # mines history into one rule per file: the path, and every author who changed it recently.
