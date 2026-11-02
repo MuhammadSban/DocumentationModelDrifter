@@ -239,6 +239,11 @@ def test_one_missing_model_file_is_models_not_found(tmp_path, monkeypatch, capsy
 
 ELEMENT = {"file": "src/app.py", "id": "A", "kind": "state"}
 
+# passes the element rule but breaks structural.schema.json: an edge kind structure.md does not have
+STRUCTURAL = generate_structural(CODE)
+UNKNOWN_EDGE = {**STRUCTURAL, "edges": [{"file": "src/app.py", "id": "calls:app->app", "kind": "calls",
+                                         "source": "app", "target": "app"}]}
+
 
 @pytest.mark.parametrize(
     "name, text",
@@ -255,6 +260,9 @@ ELEMENT = {"file": "src/app.py", "id": "A", "kind": "state"}
         pytest.param("ownership.json", write_model({"rules": ["src/**"]}), id="rule-not-object"),
         pytest.param("ownership.json", write_model({"rules": [{"pattern": "src/**"}]}), id="rule-without-owners"),
         pytest.param("ownership.json", write_model({"rules": [{"owners": ["ana@x.com"]}]}), id="rule-without-pattern"),
+        pytest.param("structural.json", write_model(UNKNOWN_EDGE), id="structural-schema-unknown-edge-kind"),
+        pytest.param("structural.json", write_model({**STRUCTURAL, "schema_version": 2}), id="structural-schema-version"),
+        pytest.param("structural.json", write_model({**STRUCTURAL, "calls": []}), id="structural-schema-unknown-key"),
     ],
 )
 def test_a_bad_model_file_is_invalid_models_naming_it(tmp_path, monkeypatch, capsysbinary, name, text):
@@ -619,3 +627,11 @@ def test_update_replaces_a_broken_structural_model(tmp_path, monkeypatch, capsys
 
     assert code == 0
     assert (repo / "models" / "structural.json").read_bytes() == write_model(generate_structural(CODE)).encode()
+
+
+def test_the_package_installs_the_schema_validator_and_ships_the_schemas():
+    # pins what pip install -e . gives the CLI, so it validates as the service does
+    pyproject = tomllib.loads((Path(__file__).resolve().parents[2] / "pyproject.toml").read_text())
+
+    assert "jsonschema" in pyproject["project"]["dependencies"]
+    assert "*.schema.json" in pyproject["tool"]["setuptools"]["package-data"]["models"]

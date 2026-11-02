@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "structural.json, schema_version 1 (docs/base/structure.md)",
+  "type": "object",
+  "required": ["edges", "nodes", "schema_version"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 1},
+    "nodes": {
+      "type": "array",
+      "items": {"oneOf": [{"$ref": "#/$defs/plainNode"}, {"$ref": "#/$defs/functionNode"}]}
+    },
+    "edges": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/edge"}
+    }
+  },
+  "$defs": {
+    "plainNode": {
+      "type": "object",
+      "required": ["file", "id", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {"type": "string"},
+        "id": {"type": "string"},
+        "kind": {"enum": ["class", "module"]}
+      }
+    },
+    "functionNode": {
+      "type": "object",
+      "required": ["async", "decorators", "file", "id", "kind", "params"],
+      "additionalProperties": false,
+      "properties": {
+        "async": {"type": "boolean"},
+        "decorators": {"type": "array", "items": {"type": "string"}},
+        "file": {"type": "string"},
+        "id": {"type": "string"},
+        "kind": {"enum": ["function", "method"]},
+        "params": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "required": ["file", "id", "kind", "source", "target"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {"type": "string"},
+        "id": {"type": "string"},
+        "kind": {"enum": ["imports", "inherits"]},
+        "source": {"type": "string"},
+        "target": {"type": "string"}
+      }
+    }
+  }
+}

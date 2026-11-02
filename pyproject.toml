@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 name = "drifter"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["jsonschema"]
 
 [project.scripts]
 drifter = "drifter.cli:main"
@@ -16,3 +16,7 @@ drifter = "drifter.cli:main"
 [tool.setuptools]
 package-dir = {"" = "Source"}
 packages = ["drifter", "models"]
+
+# ships each owner's <name>.schema.json beside its generator
+[tool.setuptools.package-data]
+models = ["*.schema.json"]

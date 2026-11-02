@@ -111,6 +111,19 @@ def test_a_commit_without_models_is_200_success_with_models_not_found(repo):
     assert (body["status"], body["drift"], body["drift_error"]["code"]) == ("SUCCESS", None, "MODELS_NOT_FOUND")
 
 
+def test_a_structural_model_breaking_its_schema_is_200_success_with_invalid_models(repo):
+    work, publish = repo
+    unknown_edge = {**generate_structural(CODE), "edges": [
+        {"file": "src/app.py", "id": "calls:app->app", "kind": "calls", "source": "app", "target": "app"}]}
+    head = _commit(work, {**CODE, **_models(CODE), "models/structural.json": write_model(unknown_edge)})
+    publish()
+
+    body = _analyze(head).json()
+
+    assert (body["status"], body["drift"], body["drift_error"]["code"]) == ("SUCCESS", None, "INVALID_MODELS")
+    assert "models/structural.json" in body["drift_error"]["message"]
+
+
 def test_drift_written_canonically_is_byte_identical_to_drifter_check(repo, capsysbinary):
     work, publish = repo
     head = _drifted(work)

@@ -15,8 +15,11 @@ from __future__ import annotations
 import json
 import subprocess
 from dataclasses import dataclass
+from importlib import resources
 from pathlib import Path
 from typing import Callable, Protocol
+
+import jsonschema  # type: ignore[import-untyped]
 
 from models.common import ParseFailed, glob, parse_files, write_model
 from models.behavioral_model import generate_behavioral
@@ -176,6 +179,8 @@ def read_sources(reader: Reader) -> Sources:
         raise DriftError("MODELS_NOT_FOUND", f"models/{missing[0]} is missing at {reader.head}")
     committed = reader.read([f"models/{name}" for name in MODEL_FILES])
     models = {name: _model(f"models/{name}", committed[f"models/{name}"]) for name in MODEL_FILES}
+    for name in MODEL_FILES:
+        _schema_rule(name, models[name])
     for name in ("behavioral.json", "structural.json"):
         _element_rule(f"models/{name}", models[name])
     _scope_rule(models["scope.json"])
@@ -314,6 +319,19 @@ def _element_rule(path: str, model: object) -> None:
             if element["id"] in seen:
                 raise DriftError("INVALID_MODELS", f"{path} repeats the id {element['id']}")
             seen.add(element["id"])
+
+
+def _schema_rule(name: str, model: object) -> None:
+    # rejects a model that breaks the owner's <name>.schema.json beside its generator; a model
+    # whose owner has written no schema yet is left to the hand-written rules (model-seam.md)
+    schema = resources.files("models") / name.replace(".json", ".schema.json")
+    if not schema.is_file():
+        return
+    validator = jsonschema.Draft202012Validator(json.loads(schema.read_text("utf-8")))
+    error = jsonschema.exceptions.best_match(validator.iter_errors(model))
+    if error is not None:
+        where = "/".join(str(p) for p in error.absolute_path) or "top level"
+        raise DriftError("INVALID_MODELS", f"models/{name} breaks its schema at {where}: {error.message}")
 
 
 def _scope_rule(scope: object) -> None:
