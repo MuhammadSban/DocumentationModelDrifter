@@ -68,8 +68,26 @@ header {
 .ctl select { font:400 11px var(--font-mono); color:inherit; cursor:pointer; }
 .ctl select option { background:var(--bg-panel); }
 
+/* ---------- view tabs ---------- */
+.tabs { display:flex; gap:2px; flex-shrink:0; }
+.tab {
+  height:28px; padding:0 11px; border:none; border-radius:7px; background:none;
+  font:400 11px var(--font-mono); color:var(--fg-muted); cursor:pointer;
+  touch-action:manipulation; transition-property:background-color,color;
+  transition-duration:120ms; transition-timing-function:var(--ease);
+}
+@media (hover:hover) { .tab:hover { color:var(--fg-default); background:var(--bg-raised); } }
+.tab[aria-selected="true"] { color:var(--fg-on-accent); background:var(--accent); }
+.tab:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+
 /* ---------- layout ---------- */
 .split { display:flex; height:calc(100vh - 48px); }
+.split[hidden] { display:none; }
+/* the models are framed, not injected: this console styles .dot, .row and .sub for its watchlist
+   rows, which are the classes the ownership map draws itself with */
+#models { width:100%; height:calc(100vh - 48px); border:none; display:block; background:var(--bg-canvas); }
+#modelsempty { height:calc(100vh - 48px); display:grid; place-items:center; }
+#models[hidden], #modelsempty[hidden] { display:none; }
 aside { width:320px; flex-shrink:0; background:var(--bg-panel); border-right:1px solid var(--border-default); display:flex; flex-direction:column; }
 main { flex:1; min-width:0; overflow-y:auto; }
 
@@ -187,6 +205,10 @@ footer.meta .sel { user-select:all; }
 
 <header>
   <div class="brand"><b>DRIFTER</b><span id="ver">v1.1.0</span></div>
+  <nav class="tabs" role="tablist" aria-label="View">
+    <button class="tab" id="tab-watch" role="tab" aria-selected="true">watchlist</button>
+    <button class="tab" id="tab-models" role="tab" aria-selected="false">models</button>
+  </nav>
   <div class="apiwrap">
     <label class="label" for="api">API</label>
     <input id="api" type="text" spellcheck="false" aria-label="API base URL">
@@ -230,6 +252,9 @@ footer.meta .sel { user-select:all; }
   </aside>
   <main id="detail"></main>
 </div>
+
+<iframe id="models" title="Models of the selected repository" hidden></iframe>
+<div id="modelsempty" hidden><div class="empty"><p>Pick a repository on the <b>watchlist</b> tab to see its models.</p></div></div>
 
 <script>
 "use strict";
@@ -638,7 +663,35 @@ function renderHeader() {
   $("#api").classList.toggle("cross", !!cross);
 }
 
-function render() { renderHeader(); renderList(); renderDetail(); }
+function render() { renderHeader(); renderList(); renderDetail(); renderModels(); }
+
+/* =========================================================
+   VIEWS — the watchlist, and the models of the selected repository
+   ========================================================= */
+let view = "watch";
+
+function setView(next) {
+  view = next;
+  $("#tab-watch").setAttribute("aria-selected", String(view === "watch"));
+  $("#tab-models").setAttribute("aria-selected", String(view === "models"));
+  $(".split").hidden = view !== "watch";
+  renderModels();
+}
+
+/* points the frame at the selected repository's models. The server regenerates the structural
+   model from the code at that commit and marks drift against the commit before it, so this
+   view costs one clone per repository looked at. */
+function renderModels() {
+  const frame = $("#models");
+  const r = repos.find(x => x.repo === selected);
+  const show = view === "models" && !!r;
+  frame.hidden = !show;
+  $("#modelsempty").hidden = view !== "models" || !!r;
+  if (!show) { frame.removeAttribute("src"); return; }
+  const want = api("/models/view?repository=" + encodeURIComponent(r.repo) +
+                   "&commit_id=" + encodeURIComponent(r.base));
+  if (frame.getAttribute("src") !== want) frame.setAttribute("src", want);
+}
 
 /* =========================================================
    DEMO DATA — every state on screen at once, for design review
@@ -716,6 +769,8 @@ $("#interval").onchange = () => { schedule(); save(); };
 $("#interval").onclick = e => e.stopPropagation();
 $("#pause").onclick = () => { paused = !paused; save(); renderHeader(); };
 $("#poll").onclick = () => { if (!paused) sweep(); };
+$("#tab-watch").onclick = () => setView("watch");
+$("#tab-models").onclick = () => setView("models");
 
 $("#rows").onkeydown = e => {
   if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Enter") return;
