@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ownership.json, schema_version 1 (docs/base/specifications.md 3.2)",
+  "type": "object",
+  "required": ["rules", "schema_version"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 1},
+    "rules": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/rule"}
+    }
+  },
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "required": ["owners", "pattern"],
+      "additionalProperties": false,
+      "properties": {
+        "owners": {"type": "array", "items": {"type": "string"}},
+        "pattern": {"type": "string"}
+      }
+    }
+  }
+}

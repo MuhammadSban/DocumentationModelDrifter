@@ -125,6 +125,18 @@ def test_a_structural_model_breaking_its_schema_is_200_success_with_invalid_mode
     assert "models/structural.json" in body["drift_error"]["message"]
 
 
+def test_an_ownership_model_breaking_its_schema_is_200_success_with_invalid_models(repo):
+    work, publish = repo
+    unknown_key = {**OWNED, "default": ["ana@x.com"]}
+    head = _commit(work, {**CODE, **_models(CODE), "models/ownership.json": write_model(unknown_key)})
+    publish()
+
+    body = _analyze(head).json()
+
+    assert (body["status"], body["drift"], body["drift_error"]["code"]) == ("SUCCESS", None, "INVALID_MODELS")
+    assert "models/ownership.json" in body["drift_error"]["message"]
+
+
 def test_a_behavioral_model_breaking_its_schema_is_200_success_with_invalid_models(repo):
     work, publish = repo
     no_source = {**generate_behavioral(CODE), "transitions": [

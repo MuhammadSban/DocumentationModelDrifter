@@ -1,7 +1,15 @@
 # checks the ownership model against spec 3.2, docs/models/model-seam.md and docs/models/comparison.md
 
+import json
+from pathlib import Path
+
+import jsonschema
+import pytest
+
 from drifter.check import check_ownership
 from models.ownership_model import CommitRecord, PathTouch, propose_ownership
+
+SCHEMA = json.loads((Path(__file__).resolve().parents[2] / "Source" / "models" / "ownership.schema.json").read_text("utf-8"))
 
 
 def history(*commits):
@@ -17,6 +25,17 @@ def history(*commits):
 def rules(*pairs):
     # builds an ownership.json from (pattern, owners) pairs
     return {"rules": [{"owners": owners, "pattern": pattern} for pattern, owners in pairs], "schema_version": 1}
+
+
+@pytest.mark.parametrize(
+    "commits",
+    [
+        pytest.param([("a@x.com", ["models/scope.json"])], id="empty-rule-list"),
+        pytest.param([("Ana@x.com", ["src/app.py", "src/[x].py"]), ("bo@x.com", ["src/app.py"])], id="two-authors"),
+    ],
+)
+def test_what_init_proposes_validates_against_the_schema(commits):
+    jsonschema.validate(propose_ownership(*history(*commits)), SCHEMA)
 
 
 def test_rules_use_the_pattern_key():

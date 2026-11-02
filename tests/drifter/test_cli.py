@@ -247,6 +247,9 @@ STRUCTURAL = generate_structural(CODE)
 UNKNOWN_EDGE = {**STRUCTURAL, "edges": [{"file": "src/app.py", "id": "calls:app->app", "kind": "calls",
                                          "source": "app", "target": "app"}]}
 
+# passes the hand-written ownership rule; the cases below each break ownership.schema.json
+OWNED = {"rules": [{"owners": ["ana@x.com"], "pattern": "src/**"}], "schema_version": 1}
+
 # passes the element rule but breaks behavioral.schema.json: a transition without source
 BEHAVIORAL = generate_behavioral({"src/app.py": "def step(s):\n    if s == 'a':\n        s = 'b'\n"})
 NO_SOURCE = {**BEHAVIORAL, "transitions": [{k: v for k, v in t.items() if k != "source"}
@@ -275,6 +278,12 @@ NO_SOURCE = {**BEHAVIORAL, "transitions": [{k: v for k, v in t.items() if k != "
         pytest.param("behavioral.json", write_model(NO_SOURCE), id="behavioral-schema-transition-without-source"),
         pytest.param("behavioral.json", write_model({**BEHAVIORAL, "schema_version": 2}), id="behavioral-schema-version"),
         pytest.param("behavioral.json", write_model({**BEHAVIORAL, "events": []}), id="behavioral-schema-unknown-key"),
+        pytest.param("ownership.json", write_model({**OWNED, "default": ["ana@x.com"]}), id="ownership-schema-unknown-key"),
+        pytest.param("ownership.json", write_model({**OWNED, "rules": [{**OWNED["rules"][0], "reviewers": []}]}),
+                     id="ownership-schema-unknown-rule-key"),
+        pytest.param("ownership.json", write_model({**OWNED, "rules": [{**OWNED["rules"][0], "owners": [1]}]}),
+                     id="ownership-schema-owner-not-string"),
+        pytest.param("ownership.json", write_model({**OWNED, "schema_version": 2}), id="ownership-schema-version"),
     ],
 )
 def test_a_bad_model_file_is_invalid_models_naming_it(tmp_path, monkeypatch, capsysbinary, name, text):
