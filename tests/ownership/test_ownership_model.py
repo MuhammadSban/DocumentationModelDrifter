@@ -40,6 +40,35 @@ def test_only_the_root_models_folder_is_skipped():
     assert [r["pattern"] for r in propose_ownership(head, records)["rules"]] == ["src/models/order.py"]
 
 
+def test_automation_that_commits_under_its_own_address_owns_nothing():
+    # the [bot] marker misses these, so they are named whole in BOTS
+    head, records = history(
+        ("noreply@anthropic.com", ["src/app.py"]),
+        ("noreply@openai.com", ["src/app.py"]),
+        ("ana@x.com", ["src/app.py"]),
+    )
+    assert propose_ownership(head, records)["rules"][0]["owners"] == ["ana@x.com"]
+
+
+def test_a_file_only_automation_ever_touched_gets_no_rule():
+    head, records = history(("noreply@anthropic.com", ["src/generated.py"]))
+    assert propose_ownership(head, records)["rules"] == []
+
+
+def test_a_person_at_an_automations_domain_still_owns_their_code():
+    # BOTS is matched whole, so the domain alone never disowns a person
+    head, records = history(("ana@anthropic.com", ["src/app.py"]))
+    assert propose_ownership(head, records)["rules"][0]["owners"] == ["ana@anthropic.com"]
+
+
+def test_githubs_bot_marker_is_still_found_anywhere_in_the_address():
+    head, records = history(
+        ("dependabot[bot]@users.noreply.github.com", ["src/app.py"]),
+        ("ana@x.com", ["src/app.py"]),
+    )
+    assert propose_ownership(head, records)["rules"][0]["owners"] == ["ana@x.com"]
+
+
 def test_proposed_owners_are_lowercase():
     head, records = history(("Kaan@X.com", ["src/app.py"]))
     assert propose_ownership(head, records)["rules"][0]["owners"] == ["kaan@x.com"]
