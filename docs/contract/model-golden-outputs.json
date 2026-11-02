@@ -139,7 +139,7 @@
       "case": "L5",
       "request": {
         "repository": "kaan-kanadasi/doc-tracker-model-fixtures",
-        "commit_id": "f571d42b9a2523b9127e5d81c5c92e231d9ff4e3"
+        "commit_id": "4cb24a9407deb003fc19605e51ede8ea0f7b072c"
       },
       "expected": {
         "drift": {
@@ -155,7 +155,7 @@
       "case": "L6",
       "request": {
         "repository": "kaan-kanadasi/doc-tracker-model-fixtures",
-        "commit_id": "67306579311210a732111bbff129de4d3f559244"
+        "commit_id": "ecd599e93719c3aed79bbf197b66366f2829e869"
       },
       "expected": {
         "drift": {
@@ -165,11 +165,11 @@
             {
               "author": "visitor@fixture.example",
               "change": "VIOLATION",
-              "commit": "67306579311210a732111bbff129de4d3f559244",
+              "commit": "ecd599e93719c3aed79bbf197b66366f2829e869",
               "owners": [
                 "owner@fixture.example"
               ],
-              "path": "src/store.py"
+              "path": "src/orders.py"
             }
           ],
           "structural": []
@@ -181,7 +181,7 @@
       "case": "L7",
       "request": {
         "repository": "kaan-kanadasi/doc-tracker-model-fixtures",
-        "commit_id": "02d755adf25934c83cb47287065da533a6b4aa1f"
+        "commit_id": "d288268468df65602e9f4b348a95ff561ddd67bd"
       },
       "expected": {
         "drift": {

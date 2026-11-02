@@ -99,13 +99,14 @@ COMMITS = [
                                 '            self.status = "shipped"\n')},
      None),
     ("L5", "Add a function and update /models in the same commit", OWNER,
-     {"src/store.py": _replace("        return self.items.get(key)\n",
-                               "        return self.items.get(key)\n\n"
-                               "    def drop(self, key):\n"
-                               "        self.items.pop(key, None)\n")},
+     {"src/store.py": _replace("        self.items[order.order_id] = order\n",
+                               "        self.items[order.order_id] = order\n\n\n"
+                               "def new_store():\n"
+                               "    return OrderStore()\n")},
      "update"),
     ("L6", "Edit a comment in a file another author owns", VISITOR,
-     {"src/store.py": _replace('"""Keeps orders in memory."""', '"""Keeps orders in memory, by id."""')}, None),
+     {"src/orders.py": _replace("    # moves the order one step on\n", "    # moves the order one step on, never back\n")},
+     None),
     ("L7", "Remove an inherits edge from structural.json by hand", OWNER,
      {"models/structural.json": _drop_inherits}, None),
 ]
