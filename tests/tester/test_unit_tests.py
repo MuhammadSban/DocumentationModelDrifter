@@ -7,8 +7,9 @@ def test_group_reports_each_test():
     answer = run_group("common")
     assert answer["title"] == "Shared tests"
     assert len(answer["tests"]) >= 6
-    assert {t["outcome"] for t in answer["tests"]} == {"pass"}
-    assert all(t["name"].startswith("test_common::") for t in answer["tests"])
+    # allows skips, the seam test skips a schema check until its owner writes the schema
+    assert {t["outcome"] for t in answer["tests"]} <= {"pass", "skip"}
+    assert all(t["name"].startswith(("test_common::", "test_seam::")) for t in answer["tests"])
 
 
 def test_summary_has_no_color_codes(monkeypatch):
