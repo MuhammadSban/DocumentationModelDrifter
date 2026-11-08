@@ -26,7 +26,7 @@ The pod contract with Team 16. Both teams' registry rows link it. It follows Tea
 - `contract/pod-tester.openapi.yml` — the tester API and suite report, as the course fixes them. Read it before changing the tester's routes or report.
 - `contract/mapping-v1.1.yaml` — Team 16's shared classification rules, skip allowlist and code-to-doc mappings, copied unchanged. The system loads it at runtime.
 - `contract/golden-outputs.json` — Team 16's expected answers for the 10 cases on their fixture repository, copied unchanged. Testers compare against it for T-01 to T-21.
-- `contract/model-golden-outputs.json` — not yet written: the expected answers for the drift tests T-24 to T-33. `contract/pod-contract.md` §3 has the checklist for adding it.
+- `contract/model-golden-outputs.json` — the expected answers for the drift tests T-24 to T-33, one entry per case on `kaan-kanadasi/doc-tracker-model-fixtures`. `contract/pod-contract.md` §3 describes its layout and the checklist for changing it.
 
 ## diagrams/
 
