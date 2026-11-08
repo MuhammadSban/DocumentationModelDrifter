@@ -227,7 +227,7 @@ PARSE_FAILED, so generators may assume every file parses.
   - Question: What may happen, and in what order?
   - Contents: states and the transitions between them. The format, kinds, id scheme and mining
     rules are in docs/base/behavioral.md; where it disagrees with this file, this file wins. Its
-    JSON Schema is open (see [Q11](#q11-open-decisions)).
+    JSON Schema is Source/models/behavioral.schema.json.
   - Comparison: regenerate at the commit, then set difference by element id.
 - **Ownership**
   - Question: Who may change what?
@@ -712,11 +712,15 @@ Proposed 2026-10-31, agreed by Team 16 (recorded 2026-11-05).
   /system/analysis/{analysis_id}.
 - Prose documentation: out of scope; issues is always [] in this system's results.
 
+#### Settled in Team 15
+
+- The JSON Schemas of structural, behavioral and ownership: all three exist as
+  Source/models/<name>.schema.json, and every check validates the committed models against them
+  before comparing, so a model of the wrong shape gives INVALID_MODELS. The formats are in
+  docs/base/behavioral.md and docs/base/structure.md.
+
 #### To settle in Team 15
 
-- The JSON Schemas of structural, behavioral and ownership. Behavioral contents are closed:
-  docs/base/behavioral.md freezes the format as generate_behavioral writes it. Structural is
-  settled in docs/base/structure.md.
 - Whether scope.json names source roots besides src/ (structure.md drops only src/ from module
   ids). The pattern syntax itself is settled in 3.2.
 - The Annex XI claim (1.1): whether to keep the specific Annex XI items or only the general
