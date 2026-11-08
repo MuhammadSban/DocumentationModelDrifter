@@ -1530,7 +1530,7 @@ docs/*.md bob@example.com carol@example.com</textarea>
 
   /* ---------------- one check pipeline ---------------- */
   const STEPS = [
-    { k: "val", n: "Validate", d: "repository is a GitHub path, owner then repo name, such as MuhammadSban/doc-tracker-model-fixtures; commit_id and base_commit are 7 to 40 hex characters", h: true, e: "400 INVALID_REQUEST" },
+    { k: "val", n: "Validate", d: "repository is a GitHub path, owner then repo name, such as kaan-kanadasi/doc-tracker-model-fixtures; commit_id and base_commit are 7 to 40 hex characters", h: true, e: "400 INVALID_REQUEST" },
     { k: "slot", n: "Wait for a slot", d: "at most 2 checks at once; the 80 s deadline starts here", h: true },
     { k: "res", n: "Clone and resolve", d: "blobless clone; short SHA to full; base defaults to the first parent, null for a root commit", e: "404 REPOSITORY_NOT_FOUND, COMMIT_NOT_FOUND" },
     { k: "chg", n: "Change detection", d: "diff base..head, classify by mapping-v1.1.yaml, skipped and unmapped", h: true, e: "status ERROR: CHANGE_LIMIT_EXCEEDED (still 200)" },

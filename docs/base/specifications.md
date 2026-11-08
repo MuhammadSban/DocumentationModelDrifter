@@ -359,7 +359,7 @@ is this system's own and counts as AC-02.
 
 ### 4.2 Test data and expected outputs
 
-Team 15 builds one small, controlled Git repository, MuhammadSban/doc-tracker-model-fixtures, with
+Team 15 builds one small, controlled Git repository, kaan-kanadasi/doc-tracker-model-fixtures, with
 labelled commits and a manually defined expected verdict per model. Its expected answers are
 published in docs/contract/model-golden-outputs.json in two groups (contract section 3): L-pre's
 once the repository exists, L0 to L7's once the formats of all four model files are settled,

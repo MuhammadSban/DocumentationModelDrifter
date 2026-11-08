@@ -96,7 +96,7 @@ Spec: issue #12. Status as of 2026-11-01, after #13 closed and Muhammad's push o
 | `structural.schema.json` | Enrique | seam test passes; byte-identical on Linux and Windows |
 | Behavioral format, `generate_behavioral`, `behavioral.schema.json` | Barshan | own snippet goldens and the seam test pass; byte-identical on Linux and Windows. Generator, snippet goldens and seam test done and registered (#31), format in `docs/base/behavioral.md`; `behavioral.schema.json` done (#34): seam test and every snippet golden validate against it |
 | `propose_ownership(head_sha, records)` returning spec §3.2's rule list (done in PRs #7 and #9: `[bot]` emails, no `email:` prefix, `pattern` key, window 10, vendored folders, lowercase emails, renames under the old path; settings stay constants in the module); `ownership.schema.json` | Muhammad | own goldens pass; output validates against the schema. `ownership.schema.json` done (#35): what init proposes, an empty rule list included, validates against it |
-| Model fixture `MuhammadSban/doc-tracker-model-fixtures`, public, commits L-pre to L7 (spec §4.2) | Kaan | contract §3 checklist done |
+| Model fixture `kaan-kanadasi/doc-tracker-model-fixtures`, public, commits L-pre to L7 (spec §4.2) | Kaan | contract §3 checklist done |
 | `docs/contract/model-golden-outputs.json`, contract version bump | Kaan | Team 16 told; tester turns on T-24 to T-33 |
 | Full suite against our system | Enrique, Kaan | T-24 to T-33 pass |
 
