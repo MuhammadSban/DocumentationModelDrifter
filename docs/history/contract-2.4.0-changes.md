@@ -3,8 +3,8 @@
 Written 2026-10-31 for Teams 15 and 16. History, not instructions: the contract itself is
 `docs/contract/`, and where this file and the contract disagree, the contract wins.
 
-Contract 2.4.0 is proposed and waits for Team 16's agreement; Team 16 has agreed to no
-version yet (contract section 10). This file says what changed since 2.3.0, why, what it means for each
+Contract 2.4.0 was proposed on 2026-10-31; Team 16 agreed to it later (recorded
+2026-11-05, contract section 10). This file says what changed since 2.3.0, why, what it means for each
 team's system and tester, and what changed in Team 15's specification alongside it.
 
 ## The versions compared
@@ -13,7 +13,7 @@ team's system and tester, and what changed in Team 15's specification alongside 
 flowchart LR
     V11["Team 16 v1.1 package<br/>SPEC.md, openapi-system-v1.1.yaml,<br/>mapping, goldens<br/>proposed 2026-10-30"]
     C23["Pod contract 2.3.0<br/>Team 15 draft, not agreed<br/>2026-10-31"]
-    C24["Pod contract 2.4.0<br/>proposed 2026-10-31<br/>pending Team 16"]
+    C24["Pod contract 2.4.0<br/>proposed 2026-10-31<br/>agreed, recorded 2026-11-05"]
     V11 -->|"two deviations:<br/>no prose detector required,<br/>optional drift additions"| C23
     C23 -->|"this file"| C24
 ```
