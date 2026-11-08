@@ -25,9 +25,9 @@ stateDiagram-v2
 
     Checking --> Aligned: all 3 models match
     Checking --> Drifted: any model differs
-    Checking --> Failed: fetch or parse error
+    Checking --> Failed: fetch error, /models missing or invalid, a file over 1 MB, not UTF-8 or not valid Python
 
     Aligned --> Baselined: true, exit 0
     Failed --> Baselined: error, exit 2, no verdict, baseline kept
-    Drifted --> Checking: false, exit 1, a person pushes a code fix or updated /models
+    Drifted --> Checking: false, exit 1, a person pushes a code fix, or accepts the drift with drifter update and pushes /models
 ```

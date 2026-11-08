@@ -216,7 +216,7 @@ and skip on every system.
 - A full run makes about 45 calls, about 34 of which analyze a commit. Team 15 makes a fresh
   clone without file contents per check and downloads every needed file in one batch, which
   takes 1 to 3 s on the fixtures and keeps a run well inside 600 s; it keeps no clone between
-  checks (`docs/models/file-fetch.md`). Team 16 may want the same.
+  checks (`docs/diagrams/file-fetch.md`). Team 16 may want the same.
 
 ## 5. What changes for Team 15's code
 
@@ -229,7 +229,7 @@ Nothing in `Source/` implements 2.4.0 yet. `docs/base/phase4.md` lists the work;
 | System `/test/setup` | one active session: 409 for a new id until the last session's report is read, or for 720 s after its setup | A |
 | System deadline | stop a check at 80 s, so its 500 arrives before the tester's 90 s timeout; a third concurrent check waits within that deadline | A |
 | System `/analyze` | run the model check whatever `status` is; sort ownership violations by SHA then path, and owners, as strings | A, C |
-| System storage and fetch | a fresh clone without file contents per check, one batched file download (`docs/models/file-fetch.md`) | A |
+| System storage and fetch | a fresh clone without file contents per check, one batched file download (`docs/diagrams/file-fetch.md`) | A |
 | Tester runner | read `/health` once; one table of tests with a feature column; skip, `error` on a failed `/health`, stop at 570 s | B |
 | Tester T-17 | no `drift` comparison | B |
 | Tester T-22, T-23 | fixed skip messages | B |
@@ -251,7 +251,7 @@ Nothing in `Source/` implements 2.4.0 yet. `docs/base/phase4.md` lists the work;
 | §5.3 | T-18 to T-21 are skipped against this system: T-18, T-19 and T-21 no longer fail, and T-20 no longer passes without testing anything; drift repeatability is checked by Team 15's own tests, no longer by T-17 |
 | `docs/base/phase4.md` | step A adds `features`, an 80 s deadline, one active session and clone caching (done when a second `/analyze` on the same repository clones nothing); step B's runner reads `/health` and skips by feature; the test map shows skip instead of fail |
 | `docs/README.md` | the contract entry describes feature-based skips; diagram entries updated |
-| `docs/models/` | `cross-team-test.png` and `four-field-answer.png` show the `/health` read and feature skips; `models-folder.png` uses the structural kinds of `structure.md` |
+| `docs/diagrams/` | `cross-team-test.png` and `four-field-answer.png` show the `/health` read and feature skips; `models-folder.png` uses the structural kinds of `structure.md` |
 
 Unchanged: the requirements REQ-01 to REQ-07, the cases L-pre to L6 and what each expects,
 `GLOSSARY.md` and ADR 0001.

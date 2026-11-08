@@ -18,7 +18,7 @@ When the two disagree, this file is corrected first and the issue follows. For a
 team's tester or system sees (routes, JSON, tests), the pod contract in docs/contract/ wins over
 this file (Section 5). The course's docs/base/student-facing-spec.docx.pdf wins over both.
 
-Diagrams are in docs/models/, each as Mermaid in a Markdown file; docs/README.md maps them.
+Diagrams are in docs/diagrams/, each as Mermaid in a Markdown file; docs/README.md maps them.
 
 ## Q1 Common problem selection
 
@@ -291,7 +291,7 @@ describes anything at all is visible in /models itself, not in the answer.
 
 #### The system model
 
-The lifecycle of a repository under the tool, drawn in docs/models/behavioral-model.md: the tool
+The lifecycle of a repository under the tool, drawn in docs/diagrams/behavioral-model.md: the tool
 proposes the models once, a person commits them as the baseline, and every push then ends
 Aligned, Drifted or Failed.
 

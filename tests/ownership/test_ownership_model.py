@@ -1,4 +1,4 @@
-# checks the ownership model against spec 3.2, docs/models/model-seam.md and docs/models/comparison.md
+# checks the ownership model against spec 3.2, docs/diagrams/model-seam.md and docs/diagrams/comparison.md
 
 import json
 from pathlib import Path

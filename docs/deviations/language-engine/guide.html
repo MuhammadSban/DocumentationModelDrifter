@@ -1,0 +1,1207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Drifter Beyond Python</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Recursive:slnt,wght,CASL,CRSV,MONO@-15..0,300..1000,0..1,0..1,0..1&display=swap">
+<style>
+/* Design: "a language is a row of data". One family (Recursive): sans for prose, its MONO axis for code.
+   Indigo = the shared engine, red = TEMPORARY (as in the md diagrams), green = fail row, amber = skip row. */
+:root {
+  --bg: #eef1f1;
+  --surface: #ffffff;
+  --sunk: #e4e9ea;
+  --ink: #15222b;
+  --ink-2: #3d4b55;
+  --muted: #5f6d77;
+  --line: #d2dadd;
+  --accent: #3340c8;
+  --accent-soft: #e6e8fb;
+  --temp: #c62828;
+  --temp-soft: #fbe9e9;
+  --ok: #1d7a4c;
+  --ok-soft: #e0f1e7;
+  --warn: #9c5a00;
+  --warn-soft: #f7ecd8;
+  --mark-2: #86929a;      /* de-emphasised series */
+  --sans: "Recursive", "Segoe UI", system-ui, sans-serif;
+  --r: 4px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10161a; --surface: #172026; --sunk: #1f2a31; --ink: #e4eaee; --ink-2: #bcc7ce; --muted: #93a1ab; --line: #2b3841;
+    --accent: #7b84f2; --accent-soft: #232a52; --temp: #ff7373; --temp-soft: #3a1d1f;
+    --ok: #5fcf93; --ok-soft: #173226; --warn: #e7a94f; --warn-soft: #38291a; --mark-2: #66737d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10161a; --surface: #172026; --sunk: #1f2a31; --ink: #e4eaee; --ink-2: #bcc7ce; --muted: #93a1ab; --line: #2b3841;
+  --accent: #7b84f2; --accent-soft: #232a52; --temp: #ff7373; --temp-soft: #3a1d1f;
+  --ok: #5fcf93; --ok-soft: #173226; --warn: #e7a94f; --warn-soft: #38291a; --mark-2: #66737d;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 64px; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--sans); font-size: 16px; line-height: 1.6;
+  font-variation-settings: "CASL" 0, "MONO" 0;
+}
+[hidden] { display: none !important; }
+a { color: var(--accent); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, pre, .mono { font-family: var(--sans); font-variation-settings: "MONO" 1, "CASL" 0; font-size: 0.875em; }
+code { background: var(--sunk); padding: 0.05em 0.3em; border-radius: 3px; overflow-wrap: anywhere; }
+h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; }
+h1 { font-size: clamp(2.4rem, 6vw, 3.6rem); font-weight: 900; letter-spacing: -0.02em; font-variation-settings: "CASL" 0.6; }
+h2 { font-size: 1.875rem; font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 1.2rem; font-weight: 700; }
+p { margin: 0; }
+.wrap {
+  max-width: 1120px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.prose { max-width: 68ch; color: var(--ink-2); }
+.small { font-size: 0.875rem; color: var(--muted); }
+
+/* ---------- section bar ---------- */
+.bar { position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.bar .wrap { display: flex; gap: 4px 22px; align-items: center; padding-block: 10px; overflow-x: auto; }
+.bar .brand { font-weight: 800; white-space: nowrap; margin-right: auto; }
+.bar a { color: var(--muted); text-decoration: none; font-size: 0.9rem; white-space: nowrap; padding: 4px 0; border-bottom: 2px solid transparent; }
+.bar a:hover, .bar a.on { color: var(--ink); border-bottom-color: var(--accent); }
+
+/* ---------- hero ---------- */
+.hero .wrap { padding-block: 48px 40px; display: grid; gap: 22px; }
+.lede { font-size: 1.2rem; line-height: 1.5; max-width: 60ch; }
+.status { font-size: 0.9rem; color: var(--warn); border-left: 3px solid var(--warn); padding: 2px 0 2px 12px; max-width: 70ch; }
+
+.specimen { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr) minmax(0, 1fr); border: 1px solid var(--ink); border-radius: var(--r); background: var(--surface); margin-top: 8px; }
+.specimen > div { padding: 18px 20px; min-width: 0; display: grid; gap: 10px; align-content: start; }
+.specimen > div + div { border-left: 1px solid var(--line); }
+.specimen .fname { font-variation-settings: "MONO" 1; font-size: 0.85rem; color: var(--muted); }
+.specimen h3 { font-size: 1.05rem; }
+.specimen pre { margin: 0; white-space: pre-wrap; word-break: break-word; line-height: 1.7; font-size: 0.82rem; color: var(--ink); }
+.specimen .q-line { display: block; padding-left: 2ch; text-indent: -2ch; }
+.specimen .q-line + .q-line { margin-top: 4px; }
+.tk-f { color: var(--muted); }
+.tk-s { color: var(--ok); }
+.cap {
+  color: var(--accent); font-weight: 700; border-radius: 3px; cursor: default; padding: 0 1px;
+  text-decoration: underline dotted; text-underline-offset: 3px;
+}
+.cap.lit { background: var(--accent); color: var(--surface); text-decoration: none; }
+.vocab { display: grid; gap: 0; font-size: 0.875rem; }
+.vocab > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 10px; padding: 6px 8px; border-top: 1px solid var(--line); border-radius: 3px; }
+.vocab > div:first-child { border-top: 0; }
+.vocab .v-cap { font-variation-settings: "MONO" 1; font-size: 0.8rem; color: var(--accent); font-weight: 600; overflow-wrap: anywhere; }
+.vocab .v-out { color: var(--ink-2); }
+.vocab > div.unused { opacity: 0.55; }
+.vocab > div.lit { background: var(--accent-soft); }
+.spec-cap { font-size: 0.9rem; color: var(--muted); max-width: 80ch; }
+
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding-top: 6px; }
+.facts p { font-size: 0.95rem; color: var(--ink-2); border-top: 2px solid var(--ink); padding-top: 10px; }
+.facts b { display: block; font-size: 1.6rem; font-weight: 800; color: var(--ink); line-height: 1.2; margin-bottom: 2px; }
+
+/* ---------- sections ---------- */
+section.sec { padding-block: 56px; border-top: 1px solid var(--line); }
+section.sec > .wrap { display: grid; gap: 22px; }
+.sec-head { display: grid; gap: 8px; }
+.src { font-size: 0.85rem; color: var(--muted); }
+.src a { font-variation-settings: "MONO" 1; font-size: 0.8rem; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; min-width: 0; }
+.panel > h3 + * { margin-top: 10px; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.lead2 { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 18px; }
+
+/* ---------- steps ---------- */
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.step { appearance: none; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; padding: 0 14px 0 0; display: grid; gap: 6px; align-content: start; }
+.step .rail { display: flex; align-items: center; }
+.step .dot { width: 42px; height: 42px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 800; font-size: 1.25rem; border: 2px solid var(--line); background: var(--surface); color: var(--muted); }
+.step .line { height: 2px; background: var(--line); flex: 1; }
+.step:last-child .line { visibility: hidden; }
+.step .lbl { font-weight: 700; line-height: 1.3; }
+.step .sub { font-size: 0.85rem; color: var(--muted); }
+.step.done .dot { border-color: var(--accent); color: var(--accent); }
+.step.done .line { background: var(--accent); }
+.step.on .dot { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.step:hover .dot { border-color: var(--accent); }
+.step-body ul { margin: 10px 0 0; padding-left: 1.1em; display: grid; gap: 6px; color: var(--ink-2); }
+.gate { margin-top: 16px; border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; }
+.gate b { display: block; font-size: 0.9rem; }
+.hw { display: grid; gap: 8px; margin-top: 10px; }
+.hw-item { border: 1px solid var(--line); border-radius: var(--r); padding: 9px 12px; display: grid; gap: 2px; }
+.hw-item .f { font-variation-settings: "MONO" 1; font-size: 0.8rem; overflow-wrap: anywhere; }
+.hw-item .d { font-size: 0.85rem; color: var(--muted); }
+.hw-item .tag { font-size: 0.8rem; font-weight: 700; }
+.hw-item.temp { border: 2px solid var(--temp); background: var(--temp-soft); }
+.hw-item.temp .tag { color: var(--temp); }
+.hw-item.gone .f { text-decoration: line-through; color: var(--muted); }
+.hw-item.gone .tag { color: var(--ok); }
+.hw-item.changed .tag { color: var(--warn); }
+.hw-item.stays .tag { color: var(--muted); }
+
+figure { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }
+.hero .wrap, section.sec > .wrap, footer .wrap { grid-template-columns: minmax(0, 1fr); }
+.axis .ticks span { white-space: nowrap; }
+figcaption { font-size: 0.9rem; color: var(--muted); max-width: 80ch; }
+.svgbox { overflow-x: auto; }
+.svgbox svg { display: block; width: 100%; min-width: 720px; height: auto; }
+svg text { font-family: var(--sans); fill: var(--ink); }
+svg .t-main { font-size: 15px; font-weight: 700; }
+svg .t-sub { font-size: 13px; fill: var(--muted); }
+svg .t-code { font-size: 13px; fill: var(--muted); font-variation-settings: "MONO" 1; }
+svg .t-temp { font-size: 12.5px; fill: var(--temp); font-weight: 700; }
+svg .t-acc { font-size: 13px; fill: var(--accent); font-weight: 600; }
+svg .t-lab { font-size: 13px; fill: var(--muted); }
+svg .n { fill: var(--surface); stroke: var(--ink-2); stroke-width: 1.25; }
+svg .n-plain { fill: var(--sunk); stroke: var(--line); stroke-width: 1.25; }
+svg .n-eng { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+svg .n-seam { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 3; }
+svg .n-temp { fill: var(--temp-soft); stroke: var(--temp); stroke-width: 4; }
+svg .n-region { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 5 4; }
+svg .edge { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+svg .edge-acc { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 5 4; }
+svg .ah { fill: var(--muted); }
+
+/* ---------- languages ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: 12px 26px; align-items: center; }
+.fgroup { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.fgroup > span { font-size: 0.85rem; color: var(--muted); margin-right: 2px; }
+.chip { appearance: none; font: inherit; font-size: 0.85rem; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 3px 11px; border-radius: 999px; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.search { font: inherit; font-size: 0.9rem; padding: 5px 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); width: min(240px, 100%); }
+.count { font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-top: 1px solid var(--line); }
+thead th { font-weight: 700; font-size: 0.82rem; color: var(--muted); border-top: 0; border-bottom: 1px solid var(--ink); white-space: nowrap; }
+td.num { font-variant-numeric: tabular-nums; }
+tr.group th { background: var(--sunk); font-size: 0.9rem; font-weight: 700; color: var(--ink); border-top: 0; }
+tr.group th span { font-weight: 400; color: var(--muted); }
+.lang-btn { appearance: none; border: 0; background: none; font: inherit; color: var(--ink); font-weight: 700; cursor: pointer; padding: 0; display: inline-flex; gap: 6px; align-items: baseline; text-align: left; }
+.lang-btn::before { content: "+"; font-variation-settings: "MONO" 1; color: var(--muted); width: 1ch; }
+.lang-btn[aria-expanded="true"]::before { content: "\2212"; }
+tr.detail td { border-top: 0; padding-top: 0; }
+.detail-box { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 4px 14px; font-size: 0.875rem; padding: 4px 0 8px 20px; color: var(--ink-2); max-width: 90ch; }
+.detail-box dt { color: var(--muted); }
+.detail-box dd { margin: 0; }
+.ql { display: inline-flex; gap: 2px; align-items: flex-end; height: 14px; margin-right: 8px; vertical-align: -1px; }
+.ql i { width: 3px; height: 12px; background: var(--accent); border-radius: 1px; }
+.pill { display: inline-block; font-variation-settings: "MONO" 1; font-size: 0.8rem; padding: 0 7px; border-radius: 3px; font-weight: 600; }
+.pill.fail { background: var(--ok-soft); color: var(--ok); }
+.pill.skip { background: var(--warn-soft); color: var(--warn); }
+.needs { color: var(--temp); font-weight: 600; }
+.no { color: var(--muted); }
+tr.py td { background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
+.empty { padding: 18px; text-align: center; color: var(--muted); }
+
+.list { display: grid; }
+.list .row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 0.9rem; }
+.list .row:first-child { border-top: 0; }
+.list .row b { font-weight: 700; }
+.list .row span { color: var(--ink-2); }
+
+/* ---------- charts ---------- */
+.chart-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.85rem; color: var(--ink-2); }
+.chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.sw { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.bars { display: grid; gap: 4px; }
+.brow { display: grid; grid-template-columns: 74px minmax(0, 1fr) 150px; gap: 12px; align-items: center; padding: 3px 0; border-radius: 3px; }
+.brow:focus-visible, .brow:hover { background: var(--sunk); }
+.brow .nm { font-weight: 700; font-size: 0.9rem; }
+.brow .track { position: relative; height: 20px; }
+.brow .b { position: absolute; left: 0; top: 2px; height: 16px; background: var(--mark-2); border-radius: 0 4px 4px 0; min-width: 2px; }
+.brow.hot .b { background: var(--warn); }
+.brow .v { position: absolute; top: 0; font-size: 0.85rem; font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 6px; color: var(--ink); line-height: 20px; }
+.brow .side { font-size: 0.82rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.axis { display: grid; grid-template-columns: 74px minmax(0, 1fr) 150px; gap: 12px; font-size: 0.78rem; color: var(--muted); }
+.axis .ticks { position: relative; height: 18px; border-top: 1px solid var(--line); }
+.axis .ticks span { position: absolute; top: 2px; transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+.grid-lines { position: absolute; inset: 0; pointer-events: none; }
+.grid-lines i { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
+
+.dumb .brow { grid-template-columns: 150px minmax(0, 1fr) 0; }
+.dumb .axis { grid-template-columns: 150px minmax(0, 1fr) 0; }
+.dumb .nm small { font-weight: 400; color: var(--muted); }
+.dumb .link { position: absolute; top: 9px; height: 2px; background: var(--mark-2); opacity: 0.6; }
+.dumb .pt { position: absolute; top: 4px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
+.dumb .pt.s { background: var(--accent); }
+.dumb .pt.k { background: var(--mark-2); }
+.dumb .lab { position: absolute; top: 0; font-size: 0.8rem; line-height: 20px; padding: 0 4px; background: var(--surface); color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.meter { display: grid; gap: 8px; }
+.meter .mtrack { height: 12px; border-radius: 999px; background: var(--accent-soft); position: relative; overflow: hidden; }
+.meter .mfill { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 999px; }
+.meter .mlab { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.big { font-size: 2.6rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
+
+details.tv summary { cursor: pointer; font-size: 0.875rem; color: var(--accent); }
+details.tv table { margin-top: 8px; font-size: 0.85rem; }
+
+#tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 0.82rem; line-height: 1.45; padding: 7px 10px; border-radius: var(--r); max-width: 260px; }
+
+/* ---------- end state ---------- */
+.seg { display: inline-flex; border: 1px solid var(--ink); border-radius: var(--r); overflow: hidden; background: var(--surface); justify-self: start; }
+.seg button { appearance: none; font: inherit; font-size: 0.9rem; border: 0; padding: 7px 16px; background: none; color: var(--ink); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+td.today { color: var(--temp); }
+pre.code { margin: 0; background: var(--sunk); border-radius: var(--r); padding: 14px 16px; overflow-x: auto; font-size: 0.82rem; line-height: 1.6; }
+pre.code .c { color: var(--muted); }
+pre.code .k { color: var(--accent); font-weight: 700; }
+ol.notes { margin: 0; padding-left: 1.4em; display: grid; gap: 12px; columns: 2; column-gap: 40px; }
+ol.notes li { break-inside: avoid; margin-bottom: 12px; }
+ol.notes li::marker { font-weight: 800; color: var(--accent); }
+ol.notes b { display: block; }
+ol.notes p { font-size: 0.9rem; color: var(--ink-2); }
+
+/* ---------- decisions ---------- */
+.ledger { display: grid; }
+.entry { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 4px 14px; padding: 11px 0; border-top: 1px solid var(--line); }
+.entry:first-child { border-top: 0; }
+.entry .id { font-variation-settings: "MONO" 1; font-weight: 700; font-size: 0.85rem; padding: 1px 0; text-align: center; border-radius: 3px; align-self: start; }
+.entry .id.d { background: var(--ok-soft); color: var(--ok); }
+.entry .id.o { background: var(--warn-soft); color: var(--warn); }
+.entry .id.s { background: var(--sunk); color: var(--muted); }
+.entry .why { font-size: 0.875rem; color: var(--ink-2); }
+.entry .where { font-size: 0.8rem; font-variation-settings: "MONO" 1; }
+.waves { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.wave-col { padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.wave-col + .wave-col { border-left: 1px solid var(--line); }
+.wave-col .langs { font-weight: 700; }
+.wave-col p { font-size: 0.875rem; color: var(--ink-2); }
+
+footer .wrap { padding-block: 40px 56px; border-top: 1px solid var(--line); display: grid; gap: 16px; }
+.files { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px 24px; font-size: 0.9rem; }
+.files div { display: grid; gap: 1px; }
+.files a { font-variation-settings: "MONO" 1; font-size: 0.85rem; }
+.files span { color: var(--muted); font-size: 0.85rem; }
+
+@media (max-width: 900px) {
+  .specimen { grid-template-columns: minmax(0, 1fr); }
+  .specimen > div + div { border-left: 0; border-top: 1px solid var(--line); }
+  .two, .lead2 { grid-template-columns: minmax(0, 1fr); }
+  .waves { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wave-col:nth-child(3) { border-left: 0; }
+  .wave-col:nth-child(n+3) { border-top: 1px solid var(--line); }
+  ol.notes { columns: 1; }
+}
+@media (max-width: 600px) {
+  .facts { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; }
+  .step:nth-child(2) .line { visibility: hidden; }
+  .waves { grid-template-columns: minmax(0, 1fr); }
+  .wave-col + .wave-col { border-left: 0; border-top: 1px solid var(--line); }
+  .list .row, .detail-box { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .brow, .axis { grid-template-columns: 64px minmax(0, 1fr) 0; }
+  .brow .side { display: none; }
+  .dumb .brow, .dumb .axis { grid-template-columns: 96px minmax(0, 1fr) 0; }
+  .dumb .nm small { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+  .cap, .vocab > div { transition: background-color .12s, color .12s; }
+}
+</style>
+</head>
+<body>
+
+<nav class="bar" aria-label="Sections">
+  <div class="wrap">
+    <span class="brand">Drifter beyond Python</span>
+    <a href="#plan">The plan</a>
+    <a href="#languages">Languages</a>
+    <a href="#parse-errors">Parse errors</a>
+    <a href="#engine">Engine</a>
+    <a href="#decisions">Decisions</a>
+    <a href="#sources">Sources</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Drifter beyond Python</h1>
+    <p class="lede">Drifter reads only Python today. The proposal adds one tree-sitter engine, written once. After that, each new language is a row of settings and a query file of about five lines, not new code. The model files stay exactly as they are.</p>
+    <p class="status">A proposal on branch <code>phase5-kk</code>, not built. Nothing here changes the contract or the spec until the team accepts it.</p>
+
+    <div class="specimen" aria-label="All of Java, as data">
+      <div>
+        <span class="fname">languages.toml</span>
+        <h3>One row</h3>
+        <pre id="tomlRow"></pre>
+      </div>
+      <div>
+        <span class="fname">java.scm</span>
+        <h3>Five query lines</h3>
+        <pre id="javaQuery"></pre>
+      </div>
+      <div>
+        <span class="fname">Shared vocabulary</span>
+        <h3>What the engine makes of it</h3>
+        <div class="vocab" id="vocab"></div>
+      </div>
+    </div>
+    <p class="spec-cap">That is all of Java, taken from the prototype. Point at or tab to a capture such as <span class="cap" style="cursor:inherit">@def.class</span> to see what the engine turns it into. A query file may use only these capture names; the engine refuses to load any other. Source: <a href="04-one-template.md#2-the-language-row">04, The language row</a>.</p>
+
+    <div class="facts">
+      <p><b>14 languages</b>in scope. Each works on the reference program with 4 to 9 query lines and no schema change.</p>
+      <p><b>614 of 614</b>Python elements already match between <code>ast</code> and the template. Edges are not compared yet.</p>
+      <p><b>1 fix first</b>Overloaded names give duplicate ids (O1). Java, C#, C++, Kotlin, Scala, Swift and TypeScript need it.</p>
+    </div>
+  </div>
+</header>
+
+<!-- ================= PLAN ================= -->
+<section class="sec" id="plan">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>The plan: Python moves in four steps</h2>
+      <p class="prose">The 14 languages come first, while Python stays on CPython <code>ast</code>. Then Python moves onto the same engine one model at a time, and only after its output is proven byte-identical. Pick a step to see what it builds and the gate it must pass. Red boxes are TEMPORARY, the same marking the md diagrams use.</p>
+      <p class="src">Sources: <a href="04-one-template.md#steps-a-to-d-agreed">04, Steps a to d</a>, <a href="README.md#where-python-is-hard-wired-today">README, Where Python is hard-wired</a>, <a href="01-what-changes.md#the-picture">01, The picture</a></p>
+    </div>
+
+    <div class="steps" role="tablist" aria-label="Steps a to d" id="stepTabs"></div>
+
+    <div class="panel">
+      <figure>
+        <div class="svgbox" id="stepSvg"></div>
+        <figcaption id="stepCap"></figcaption>
+      </figure>
+    </div>
+
+    <div class="lead2 step-body">
+      <div class="panel" id="stepWhat"></div>
+      <div class="panel">
+        <h3>Python-specific code at this step</h3>
+        <div class="hw" id="stepHw"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= LANGUAGES ================= -->
+<section class="sec" id="languages">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>The 14 languages, in rollout order</h2>
+      <p class="prose">Grouped by the wave they can ship in, which depends on what each one needs first. Open a row for its grammar, the types it finds and its known gaps. "Still failing" is measured after the four fixes, on the non-test files of one real repository per language. It is a first measurement, not a guarantee.</p>
+      <p class="src">Sources: <a href="04-one-template.md#proven-not-assumed">04, Proven, not assumed</a>, <a href="04-one-template.md#parse-errors-why-they-happen-and-what-we-do">04, Parse errors</a>, <a href="05-decisions-log.md#rollout-in-waves-by-prerequisite">05, Rollout in waves</a></p>
+    </div>
+
+    <div class="filters" role="group" aria-label="Filter languages">
+      <div class="fgroup"><span>On error</span><span id="fErr"></span></div>
+      <div class="fgroup"><span>Imports</span><span id="fImp"></span></div>
+      <div class="fgroup"><span>Duplicate-id fix</span><span id="fO1"></span></div>
+      <div class="fgroup"><input class="search" id="fText" type="search" placeholder="Find a language or note" aria-label="Find a language or note"><span class="count" id="fCount" aria-live="polite"></span></div>
+    </div>
+
+    <div class="panel tbl-wrap" style="padding:6px 14px">
+      <table>
+        <thead><tr><th>Language</th><th>Query lines</th><th>Imports</th><th>On error</th><th>Duplicate-id fix</th><th>Still failing after fixes</th></tr></thead>
+        <tbody id="langRows"></tbody>
+      </table>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <h3>Out of scope (12)</h3>
+        <p class="small" style="margin-top:4px">Each was tried or checked, then left out. <a href="04-one-template.md#out-of-scope">04, Out of scope</a></p>
+        <div class="list" id="outList" style="margin-top:8px"></div>
+      </div>
+      <div class="panel" style="align-self:start">
+        <h3>Not decided yet (4)</h3>
+        <p class="small" style="margin-top:4px">Prototyped on one sample each, no engine change needed. <a href="04-one-template.md#not-decided-yet">04, Not decided yet</a></p>
+        <div class="list" id="tbdList" style="margin-top:8px"></div>
+        <p class="small" style="margin-top:10px">On PyPI but not tried: OCaml, F#, Fortran, Solidity, Groovy. Not on PyPI: Erlang, Elm, Clojure, Visual Basic.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PARSE ERRORS ================= -->
+<section class="sec" id="parse-errors">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>When the grammar cannot read a file</h2>
+      <p class="prose">tree-sitter reads code as written, so macros, syntax newer than the grammar, and deliberately broken test files leave <code>ERROR</code> regions. Four fixes run before parsing. What is left is handled per language: a <span class="pill fail">fail</span> row stops the check with <code>PARSE_FAILED</code>, and a <span class="pill skip">skip</span> row reads the rest of the file and lists it as partly read.</p>
+      <p class="src">Sources: <a href="04-one-template.md#parse-errors-why-they-happen-and-what-we-do">04, Parse errors</a>, <a href="research-template-engine.md#3-parse_failed-on-real-code-root_nodehas_error-same-15-repos">research-template-engine, section 3</a></p>
+    </div>
+
+    <div class="lead2">
+      <div class="panel">
+        <h3>How much of a failing file is unreadable</h3>
+        <p class="small" style="margin-top:4px">The six <span class="pill skip">skip</span> rows, after fixes M1 to M4. Average share of a failing file that sits inside an error region.</p>
+        <figure style="margin-top:14px">
+          <div class="bars" id="unreadChart" role="list"></div>
+          <figcaption>Kotlin is the one large blind spot: a grammar gap (<code>@Synchronized set(value)</code>) that no blanking fixes. C and C++ fail often, but a failing file is still about 97 % readable, and the <code>#include</code> graph almost never falls inside an error region. The other eight languages have 0 failing files, so they use <span class="pill fail">fail</span>.</figcaption>
+          <details class="tv"><summary>Show as a table</summary><div class="tbl-wrap"><table id="unreadTable"></table></div></details>
+        </figure>
+      </div>
+      <div class="panel" style="align-self:start">
+        <h3>Four fixes, applied before parsing</h3>
+        <p class="small" style="margin-top:4px">Each replaces whole lines with spaces of the same length, so every other byte keeps its position.</p>
+        <div class="list" id="fixList" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ENGINE ================= -->
+<section class="sec" id="engine">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>The engine: fast enough, and lighter than today</h2>
+      <p class="prose">Measured on 15 real repositories: 32,393 files and 4.15 million lines, on one core. Parsing runs in C and takes 65 % of the time. The big savings come from parsing each file once, dropping each tree as soon as its facts are out, and caching facts by git blob id.</p>
+      <p class="src">Sources: <a href="research-template-engine.md#2-benchmarks-single-process-one-core-one-run-each">research-template-engine, section 2</a>, <a href="04-one-template.md#how-the-engine-runs-efficiently">04, How the engine runs efficiently</a></p>
+    </div>
+
+    <div class="lead2">
+      <div class="panel">
+        <h3>Peak memory per repository</h3>
+        <div class="chart-legend" style="margin-top:8px">
+          <span><i class="sw" style="background:var(--accent)"></i>Streaming: drop each tree after its facts</span>
+          <span><i class="sw" style="background:var(--mark-2)"></i>Keeping every tree, as <code>parse_files</code> does today</span>
+        </div>
+        <figure style="margin-top:12px" class="dumb">
+          <div class="bars" id="memChart" role="list"></div>
+          <figcaption>Megabytes, one run each. Keeping trees costs 3 to 8 times the memory. Objective-C was benchmarked before it was dropped from scope.</figcaption>
+          <details class="tv"><summary>Show as a table</summary><div class="tbl-wrap"><table id="memTable"></table></div></details>
+        </figure>
+      </div>
+      <div style="display:grid;gap:18px;align-content:start;min-width:0">
+        <div class="panel meter">
+          <h3>The largest repository against the deadline</h3>
+          <p><span class="big">3.3 s</span></p>
+          <div class="mtrack" role="img" aria-label="3.3 seconds of an 80 second deadline"><div class="mfill" style="width:4.125%"></div></div>
+          <div class="mlab"><span>Guava, 793k lines</span><span>80 s deadline</span></div>
+          <p class="small">About 228k lines and 1,780 files a second on one core.</p>
+        </div>
+        <div class="panel">
+          <h3>Rules the engine follows</h3>
+          <div class="list" id="effList" style="margin-top:6px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec-head" style="margin-top:18px">
+      <h2>Today, and the end state after step d</h2>
+      <p class="prose">After step d, one module, <code>extract</code>, turns in-scope file text into facts. Every language, Python included, is a row plus a query file behind it. The two models become small views of the same facts.</p>
+      <p class="src">Sources: <a href="final_templates.md#the-shape">final_templates, The shape</a>, <a href="final_templates.md#what-is-gone">What is gone</a></p>
+    </div>
+
+    <div class="seg" role="group" aria-label="Choose a view">
+      <button type="button" id="vToday" aria-pressed="true">Today</button>
+      <button type="button" id="vEnd" aria-pressed="false">End state</button>
+    </div>
+    <div class="panel">
+      <figure>
+        <div class="svgbox" id="tvSvg"></div>
+        <figcaption id="tvCap"></figcaption>
+      </figure>
+    </div>
+
+    <div class="panel tbl-wrap">
+      <table>
+        <thead><tr><th style="width:50%">Today</th><th>End state</th></tr></thead>
+        <tbody id="goneRows"></tbody>
+      </table>
+    </div>
+
+    <div class="two">
+      <div class="panel" style="display:grid;gap:10px;align-content:start">
+        <h3>The interface</h3>
+<pre class="code"><span class="c"># Source/models/engine.py</span>
+<span class="k">def</span> extract(files: dict[str, str]) -&gt; Facts: ...
+
+@dataclass(frozen=True)
+<span class="k">class</span> Facts:
+    elements: tuple[Element, ...]   <span class="c"># sorted by id</span>
+    edges: tuple[Edge, ...]         <span class="c"># sorted by id</span>
+    guards: tuple[Guard, ...]       <span class="c"># behavioral facts</span>
+    partly_read: tuple[str, ...]    <span class="c"># on_error = "skip"</span>
+
+GENERATORS: dict[str, Callable[[Facts], dict]] = {
+    "behavioral": behavioral_view,
+    "structural": structural_view,
+}</pre>
+        <p class="src"><a href="final_templates.md#the-interface">final_templates, The interface</a></p>
+      </div>
+      <div class="panel tbl-wrap" style="align-self:start">
+        <h3>What the interface promises</h3>
+        <table style="margin-top:8px">
+          <tbody>
+            <tr><th scope="row">Input</th><td>Repo-relative path to decoded text. Size and encoding are already judged by <code>check.py</code></td></tr>
+            <tr><th scope="row">Output</th><td>Same <code>files</code> in, same bytes out: no clock, no hash seed, no thread order</td></tr>
+            <tr><th scope="row">Error</th><td><code>ParseFailed(path, line, reason)</code> for the first failing file in path order, only from a <code>fail</code> row. Code <code>PARSE_FAILED</code></td></tr>
+            <tr><th scope="row">Unknown extension</th><td>Not an error. No row claims it, so it gives no facts</td></tr>
+            <tr><th scope="row">Never</th><td>Imports, runs or builds the analysed code (REQ-06). Never reaches the network</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel tbl-wrap">
+      <h3>Five guards, all through the interface</h3>
+      <p class="small" style="margin-top:4px">A new language is done when all five pass. A grammar upgrade reruns them. <a href="final_templates.md#how-it-is-tested-through-the-interface-only">final_templates, How it is tested</a></p>
+      <table style="margin-top:8px">
+        <thead><tr><th>Guard</th><th>Runs</th><th>Fails when</th></tr></thead>
+        <tbody>
+          <tr><td><b>Vocabulary check</b></td><td>At registry load</td><td>A query uses an unknown capture, or a node name the grammar lacks</td></tr>
+          <tr><td><b>Conformance test</b></td><td><code>extract</code> on <code>tests/languages/&lt;lang&gt;/</code></td><td>Any row gives a different model of the <code>Order</code> program, apart from paths</td></tr>
+          <tr><td><b>Coverage check</b></td><td>At registry load, in tests</td><td>A grammar declaration kind is neither captured nor in <code>ignore</code></td></tr>
+          <tr><td><b>Reference corpus</b></td><td><code>extract</code> on pinned real repositories</td><td>A <code>fail</code> row has any parse failure, or a <code>skip</code> row is over budget</td></tr>
+          <tr><td><b>Goldens</b></td><td><code>check.py</code> end to end</td><td><code>model-golden-outputs.json</code> and committed models are not byte-identical</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3>Seven design notes</h3>
+      <p class="small" style="margin-top:4px">From the codebase-design review. Each changes how 01 to 04 describe the design. <a href="final_templates.md#design-notes-codebase-design-review">final_templates, Design notes</a></p>
+      <ol class="notes" id="notes" style="margin-top:14px"></ol>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DECISIONS ================= -->
+<section class="sec" id="decisions">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Decided, open, suggested</h2>
+      <p class="prose">Decided by the user in the working session. Every item is still a proposal until the team accepts it. Start here when resuming.</p>
+      <p class="src">Source: <a href="05-decisions-log.md">05-decisions-log.md</a></p>
+    </div>
+
+    <div class="waves" id="waves" aria-label="Suggested rollout waves"></div>
+
+    <div class="two">
+      <div class="panel">
+        <h3>Decided (11)</h3>
+        <div class="ledger" id="dList" style="margin-top:6px"></div>
+      </div>
+      <div style="display:grid;gap:18px;align-content:start;min-width:0">
+        <div class="panel">
+          <h3>Open, needs the team (5)</h3>
+          <div class="ledger" id="oList" style="margin-top:6px"></div>
+        </div>
+        <div class="panel">
+          <h3>C and C++: keep, ship last</h3>
+          <p style="font-size:0.9rem;color:var(--ink-2);margin-top:8px">After M1 to M4 a failing file is still about 97 % readable, and the <code>#include</code> graph almost never falls inside an error region. They need <code>skip</code> (O2), all four fixes and validation on more repositories. Running the real preprocessor is rejected: its output depends on the machine and build flags. An untested middle ground is a "C/C++ lite" row with only <code>#include</code> edges and top-level functions and structs.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Suggested, not yet written into 01 to 04</h3>
+      <div class="ledger" id="sList" style="margin-top:6px"></div>
+    </div>
+  </div>
+</section>
+
+<footer id="sources">
+  <div class="wrap">
+    <h2>Source files</h2>
+    <div class="files">
+      <div><a href="README.md">README.md</a><span>Short answer, reading order, where Python is hard-wired</span></div>
+      <div><a href="01-what-changes.md">01-what-changes.md</a><span>What changes and what stays, as one picture and one table</span></div>
+      <div><a href="02-language-adapters.md">02-language-adapters.md</a><span>Why tree-sitter, rules every language keeps (adapters replaced by 04)</span></div>
+      <div><a href="03-language-mapping.md">03-language-mapping.md</a><span>What JS, TS and React become as nodes and edges</span></div>
+      <div><a href="04-one-template.md">04-one-template.md</a><span>One engine, shared vocabulary, conformance test, Python steps</span></div>
+      <div><a href="final_templates.md">final_templates.md</a><span>The end state after step d, interface and design notes</span></div>
+      <div><a href="05-decisions-log.md">05-decisions-log.md</a><span>Decided, open, rollout waves, suggestions</span></div>
+      <div><a href="research-multi-language.md">research-multi-language.md</a><span>Five tools compared, determinism tested</span></div>
+      <div><a href="research-template-engine.md">research-template-engine.md</a><span>Benchmarks on 15 repositories, parse-failure rates, engine architecture</span></div>
+    </div>
+    <p class="small">Built from the md files above. Where this page and the md files disagree, the md files win, and 04 and 05 win over final_templates.</p>
+  </div>
+</footer>
+
+<div id="tip" role="tooltip" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+  // renders `code` spans in data strings
+  var md = function (s) { return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>"); };
+
+  /* ======================= SPECIMEN ======================= */
+  var TOML = [
+    ["[java]", ""],
+    ["extensions", '[".java"]'],
+    ["grammar", '"tree-sitter-java==0.23.5"'],
+    ["query", '"java.scm"'],
+    ["imports", '"dotted"'],
+    ["on_error", '"fail"'],
+    ["blank", "[]"],
+    ["ignore", '["field_declaration", "local_variable_declaration", "constant_declaration"]']
+  ];
+  $("tomlRow").innerHTML = TOML.map(function (r) {
+    if (!r[1]) return '<b>' + esc(r[0]) + '</b>';
+    return '<span class="tk-f">' + esc(r[0]) + ' =</span> <span class="tk-s">' + esc(r[1]) + '</span>';
+  }).join("\n");
+
+  var QUERY = [
+    "(import_declaration (scoped_identifier) @import)",
+    "(class_declaration name: (identifier) @name superclass: (superclass (type_identifier) @inherits)?) @def.class",
+    "(interface_declaration name: (identifier) @name) @def.class",
+    "(method_declaration name: (identifier) @name) @def.function",
+    "(formal_parameter name: (identifier) @param)"
+  ];
+  // marks fields and captures; a capture links to its vocabulary row
+  function hlQuery(line) {
+    return esc(line)
+      .replace(/\b([a-z_]+):/g, '<span class="tk-f">$1:</span>')
+      .replace(/@([a-z.]+)/g, function (_, c) {
+        var key = c === "name" ? "def" : c;
+        return '<span class="cap" tabindex="0" data-cap="' + key + '">@' + c + '</span>';
+      });
+  }
+  $("javaQuery").innerHTML = QUERY.map(function (l) { return '<span class="q-line">' + hlQuery(l) + '</span>'; }).join("");
+
+  var VOCAB = [
+    ["def", "@def.class + @name", "a `class` node: class, struct, interface, trait, protocol", true],
+    ["def", "@def.function + @name", "a `function` node, or a `method` when it sits inside a class", true],
+    ["param", "@param", "one name in `params`, in source order", true],
+    ["inherits", "@inherits", "an `inherits` edge to that base", true],
+    ["import", "@import", "an `imports` edge, after resolution", true],
+    ["owner", "@owner", "`Owner.name` for a method written outside its type (Go, Rust). Not used by Java", false],
+    ["async", "@async", '`"async": true`. Not used by Java', false]
+  ];
+  // @def.class and @def.function each get their own key for highlighting
+  VOCAB[0][0] = "def.class"; VOCAB[1][0] = "def.function";
+  $("vocab").innerHTML = VOCAB.map(function (v) {
+    return '<div data-cap="' + v[0] + '"' + (v[3] ? "" : ' class="unused"') + '><span class="v-cap">' + esc(v[1]) + '</span><span class="v-out">' + md(v[2]) + '</span></div>';
+  }).join("");
+  // @name belongs to whichever definition shares its query line
+  Array.prototype.forEach.call(document.querySelectorAll("#javaQuery .q-line"), function (ln) {
+    var def = ln.querySelector('[data-cap="def.class"], [data-cap="def.function"]');
+    Array.prototype.forEach.call(ln.querySelectorAll('[data-cap="def"]'), function (n) { n.dataset.cap = def ? def.dataset.cap : "def.class"; });
+  });
+  function light(cap, on) {
+    Array.prototype.forEach.call(document.querySelectorAll('.specimen [data-cap="' + cap + '"]'), function (n) { n.classList.toggle("lit", on); });
+  }
+  ["mouseover", "focusin"].forEach(function (ev) {
+    document.querySelector(".specimen").addEventListener(ev, function (e) {
+      var t = e.target.closest("[data-cap]"); if (t) light(t.dataset.cap, true);
+    });
+  });
+  ["mouseout", "focusout"].forEach(function (ev) {
+    document.querySelector(".specimen").addEventListener(ev, function (e) {
+      var t = e.target.closest("[data-cap]"); if (t) light(t.dataset.cap, false);
+    });
+  });
+
+  /* ======================= SVG helpers ======================= */
+  function marker(id) {
+    return '<defs><marker id="' + id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>';
+  }
+  // lines: [[text, cls], ...] centred vertically in the box
+  function box(x, y, w, h, cls, lines) {
+    var out = '<rect class="' + cls + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="5"/>';
+    var lh = 18, start = y + h / 2 - ((lines.length - 1) * lh) / 2 + 5;
+    lines.forEach(function (l, i) {
+      out += '<text class="' + l[1] + '" x="' + (x + w / 2) + '" y="' + (start + i * lh) + '" text-anchor="middle">' + esc(l[0]) + '</text>';
+    });
+    return out;
+  }
+  function curve(x1, y1, x2, y2, m, cls) {
+    var mx = (x1 + x2) / 2;
+    return '<path class="' + (cls || "edge") + '" d="M' + x1 + ' ' + y1 + ' C' + mx + ' ' + y1 + ' ' + mx + ' ' + y2 + ' ' + x2 + ' ' + y2 + '" marker-end="url(#' + m + ')"/>';
+  }
+
+  /* ======================= STEPS ======================= */
+  var STEPS = [
+    { k: "a", title: "Build the 14 languages", short: "Python stays on ast",
+      build: [
+        "The shared engine, written once: `Source/models/engine.py`, `languages.toml` and one `.scm` query file per language.",
+        "`parse_files` dispatches by extension: `.py` still goes to CPython `ast`, the 14 languages go to the engine.",
+        "`DEFAULT_SCOPE` adds the 14 languages' extensions and the M1 excludes (`node_modules`, `dist`, `*.min.js`, test, fixture and vendored folders).",
+        "`requirements.txt` adds pinned wheels: `tree-sitter` plus one grammar per language. No Node.js, no compiler.",
+        "The four guards: vocabulary check, conformance test, coverage check, reference corpus.",
+        "Languages land in waves 1 to 4. Wave 2 onward needs the duplicate-id fix (O1); wave 3 also needs `skip` (O2)."
+      ],
+      gate: "None set in 04. Each language is admitted when its four guards pass.",
+      cap: "Step a: .py files still take the CPython ast path for both models (red, TEMPORARY). The 14 template languages go through the shared engine and produce the same structural nodes and edges." },
+    { k: "b", title: "Compare edges, check goldens", short: "python.scm runs in the shadow",
+      build: [
+        "Run `python.scm` beside today's generator and compare the `imports` and `inherits` edges. Nodes already match: 614 of 614.",
+        "Add the engine rule: a definition inside a function body is not an element. That removes the 21 extra elements the template found.",
+        "Python resolves relative imports (`from . import x`) and base classes through each module's bindings. If the plain `dotted` style cannot match that, add `dotted-relative` as an import style open to every row, never Python-only code.",
+        "This is open item O5."
+      ],
+      gate: "Nodes and edges byte-identical on this repository, the Python reference corpus and `model-golden-outputs.json`.",
+      cap: "Step b: nothing moves yet. python.scm runs in the shadow of the ast walkers so its edges can be compared and checked against the goldens." },
+    { k: "c", title: "Move Python structural", short: "Python becomes a row",
+      build: [
+        "Python structural goes onto the template as one more `languages.toml` row, with `module_id = \"dotted\"` so ids stay `shop.orders:Order.cancel` and committed models do not change.",
+        "The ast walkers in `structural_model.py` (`_collect`, `_params`, `_imports`, `_resolve`) go away.",
+        "A `.py` syntax error is now decided by tree-sitter, not CPython. Rare differences are caught by the Python reference corpus.",
+        "Behavioral still runs on `ast`, so `ast.parse` in `common.py` is still needed."
+      ],
+      gate: "Step b passes.",
+      cap: "Step c: Python structural joins the shared engine. Only the behavioral path is still on CPython ast (red, TEMPORARY)." },
+    { k: "d", title: "Move behavioral, drop ast", short: "One extract(files)",
+      build: [
+        "Build the behavioral vocabulary (`@guard.variable`, `@guard.value`, `@assign.variable`, `@assign.value`) on the same engine. Not prototyped yet (O4).",
+        "Move Python behavioral onto it, then drop `ast` everywhere.",
+        "`parse_files` is replaced by one `extract(files) -> Facts` that returns no trees. Both models become views of the facts.",
+        "`check.py` calls `extract` once instead of probing syntax per file."
+      ],
+      gate: "Behavioral goldens byte-identical.",
+      cap: "Step d: one extraction for every language, Python included. Nothing is on CPython ast. Diff, ownership and the answer are unchanged." }
+  ];
+
+  // Python-specific places from the README; st(step) returns [class, tag]
+  var HW = [
+    { f: "Source/models/common.py, parse_files", d: "`ast.parse`. A syntax error is `PARSE_FAILED`. Still feeds behavioral until d, then replaced by `extract(files) -> Facts`.",
+      st: function (i) { return i < 3 ? ["temp", "TEMPORARY, on ast until step d"] : ["gone", "Gone in step d"]; } },
+    { f: "Source/models/structural_model.py", d: "Walks `ast.ClassDef`, `ast.FunctionDef`, `ast.Import`. `module_id` strips `.py` and `__init__`.",
+      st: function (i) { return i < 2 ? ["temp", "TEMPORARY, on ast until step c"] : ["gone", "Gone in step c. module_id becomes a row setting"]; } },
+    { f: "Source/models/behavioral_model.py", d: "Walks `ast.If`, `ast.Compare`, `ast.Assign`.",
+      st: function (i) { return i < 3 ? ["temp", "TEMPORARY, on ast until step d"] : ["gone", "Gone in step d"]; } },
+    { f: "Source/drifter/check.py, DEFAULT_SCOPE", d: "Was `include: [\"**/*.py\"]`. Committed `scope.json` files keep `**/*.py`; the new default applies only to a new `drifter init`.",
+      st: function () { return ["changed", "Changed in step a: adds 14 languages and the M1 excludes"]; } },
+    { f: "Source/GitHub_Connector/course.py", d: "Counts `*.py` lines for the course metric. About this tool's own code.",
+      st: function () { return ["stays", "Stays, not part of the plan"]; } }
+  ];
+
+  function stepSvg(i) {
+    var s = STEPS[i].k, M = "tlA";
+    var o = '<svg viewBox="0 0 940 300" role="img" aria-label="' + esc(STEPS[i].cap) + '">' + marker(M);
+    o += box(10, 118, 130, 64, "n", [["In-scope files", "t-main"], ["path to text", "t-sub"]]);
+    o += box(170, 118, 160, 64, s === "d" ? "n-seam" : "n", s === "d" ? [["extract(files)", "t-main"], ["row by extension", "t-sub"]] : [["parse_files", "t-main"], ["dispatch by extension", "t-sub"]]);
+    o += '<line class="edge" x1="140" y1="150" x2="168" y2="150" marker-end="url(#' + M + ')"/>';
+    var pyS = i >= 2, pyB = i >= 3;
+    var lanes = [
+      { y: 16, sub: ".py, structural", eng: pyS, title: pyS ? "Shared engine: python.scm" : "CPython ast walkers", rm: "TEMPORARY, removed in step c", out: 82 },
+      { y: 117, sub: ".java .kt .ts .go and 10 more", eng: true, title: "Shared engine: 14 rows", out: 82 },
+      { y: 218, sub: ".py, behavioral", eng: pyB, title: pyB ? "Shared engine: guard captures" : "CPython ast walkers", rm: "TEMPORARY, removed in step d", out: 262 }
+    ];
+    lanes.forEach(function (L) {
+      var lines = [[L.sub, "t-code"], [L.title, "t-main"]];
+      if (!L.eng) lines.push([L.rm, "t-temp"]);
+      o += curve(330, 150, 378, L.y + 33, M);
+      o += box(380, L.y, 250, 66, L.eng ? "n-eng" : "n-temp", lines);
+      o += curve(630, L.y + 33, 678, L.out, M);
+    });
+    if (s === "b") o += '<text class="t-acc" x="505" y="108" text-anchor="middle">shadow run: python.scm edges against the goldens</text>';
+    o += box(680, 58, 140, 48, "n-plain", [["structural.json", "t-main"]]);
+    o += box(680, 238, 140, 48, "n-plain", [["behavioral.json", "t-main"]]);
+    o += box(846, 120, 88, 60, "n-plain", [["Diff", "t-main"], ["answer", "t-sub"]]);
+    o += curve(820, 82, 844, 140, M) + curve(820, 262, 844, 160, M);
+    o += '<text class="t-lab" x="890" y="200" text-anchor="middle">unchanged</text>';
+    return o + "</svg>";
+  }
+
+  function renderSteps(i) {
+    $("stepTabs").innerHTML = STEPS.map(function (s, j) {
+      var cls = "step" + (j === i ? " on" : "") + (j < i ? " done" : "");
+      return '<button type="button" role="tab" class="' + cls + '" aria-selected="' + (j === i) + '" tabindex="' + (j === i ? 0 : -1) + '" data-i="' + j + '">' +
+        '<span class="rail"><span class="dot">' + s.k + '</span><span class="line"></span></span>' +
+        '<span class="lbl">' + esc(s.title) + '</span><span class="sub">' + esc(s.short) + '</span></button>';
+    }).join("");
+    var s = STEPS[i];
+    $("stepSvg").innerHTML = stepSvg(i);
+    $("stepCap").textContent = s.cap;
+    $("stepWhat").innerHTML = '<h3>Step ' + s.k + ': ' + esc(s.title) + '</h3><ul>' +
+      s.build.map(function (b) { return "<li>" + md(b) + "</li>"; }).join("") + '</ul>' +
+      '<div class="gate"><b>Gate</b>' + md(s.gate) + '</div>';
+    $("stepHw").innerHTML = HW.map(function (h) {
+      var st = h.st(i);
+      return '<div class="hw-item ' + st[0] + '"><span class="tag">' + esc(st[1]) + '</span><span class="f">' + esc(h.f) + '</span><span class="d">' + md(h.d) + '</span></div>';
+    }).join("");
+  }
+  var cur = 0;
+  $("stepTabs").addEventListener("click", function (e) {
+    var b = e.target.closest(".step"); if (!b) return;
+    cur = +b.dataset.i; renderSteps(cur);
+  });
+  $("stepTabs").addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    cur = (cur + (e.key === "ArrowRight" ? 1 : 3)) % 4; renderSteps(cur);
+    $("stepTabs").querySelectorAll(".step")[cur].focus();
+  });
+  renderSteps(0);
+
+  /* ======================= LANGUAGES ======================= */
+  var LANGS = [
+    { n: "JavaScript", g: "tree-sitter-javascript 0.25.0", q: 6, err: "fail", w: 1, imp: "path", fail: "0 (230 to 0 after M1)", o1: false,
+      cls: "class", note: "`async` captured. Relative imports try `.ts .tsx .js .jsx`, then `/index.*`. Bare names like `react` give no edge." },
+    { n: "Go", g: "tree-sitter-go 0.25.0", q: 5, err: "fail", w: 1, imp: "none", fail: "0", o1: false,
+      cls: "struct", note: "Methods nest through `@owner` (the receiver). No inheritance (embedding). Imports could resolve via `go.mod` to a folder, but that needs a `package` node kind (O3)." },
+    { n: "PHP", g: "tree-sitter-php 0.25.1", q: 8, err: "fail", w: 1, imp: "path", fail: "0", o1: false,
+      cls: "class, interface", note: "`require_once` resolves as `path`; `use` gives no edge in the first version. Params keep the `$`." },
+    { n: "Ruby", g: "tree-sitter-ruby 0.23.1", q: 6, err: "fail", w: 1, imp: "path", fail: "0", o1: false, redef: true,
+      cls: "class, module (`Shop.Order`)", note: "Redefinition keeps the last, as Python does. `require_relative` resolves; `require \"json\"` (a gem) gives no edge. Also `def self.x`." },
+    { n: "Lua", g: "tree-sitter-lua 0.5.0", q: 5, err: "fail", w: 1, imp: "dotted", fail: "0", o1: false,
+      cls: "none, only tables", note: "No class node. Methods get `Order.cancel` and `Order:refund` ids through `@owner`. `require(\"shop.base\")` resolves as `dotted`." },
+    { n: "TypeScript", g: "tree-sitter-typescript 0.23.2", q: 8, err: "fail", w: 2, imp: "path", fail: "0 (2 to 0 after M1)", o1: true,
+      cls: "class, interface", note: "Overloads are body-less signatures: capturing `method_signature` only inside interfaces may avoid O1 and move TS to wave 1 (untested). Coverage gaps: `abstract_class_declaration`, `enum_declaration`, `type_alias_declaration`." },
+    { n: "Scala", g: "tree-sitter-scala 0.26.4", q: 6, err: "fail", w: 2, imp: "dotted", fail: "0", o1: true,
+      cls: "class, object, trait", note: "Added with no engine change, only a query file." },
+    { n: "Rust", g: "tree-sitter-rust 0.24.2", q: 9, err: "fail", w: 2, imp: "dotted", fail: "0", o1: true,
+      cls: "struct, trait", note: "Methods nest through `@owner` (`impl`). A trait method with the same name as an inherent one gets the trait in its id: `A.Show::go`. Coverage gaps: `const_item`, `macro_definition`." },
+    { n: "Java", g: "tree-sitter-java 0.23.5", q: 5, err: "skip", w: 3, imp: "dotted", fail: "13 of 1,869 (0.7 %)", o1: true,
+      cls: "class, nested `Order.Line`", note: "Grammar lags on `@Nullable Object @Nullable ... args`. M3 breaks Java (13 to 85, `INSTANCE;` is an enum value), so no blanking. Coverage gaps: `enum`, `record`, constructors, annotation types." },
+    { n: "C#", g: "tree-sitter-c-sharp 0.23.5", q: 6, err: "skip", w: 3, imp: "none", fail: "7 of 931 (0.8 %)", o1: true, blank: "pragma, conditional",
+      cls: "class (two bases)", note: "M2 then M4 take failures from 65 to 42 to 7. `using Shop.Base;` imports a namespace, not a file, so no edge (O3)." },
+    { n: "Kotlin", g: "tree-sitter-kotlin 1.1.0", q: 5, err: "skip", w: 3, imp: "dotted", fail: "8 of 551 (1.5 %)", o1: true,
+      cls: "class, object", note: "The largest blind spot: a grammar gap on `@Synchronized set(value)` that no blanking fixes. Report upstream, recheck on each upgrade. `suspend` counts as async. Coverage gap: `property_declaration`." },
+    { n: "Swift", g: "tree-sitter-swift 0.7.4", q: 5, err: "skip", w: 3, imp: "none", fail: "2 of 53", o1: true,
+      cls: "class", note: "Third-party grammar at 0.7: recheck on every Swift release. Fails on `#error(\"…\")`. Imports a module, not a file (O3)." },
+    { n: "C", g: "tree-sitter-c 0.24.2", q: 4, err: "skip", w: 4, imp: "path", fail: "45 of 231 (19.5 %)", o1: false, blank: "pragma, conditional, macro_line",
+      cls: "struct", note: "Only `\"…\"` includes resolve; `<stdio.h>` gives no edge. Macros are not expanded. Needs M2 to M4 proven on 3 to 5 more repositories." },
+    { n: "C++", g: "tree-sitter-cpp 0.23.4", q: 5, err: "skip", w: 4, imp: "path", fail: "18 of 19", o1: true, blank: "pragma, conditional, macro_line",
+      cls: "class", note: "`FMT_BEGIN_NAMESPACE` is really `namespace fmt {`. M4 takes the unreadable share per failing file from 20 % to 2.6 %. Ships last." }
+  ];
+  var PY = { n: "Python", g: "tree-sitter-python 0.25.0", q: 6, err: "fail", w: 5, imp: "dotted (dotted-relative if step b needs it)", fail: "on ast today", o1: false, redef: true, py: true,
+    cls: "class", note: "Not one of the 14. Joins as a 15th row in steps c and d with `module_id = \"dotted\"`. 614 of 614 elements identical; edges not compared yet (O5)." };
+  var GROUPS = {
+    1: ["Wave 1", "needs only the engine"],
+    2: ["Wave 2", "also needs the duplicate-id fix (O1)"],
+    3: ["Wave 3", "also needs skip (O2) and C#'s M2 and M4 fixes"],
+    4: ["Wave 4", "also needs M2 to M4 proven on more repositories"],
+    5: ["Python", "joins the same engine in steps c and d"]
+  };
+
+  var F = { err: "all", imp: "all", o1: "all", text: "" };
+  var open = {};
+  function chips(el, key, opts) {
+    el.innerHTML = opts.map(function (o) {
+      return '<button type="button" class="chip" data-k="' + key + '" data-v="' + o[0] + '" aria-pressed="' + (F[key] === o[0]) + '">' + esc(o[1]) + '</button>';
+    }).join(" ");
+  }
+  function drawChips() {
+    chips($("fErr"), "err", [["all", "All"], ["fail", "fail"], ["skip", "skip"]]);
+    chips($("fImp"), "imp", [["all", "All"], ["path", "path"], ["dotted", "dotted"], ["none", "none"]]);
+    chips($("fO1"), "o1", [["all", "All"], ["yes", "Needs it"], ["no", "Does not"]]);
+  }
+  function match(l) {
+    if (F.err !== "all" && l.err !== F.err) return false;
+    if (F.imp !== "all" && l.imp.indexOf(F.imp) !== 0) return false;
+    if (F.o1 === "yes" && !l.o1) return false;
+    if (F.o1 === "no" && l.o1) return false;
+    if (F.text) {
+      var hay = (l.n + " " + l.g + " " + l.note + " " + l.cls + " " + l.imp).toLowerCase();
+      if (hay.indexOf(F.text) < 0) return false;
+    }
+    return true;
+  }
+  function qlGlyph(n) { var s = ""; for (var i = 0; i < n; i++) s += "<i></i>"; return '<span class="ql" aria-hidden="true">' + s + '</span>'; }
+  function langRow(l) {
+    var id = "d-" + l.n.replace(/\W/g, "");
+    var exp = !!open[l.n];
+    var extra = [];
+    if (l.redef) extra.push("Redefinition keeps the last definition");
+    if (l.blank) extra.push("Blanks " + l.blank);
+    var r = '<tr' + (l.py ? ' class="py"' : '') + '>' +
+      '<td><button type="button" class="lang-btn" aria-expanded="' + exp + '" aria-controls="' + id + '" data-n="' + esc(l.n) + '">' + esc(l.n) + '</button></td>' +
+      '<td class="num">' + qlGlyph(l.q) + l.q + '</td>' +
+      '<td class="mono">' + esc(l.imp) + '</td>' +
+      '<td><span class="pill ' + l.err + '">' + l.err + '</span></td>' +
+      '<td>' + (l.o1 ? '<span class="needs">Needs it</span>' : '<span class="no">No</span>') + '</td>' +
+      '<td class="num">' + esc(l.fail) + '</td></tr>';
+    r += '<tr class="detail" id="' + id + '"' + (exp ? '' : ' hidden') + (l.py ? ' style="background:transparent"' : '') + '><td colspan="6"><dl class="detail-box">' +
+      '<dt>Grammar</dt><dd class="mono">' + esc(l.g) + '</dd>' +
+      '<dt>Types found</dt><dd>' + md(l.cls) + '</dd>' +
+      (extra.length ? '<dt>Row settings</dt><dd>' + esc(extra.join(". ")) + '</dd>' : '') +
+      '<dt>Notes</dt><dd>' + md(l.note) + '</dd></dl></td></tr>';
+    return r;
+  }
+  function renderLangs() {
+    var list = LANGS.concat([PY]).filter(match);
+    var html = "";
+    [1, 2, 3, 4, 5].forEach(function (w) {
+      var rows = list.filter(function (l) { return l.w === w; });
+      if (!rows.length) return;
+      html += '<tr class="group"><th colspan="6" scope="colgroup">' + GROUPS[w][0] + ' <span>' + esc(GROUPS[w][1]) + '</span></th></tr>';
+      html += rows.map(langRow).join("");
+    });
+    $("langRows").innerHTML = html || '<tr><td colspan="6" class="empty">No language matches these filters. Clear a filter to see more.</td></tr>';
+    var in14 = list.filter(function (l) { return !l.py; }).length;
+    $("fCount").textContent = "Showing " + in14 + " of 14" + (list.some(function (l) { return l.py; }) ? ", plus Python" : "");
+  }
+  document.querySelector(".filters").addEventListener("click", function (e) {
+    var b = e.target.closest(".chip"); if (!b) return;
+    F[b.dataset.k] = b.dataset.v; drawChips(); renderLangs();
+  });
+  $("fText").addEventListener("input", function (e) { F.text = e.target.value.trim().toLowerCase(); renderLangs(); });
+  $("langRows").addEventListener("click", function (e) {
+    var b = e.target.closest(".lang-btn"); if (!b) return;
+    var n = b.dataset.n, exp = !open[n];
+    open[n] = exp;
+    b.setAttribute("aria-expanded", exp);
+    $(b.getAttribute("aria-controls")).hidden = !exp;
+  });
+  drawChips(); renderLangs();
+
+  var OUT = [
+    ["CSS", "Not architecture: its moves would raise false drift. `tree-sitter-css` rejects Tailwind's `@config` and `@plugin`. Ownership still covers it."],
+    ["HTML", "Almost no edges. `tree-sitter-html` rejects valid `<p>one <p>two`. Scripts are modelled through their own JS and TS imports."],
+    ["MATLAB", "Thin model, functions found on a search path. Proprietary. Shares `.m` with Objective-C."],
+    ["Bash, sh", "Glue scripts. Only `source` edges, often dynamic. Functions have no named params."],
+    ["Objective-C", "Prototyped, then removed. Legacy, most special handling for least value, 25 % of files failing before the macro fixes."],
+    ["Dart", "The only grammar is 0.1.0 from a third party. A body sits beside its signature, needing an extra engine rule."],
+    ["SQL", "Tables and views, not code. Needs a new `references` edge kind, a schema change."],
+    ["Perl", "`tree-sitter-perl` 2.0.3 does not load with core 0.26 (`OverflowError`)."],
+    ["R", "No wheel on PyPI."],
+    ["zsh", "One-person third-party grammar. Shell scripts are out of scope anyway."],
+    ["PowerShell", "Grammar rejects valid code (`function F { param($a) … }`), a false \"no verdict\"."],
+    ["fish", "No grammar on PyPI."]
+  ];
+  var TBD = [
+    ["Elixir", "`tree-sitter-elixir` 0.3.5. `def` and `defmodule` are calls; multi-clause functions give duplicate ids; arity is part of identity."],
+    ["Haskell", "`tree-sitter-haskell` 0.24.1. No classes or methods in the usual sense; multi-equation functions give duplicate ids."],
+    ["Julia", "`tree-sitter-julia` 0.23.1. Multiple dispatch: one name, many methods."],
+    ["Zig", "`tree-sitter-zig` 1.1.2. Clean fit, smaller user base."]
+  ];
+  var rows = function (a) { return a.map(function (r) { return '<div class="row"><b>' + esc(r[0]) + '</b><span>' + md(r[1]) + '</span></div>'; }).join(""); };
+  $("outList").innerHTML = rows(OUT);
+  $("tbdList").innerHTML = rows(TBD);
+
+  /* ======================= TOOLTIP ======================= */
+  var tip = $("tip");
+  function showTip(el) {
+    tip.textContent = el.dataset.tip; tip.hidden = false;
+    var r = el.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+    var x = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - 8);
+    var y = r.top - th - 6; if (y < 60) y = r.bottom + 6;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  }
+  function hideTip() { tip.hidden = true; }
+  function bindTips(root) {
+    root.addEventListener("mouseover", function (e) { var t = e.target.closest("[data-tip]"); if (t) showTip(t); });
+    root.addEventListener("mouseout", function (e) { if (e.target.closest("[data-tip]")) hideTip(); });
+    root.addEventListener("focusin", function (e) { var t = e.target.closest("[data-tip]"); if (t) showTip(t); });
+    root.addEventListener("focusout", hideTip);
+  }
+  window.addEventListener("scroll", hideTip, { passive: true });
+
+  function axis(ticks, max, fmt, cls) {
+    return '<div class="axis ' + (cls || "") + '" aria-hidden="true"><span></span><div class="ticks">' +
+      ticks.map(function (t) { return '<span style="left:' + (t / max * 100) + '%">' + fmt(t) + '</span>'; }).join("") +
+      '</div><span></span></div>';
+  }
+  function gridLines(ticks, max) {
+    return '<div class="grid-lines">' + ticks.map(function (t) { return '<i style="left:' + (t / max * 100) + '%"></i>'; }).join("") + '</div>';
+  }
+
+  /* ======================= CHART: unreadable share ======================= */
+  var UNREAD = [
+    ["Kotlin", 40.7, "8 of 551 files fail", true],
+    ["C", 2.8, "45 of 231 files fail"],
+    ["C++", 2.6, "18 of 19 files fail"],
+    ["Java", 0.7, "13 of 1,869 files fail"],
+    ["C#", 0.1, "7 of 931 files fail"],
+    ["Swift", 0, "2 of 53 files fail", false, "about 0 %"]
+  ];
+  var UMAX = 60, UT = [0, 20, 40, 60];
+  $("unreadChart").innerHTML = UNREAD.map(function (u) {
+    var pct = u[1] / UMAX * 100, lab = u[4] || (String(u[1]).replace(".", ".") + " %");
+    return '<div class="brow' + (u[3] ? " hot" : "") + '" role="listitem" tabindex="0" data-tip="' + esc(u[0] + ": " + lab + " of a failing file is unreadable. " + u[2] + ".") + '">' +
+      '<span class="nm">' + esc(u[0]) + '</span>' +
+      '<div class="track">' + gridLines(UT, UMAX) + '<div class="b" style="width:' + pct + '%"></div><span class="v" style="left:' + pct + '%">' + esc(lab) + '</span></div>' +
+      '<span class="side">' + esc(u[2]) + '</span></div>';
+  }).join("") + axis(UT, UMAX, function (t) { return t + " %"; });
+  $("unreadTable").innerHTML = '<thead><tr><th>Language</th><th>Unreadable share of a failing file</th><th>Files still failing</th></tr></thead><tbody>' +
+    UNREAD.map(function (u) { return '<tr><td>' + esc(u[0]) + '</td><td class="num">' + esc(u[4] || u[1] + " %") + '</td><td class="num">' + esc(u[2].replace(" files fail", "")) + '</td></tr>'; }).join("") + '</tbody>';
+  bindTips($("unreadChart"));
+
+  var FIXES = [
+    ["M1", "Every language, in the default `scope.json`. Leaves out `test/`, `tests/`, `spec/`, `fixtures/`, `examples/`, `vendor/`, `deps/`, `third_party/`, `*.spec.*`, `*.test.*`.", "JavaScript 230 to 0, TypeScript 2 to 0, C 347 to 53."],
+    ["M2", "Row setting `blank = [\"pragma\"]`. Blanks `#pragma`, `#error`, `#warning`, `#line`, `#region`.", "C# 65 to 42."],
+    ["M3", "Row setting `blank = [\"macro_line\"]`. Blanks a line that is only an ALL_CAPS macro, such as `FMT_BEGIN_NAMESPACE`.", "Helps C and C++. Breaks Java (13 to 85), so only for languages with a preprocessor."],
+    ["M4", "Row setting `blank = [\"conditional\"]`. Blanks `#if`, `#ifdef`, `#else`, `#endif`, so both branches read as one.", "C# 42 to 7. C++ unreadable share per failing file 20 % to 2.6 %."]
+  ];
+  $("fixList").innerHTML = FIXES.map(function (f) {
+    return '<div class="row" style="grid-template-columns:40px minmax(0,1fr)"><b class="mono">' + f[0] + '</b><span>' + md(f[1]) + '<br><b style="color:var(--ink)">Measured:</b> ' + md(f[2]) + '</span></div>';
+  }).join("");
+
+  /* ======================= CHART: memory ======================= */
+  var MEM = [
+    ["Laravel", "PHP", 91, 713], ["Guava", "Java", 103, 611], ["webpack", "JS", 85, 556], ["Prometheus", "Go", 62, 350],
+    ["Redis", "C", 53, 288], ["Kong", "Lua", 40, 285], ["Newtonsoft.Json", "C#", 50, 217], ["Nest", "TS", 41, 207],
+    ["Tokio", "Rust", 36, 191], ["Play", "Scala", 40, 154], ["OkHttp", "Kotlin", 41, 143], ["fmt", "C++", 44, 75],
+    ["Alamofire", "Swift", 31, 66], ["Sinatra", "Ruby", 28, 57], ["AFNetworking", "ObjC", 31, 37]
+  ];
+  var MMAX = 750, MT = [0, 200, 400, 600];
+  $("memChart").innerHTML = MEM.map(function (m, i) {
+    var a = m[2] / MMAX * 100, b = m[3] / MMAX * 100, first = i === 0;
+    return '<div class="brow" role="listitem" tabindex="0" data-tip="' + esc(m[0] + " (" + m[1] + "): " + m[2] + " MB streaming, " + m[3] + " MB keeping every tree") + '">' +
+      '<span class="nm">' + esc(m[0]) + ' <small>' + esc(m[1]) + '</small></span>' +
+      '<div class="track">' + gridLines(MT, MMAX) +
+      '<div class="link" style="left:' + a + '%;width:' + (b - a) + '%"></div>' +
+      '<i class="pt k" style="left:' + b + '%"></i><i class="pt s" style="left:' + a + '%"></i>' +
+      (first ? '<span class="lab" style="left:calc(' + a + '% + 10px)">' + m[2] + ' MB</span>' : '') +
+      (first ? '<span class="lab" style="right:calc(' + (100 - b) + '% + 10px)">' + m[3] + ' MB</span>' : '') +
+      '</div><span></span></div>';
+  }).join("") + axis(MT, MMAX, function (t) { return t + " MB"; }, "");
+  $("memTable").innerHTML = '<thead><tr><th>Repository</th><th>Language</th><th>Streaming, MB</th><th>All trees kept, MB</th></tr></thead><tbody>' +
+    MEM.map(function (m) { return '<tr><td>' + esc(m[0]) + '</td><td>' + esc(m[1]) + '</td><td class="num">' + m[2] + '</td><td class="num">' + m[3] + '</td></tr>'; }).join("") + '</tbody>';
+  bindTips($("memChart"));
+
+  var EFF = [
+    ["Compile once", "Load each grammar and compile each query once per language, only for languages present. Compiling per file cost about 26 s on webpack."],
+    ["Parse once", "`check.py` parses every Python file more than once today."],
+    ["Drop trees", "Turn each tree into facts, then drop it. See the chart."],
+    ["Sort and stack", "Find nesting with one sort and a stack, not by comparing every pair: 7.3 times faster, same nodes on all 32,393 files."],
+    ["Cache by blob", "Facts keyed by git blob id. Only 400 of 32,393 files changed between nearby versions; a two-commit check needs 58 % fewer parses."],
+    ["No threads", "The binding holds Python's lock while parsing. A process pool gives 4.2 times with 8 workers, kept for later."]
+  ];
+  $("effList").innerHTML = EFF.map(function (e) { return '<div class="row"><b>' + esc(e[0]) + '</b><span>' + md(e[1]) + '</span></div>'; }).join("");
+
+  /* ======================= TODAY VS END ======================= */
+  function todaySvg() {
+    var M = "tvA", o = '<svg viewBox="0 0 900 250" role="img" aria-label="Today: check.py parses each Python file three times with CPython ast, once to probe syntax and once in each generator.">' + marker(M);
+    o += box(10, 95, 130, 60, "n", [["check.py", "t-main"], ["_read_files", "t-code"]]);
+    var r = [
+      [12, "parse_files(path)", "syntax probe", "TEMPORARY, parse 1"],
+      [93, "generate_structural", "ast.parse and walkers", "TEMPORARY, parse 2"],
+      [174, "generate_behavioral", "ast.parse and walkers", "TEMPORARY, parse 3"]
+    ];
+    r.forEach(function (x) {
+      o += curve(140, 125, 188, x[0] + 32, M);
+      o += box(190, x[0], 270, 64, "n-temp", [[x[1], "t-main"], [x[2], "t-sub"], [x[3], "t-temp"]]);
+    });
+    o += box(520, 20, 160, 48, "n-plain", [["PARSE_FAILED?", "t-main"]]);
+    o += box(520, 101, 160, 48, "n-plain", [["structural.json", "t-main"]]);
+    o += box(520, 182, 160, 48, "n-plain", [["behavioral.json", "t-main"]]);
+    [44, 125, 206].forEach(function (y, k) {
+      o += '<line class="edge" x1="460" y1="' + (r[k][0] + 32) + '" x2="518" y2="' + y + '" marker-end="url(#' + M + ')"/>';
+    });
+    o += box(740, 93, 150, 64, "n-plain", [["Diff by id", "t-main"], ["four-field answer", "t-sub"]]);
+    o += curve(680, 44, 738, 113, M) + curve(680, 125, 738, 125, M) + curve(680, 206, 738, 137, M);
+    return o + "</svg>";
+  }
+  function endSvg() {
+    var M = "teA", o = '<svg viewBox="0 0 900 300" role="img" aria-label="End state: check.py calls extract once. Behind it sit the engine, 15 language rows and a facts cache. Facts feed two pure views, then the unchanged diff.">' + marker(M);
+    o += box(10, 75, 120, 60, "n", [["check.py", "t-main"], ["in-scope files", "t-sub"]]);
+    o += '<line class="edge" x1="130" y1="105" x2="168" y2="105" marker-end="url(#' + M + ')"/>';
+    o += box(170, 62, 200, 86, "n-seam", [["extract(files)", "t-main"], ["returns Facts", "t-sub"], ["parses each file once", "t-sub"], ["raises ParseFailed", "t-sub"]]);
+    o += '<line class="edge" x1="370" y1="105" x2="408" y2="105" marker-end="url(#' + M + ')"/>';
+    o += box(410, 52, 170, 106, "n", [["Facts", "t-main"], ["elements, edges", "t-code"], ["guards", "t-code"], ["partly_read", "t-code"]]);
+    o += box(630, 26, 160, 50, "n-eng", [["structural_view", "t-main"]]);
+    o += box(630, 134, 160, 50, "n-eng", [["behavioral_view", "t-main"]]);
+    o += curve(580, 92, 628, 51, M) + curve(580, 118, 628, 159, M);
+    o += box(816, 75, 78, 60, "n-plain", [["Diff", "t-main"], ["answer", "t-sub"]]);
+    o += curve(790, 51, 814, 95, M) + curve(790, 159, 814, 115, M);
+    o += '<rect class="n-region" x="160" y="182" width="430" height="110" rx="6"/>';
+    o += '<text class="t-lab" x="172" y="202">Behind the interface, not visible to callers</text>';
+    o += box(172, 216, 128, 62, "n-eng", [["Engine", "t-main"], ["written once", "t-sub"]]);
+    o += box(310, 216, 128, 62, "n", [["15 rows", "t-main"], ["toml and .scm", "t-sub"]]);
+    o += box(448, 216, 128, 62, "n", [["Facts cache", "t-main"], ["by blob id", "t-sub"]]);
+    o += '<line class="edge-acc" x1="236" y1="214" x2="236" y2="151" marker-end="url(#' + M + ')"/>';
+    o += '<text class="t-acc" x="244" y="176">runs</text>';
+    return o + "</svg>";
+  }
+  var GONE = [
+    ["`import ast` in `common.py`, `structural_model.py`, `behavioral_model.py`", "Gone. No module outside the engine knows a parser exists"],
+    ["`parse_files() -> dict[path, ast.Module]` returns parser trees", "Gone. Trees never leave the engine and are dropped after each file"],
+    ["Each file parsed three times: `_read_files`, then each generator", "Parsed once, inside `extract`"],
+    ["Python-only walkers `_collect`, `_params`, `_imports`, `_resolve`", "Gone. `python.scm` plus the shared engine rules"],
+    ["`module_id` strips `.py` and `__init__` in Python code", "A row setting, `module_id = \"dotted\"`, from a fixed menu"],
+    ["`DEFAULT_SCOPE.include = [\"**/*.py\"]`", "Every enabled language's extensions, plus the M1 excludes"]
+  ];
+  $("goneRows").innerHTML = GONE.map(function (g) { return '<tr><td class="today">' + md(g[0]) + '</td><td>' + md(g[1]) + '</td></tr>'; }).join("");
+  function view(v) {
+    var today = v === "today";
+    $("vToday").setAttribute("aria-pressed", today); $("vEnd").setAttribute("aria-pressed", !today);
+    $("tvSvg").innerHTML = today ? todaySvg() : endSvg();
+    $("tvCap").textContent = today
+      ? "Today every Python file is parsed three times with CPython ast: once as a syntax probe in _read_files, then again inside each generator. All three are TEMPORARY."
+      : "After step d, check.py calls extract once and trees never leave it. Both models are pure views of the same facts, and partly_read reaches the answer as a field, not a side channel.";
+  }
+  $("vToday").addEventListener("click", function () { view("today"); });
+  $("vEnd").addEventListener("click", function () { view("end"); });
+  view("today");
+
+  var NOTES = [
+    ["The seam is `extract`, not `parse_files`.", "Returning trees leaks the parser. With `extract` it can change, as Python's does in steps c and d, without any caller noticing. It also forces dropping trees."],
+    ["One extraction feeds both models.", "Views take `Facts`, not text. Today each generator re-parses. The views are thin by design, which is right for pure projections."],
+    ["`check.py` stops probing syntax itself.", "`_read_files` calls `extract` once. One place judges syntax, so a row's `on_error` applies the same way in `check`, `init` and `update`."],
+    ["`partly_read` is part of the interface.", "O2's contract change needs the data to reach the answer. As a field of `Facts` it shows callers that `skip` exists."],
+    ["`module_id` and import styles are menus, not Python code.", "Python becomes a row like the others. Otherwise it keeps a private code path, and the engine has two adapters with no shared seam."],
+    ["The facts cache stays internal.", "No `cache=` parameter. One in-memory adapter, so a public seam would be hypothetical. Tests prove it changes nothing by running with it off."],
+    ["Registry checks run at load, not at use.", "Vocabulary and coverage failures stop the process before any file is read. A bad row is a build error, not a `PARSE_FAILED` in production."]
+  ];
+  $("notes").innerHTML = NOTES.map(function (n) { return '<li><b>' + md(n[0]) + '</b><p>' + md(n[1]) + '</p></li>'; }).join("");
+
+  /* ======================= DECISIONS ======================= */
+  var D = [
+    ["D1", "Python moves onto the template too, in steps a to d. Ids and committed models do not change.", "Evidence: 614 of 614 elements identical. The pod contract names no parser, only outputs.", "04, Python on the template", "04-one-template.md#python-on-the-template"],
+    ["D2", "Use tree-sitter (py-tree-sitter and pinned grammar wheels) for every other language.", "No Node.js, no compiler, never run the analysed code.", "02, Why tree-sitter", "02-language-adapters.md#why-tree-sitter"],
+    ["D3", "One template: one engine written once. A language is a `languages.toml` row plus a `.scm` file using a fixed capture vocabulary.", "", "04, The idea", "04-one-template.md#the-idea"],
+    ["D4", "In scope (14): Java, Kotlin, Scala, C#, C, C++, Rust, Go, Swift, JavaScript, TypeScript, PHP, Ruby, Lua.", "", "04, Proven, not assumed", "04-one-template.md#proven-not-assumed"],
+    ["D5", "Out of scope: CSS, HTML, MATLAB, Bash and sh, Objective-C, Dart, SQL, Perl, R, zsh, PowerShell, fish.", "CSS and HTML are not architecture, and their grammars reject valid code.", "04, Out of scope", "04-one-template.md#out-of-scope"],
+    ["D6", "Not decided: Elixir, Haskell, Julia, Zig.", "", "04, Not decided yet", "04-one-template.md#not-decided-yet"],
+    ["D7", "Parse errors, option (b): each row sets `on_error = \"fail\"` or `\"skip\"`.", "`skip` drops captures inside `ERROR` regions, keeps the rest, and lists the file as partly read.", "04, Parse errors", "04-one-template.md#option-b-on_error--skip"],
+    ["D8", "Fixes M1 to M4 before parsing.", "M1 excludes test, fixture and vendored folders for every language. M2 to M4 blank `#pragma`, macro-only lines and `#if`/`#endif`, per row, only with a preprocessor.", "04, Four fixes", "04-one-template.md#four-fixes-applied-before-parsing-measured-2026-11-02"],
+    ["D9", "Coverage check: every declaration kind in the grammar is captured or listed in the row's `ignore`.", "", "04, The coverage check", "04-one-template.md#4-the-coverage-check-nothing-is-missed-silently"],
+    ["D10", "Upgrade procedure: bump the pinned grammar, run the four guards, fix what they name.", "", "04, When a language changes", "04-one-template.md#when-a-language-changes-the-upgrade-procedure"],
+    ["D11", "Engine efficiency rules.", "Compile each query once, parse each file once, drop trees, sort-and-stack nesting, blob-SHA facts cache, no threads.", "04, How the engine runs efficiently", "04-one-template.md#how-the-engine-runs-efficiently"]
+  ];
+  var O = [
+    ["O1", "Duplicate ids from overloading (Java, C#, C++, Kotlin, Scala, Swift, TS), Rust trait methods and Ruby redefinition.", "Proposed: param types in the id only for overloaded names (`A.go(int,int)`), keep the last for redefinition, the trait in the id for Rust. Without it those languages give `INVALID_MODELS` on ordinary code.", "04, Duplicate ids", "04-one-template.md#one-problem-to-fix-before-building-duplicate-ids"],
+    ["O2", "The \"partly read\" list that `skip` adds to the answer.", "A pod contract change: the other team must agree.", "04, Option (b)", "04-one-template.md#option-b-on_error--skip"],
+    ["O3", "Imports for C#, Swift and Go give no edges.", "Go could resolve through `go.mod` to a folder, but that needs a `package` node kind: a schema change. The dependency graph is half the structural value.", "04, Imports", "04-one-template.md#the-one-part-that-does-not-fit-a-template-imports"],
+    ["O4", "Behavioral model for the new languages.", "Not prototyped. Suggested first language: TypeScript or Java. Step d depends on it.", "04, Limits", "04-one-template.md#limits-to-decide-consciously"],
+    ["O5", "Python edges on the template: relative imports and base classes resolved through bindings.", "Not compared yet. The gate of step b, before step c moves Python structural.", "04, Steps a to d", "04-one-template.md#steps-a-to-d-agreed"]
+  ];
+  var S = [
+    ["1", "TypeScript may avoid the duplicate-id fix.", "Its overloads are body-less signatures. Capturing `method_signature` only inside interfaces would likely remove the duplicates and move TS to wave 1. Not tested."],
+    ["2", "Measure on 3 to 5 repositories per language before choosing `fail` or `skip`.", "Every rate so far is from one repository."],
+    ["3", "Close the coverage gaps already found.", "Java `enum`, `record`, constructors. TypeScript `abstract class`, `enum`. Kotlin properties. Rust `const`, macros."],
+    ["4", "Kotlin: report the grammar gap upstream.", "`@Synchronized set(value)`. When it fails, 40.7 % of the file is unreadable on average."],
+    ["5", "Swift grammar is 0.7 and third party.", "Recheck on every Swift release."],
+    ["6", "Keep existing users unaffected.", "A new `DEFAULT_SCOPE` only applies to a new `drifter init`. Committed `scope.json` files keep `**/*.py`."],
+    ["7", "Design review of the end state.", "One `extract(files) -> Facts` replaces `parse_files`; see the seven design notes above."]
+  ];
+  function ledger(arr, cls) {
+    return arr.map(function (r) {
+      var src = r[4] ? '<a class="where" href="' + r[4] + '">' + esc(r[3]) + '</a>' : "";
+      return '<div class="entry"><span class="id ' + cls + '">' + r[0] + '</span><div style="display:grid;gap:3px;min-width:0"><b>' + md(r[1]) + '</b>' +
+        (r[2] ? '<span class="why">' + md(r[2]) + '</span>' : "") + src + '</div></div>';
+    }).join("");
+  }
+  $("dList").innerHTML = ledger(D, "d");
+  $("oList").innerHTML = ledger(O, "o");
+  $("sList").innerHTML = ledger(S, "s");
+
+  var WAVES = [
+    ["Wave 1", "JavaScript, Go, PHP, Ruby, Lua", "Only the engine (Ruby keeps the last definition). All `fail` rows, so no contract change."],
+    ["Wave 2", "TypeScript, Scala, Rust", "Plus the duplicate-id fix (O1)."],
+    ["Wave 3", "Java, C#, Kotlin, Swift", "Plus `skip` (O2) and C#'s M2 and M4 fixes."],
+    ["Wave 4", "C, C++", "Plus M2 to M4, proven on 3 to 5 more repositories each."]
+  ];
+  $("waves").innerHTML = WAVES.map(function (w) {
+    return '<div class="wave-col"><h3>' + w[0] + '</h3><span class="langs">' + esc(w[1]) + '</span><p>' + md(w[2]) + '</p></div>';
+  }).join("");
+
+  /* marks the active section in the bar */
+  var links = Array.prototype.slice.call(document.querySelectorAll(".bar a"));
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        links.forEach(function (a) { a.classList.toggle("on", a.getAttribute("href") === "#" + e.target.id); });
+      });
+    }, { rootMargin: "-40% 0px -55% 0px" });
+    ["plan", "languages", "parse-errors", "engine", "decisions", "sources"].forEach(function (id) { io.observe($(id)); });
+  }
+})();
+</script>
+</body>
+</html>

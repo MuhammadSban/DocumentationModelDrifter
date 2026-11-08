@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Model Drift Architecture Review</title>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+</script>
+<style>
+  :root { --leak: #dc2626; --deep: #0f172a; }
+  body { background: #fafaf9; }
+  .seam { border-style: dashed !important; }
+  .deep { background: linear-gradient(135deg, #0f172a, #1e293b); color: #f8fafc; }
+  .leakline { stroke: var(--leak); }
+  .lbl { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+  .diagram { min-height: 300px; }
+  pre.mermaid { background: transparent; }
+</style>
+</head>
+<body class="text-slate-900 font-sans">
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+
+<header class="space-y-4">
+  <p class="text-xs uppercase tracking-wider text-slate-500">Architecture review · 2026-11-03</p>
+  <h1 class="font-serif text-4xl">DocumentationModelDrifter: the Models and the drift check</h1>
+  <p class="text-sm text-slate-600 max-w-3xl">Scope: <span class="font-mono">Source/models</span>, <span class="font-mono">Source/drifter</span>, and the code that reads Models in <span class="font-mono">Frontend/</span> and <span class="font-mono">GitHub_Connector/</span>. These are the recent hot spots: schema validation (#32, #34, #35) and plugging in the behavioral model (#31). Also read against <span class="font-mono">docs/deviations/perspectives</span>, whose top proposals are to read authored inputs at the PR base and to add an authored <span class="font-mono">rules.json</span>.</p>
+  <div class="flex flex-wrap gap-4 text-xs text-slate-600 pt-2">
+    <span class="flex items-center gap-2"><span class="inline-block w-6 h-4 border-2 border-slate-400 bg-white"></span>module</span>
+    <span class="flex items-center gap-2"><span class="inline-block w-6 h-4 border-2 border-slate-500 seam"></span>seam</span>
+    <span class="flex items-center gap-2"><svg width="28" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="#dc2626" stroke-width="2"/><polygon points="22,1 28,5 22,9" fill="#dc2626"/></svg>leakage</span>
+    <span class="flex items-center gap-2"><span class="inline-block w-6 h-4 deep rounded-sm"></span>deep module</span>
+  </div>
+</header>
+
+<section id="candidates" class="space-y-10">
+
+<!-- ============================================================ A -->
+<article id="a" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">A. One model-kind seam for the drift check</h2>
+    <span class="text-xs font-semibold px-2 py-1 rounded bg-emerald-100 text-emerald-800">Strong</span>
+    <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-700">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 grid sm:grid-cols-2 gap-x-6">
+    <li>Source/drifter/check.py: answer, read_sources, MODEL_FILES, GENERATORS</li>
+    <li>Source/GitHub_Connector/schemas.py: Drift</li>
+    <li>Source/Frontend/model_loader.py: Models, load_models, models_from_dicts</li>
+    <li>Source/Frontend/model_viewer.py: fragment</li>
+    <li>tests/common/test_seam.py: SEAM_GENERATORS</li>
+    <li>Source/Tester/unit_tests.py</li>
+  </ul>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="diagram rounded-lg border border-slate-200 p-4 bg-stone-50">
+      <p class="lbl text-slate-500 mb-3">Before: adding a model kind means editing 8 places</p>
+      <div class="relative">
+        <div class="mx-auto w-40 text-center border-2 border-red-500 rounded px-2 py-2 text-xs bg-white">+ rules.json<br><span class="text-slate-500">(perspectives #3)</span></div>
+        <svg class="w-full" height="40" viewBox="0 0 300 40" preserveAspectRatio="none">
+          <g class="leakline" stroke-width="1.5" fill="none">
+            <line x1="150" y1="0" x2="20" y2="40"/><line x1="150" y1="0" x2="60" y2="40"/>
+            <line x1="150" y1="0" x2="100" y2="40"/><line x1="150" y1="0" x2="140" y2="40"/>
+            <line x1="150" y1="0" x2="180" y2="40"/><line x1="150" y1="0" x2="220" y2="40"/>
+            <line x1="150" y1="0" x2="260" y2="40"/><line x1="150" y1="0" x2="290" y2="40"/>
+          </g>
+        </svg>
+        <div class="grid grid-cols-4 gap-1 text-[10px] font-mono">
+          <div class="border border-slate-400 bg-white p-1">answer()</div>
+          <div class="border border-slate-400 bg-white p-1">read_sources()</div>
+          <div class="border border-slate-400 bg-white p-1">MODEL_FILES</div>
+          <div class="border border-slate-400 bg-white p-1">schemas.Drift</div>
+          <div class="border border-slate-400 bg-white p-1">model_loader ×5 names</div>
+          <div class="border border-slate-400 bg-white p-1">viewer.fragment</div>
+          <div class="border border-slate-400 bg-white p-1">SEAM_GENERATORS</div>
+          <div class="border border-slate-400 bg-white p-1">Tester</div>
+        </div>
+        <p class="text-xs text-slate-600 mt-3">Each Models file is named by hand in parallel lists: element rule on a fixed tuple (check.py:228), <span class="font-mono">_scope_rule</span> and <span class="font-mono">_ownership_rule</span> called by name, and <span class="font-mono">answer()</span> listing fields one by one.</p>
+      </div>
+    </div>
+    <div class="diagram rounded-lg border border-slate-200 p-4 bg-stone-50">
+      <p class="lbl text-slate-500 mb-3">After: callers iterate one list of model kinds</p>
+      <div class="deep rounded-lg p-4 space-y-2">
+        <p class="lbl text-slate-300">Model kinds</p>
+        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+          <div class="rounded border border-slate-500 p-2">structural<br><span class="text-slate-400">regenerate → diff</span></div>
+          <div class="rounded border border-slate-500 p-2">behavioral<br><span class="text-slate-400">regenerate → diff</span></div>
+          <div class="rounded border border-slate-500 p-2">ownership<br><span class="text-slate-400">authored → judge commits</span></div>
+          <div class="rounded border border-slate-500 p-2">scope<br><span class="text-slate-400">authored → selects files</span></div>
+          <div class="rounded border border-dashed border-emerald-400 p-2 col-span-2 text-emerald-300">rules (new): authored → judge structural edges</div>
+        </div>
+        <p class="text-[11px] text-slate-300 pt-1">each kind: file name · schema · element rule? · its step in one check</p>
+      </div>
+      <div class="flex justify-around text-[10px] font-mono mt-3">
+        <span class="border border-slate-400 bg-white px-2 py-1">answer</span>
+        <span class="border border-slate-400 bg-white px-2 py-1">read_sources</span>
+        <span class="border border-slate-400 bg-white px-2 py-1">loader</span>
+        <span class="border border-slate-400 bg-white px-2 py-1">seam test</span>
+      </div>
+      <p class="text-xs text-slate-600 mt-3">The four-field answer stays as the contract fixes it. Only the core's own wiring becomes a loop.</p>
+    </div>
+  </div>
+
+  <p><span class="font-semibold">Problem.</span> <span class="font-mono text-sm">GENERATORS</span> looks like the seam, but each model kind is still known in eight hand-maintained places, so the core's interface for "check the Models" is as wide as its implementation.</p>
+  <p><span class="font-semibold">Solution.</span> Each model kind declares its file, schema, whether the element rule applies, and its one step in a check (diff an Element list, or judge something against authored rules). <span class="font-mono text-sm">answer</span>, <span class="font-mono text-sm">read_sources</span>, <span class="font-mono text-sm">MODEL_FILES</span> and the seam test read that list.</p>
+  <ul class="text-sm list-disc pl-5 grid sm:grid-cols-2 gap-x-6">
+    <li>Locality: a new kind lands in one place</li>
+    <li>Leverage: rules.json costs one module</li>
+    <li>Dead branch at check.py:113 goes</li>
+    <li>Seam test stops duplicating GENERATORS</li>
+    <li>Real seam: five adapters, not one</li>
+  </ul>
+  <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm px-3 py-2">Keeps <span class="font-mono">docs/diagrams/model-seam.md</span> (D9, D10) intact: owners still write <span class="font-mono">generate_x(files) -&gt; dict</span> and their schema. Only the core side deepens.</div>
+</article>
+
+<!-- ============================================================ B -->
+<article id="b" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">B. Move the Models page's reading into the core</h2>
+    <span class="text-xs font-semibold px-2 py-1 rounded bg-emerald-100 text-emerald-800">Strong</span>
+    <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-700">ports &amp; adapters</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 grid sm:grid-cols-2 gap-x-6">
+    <li>Source/Frontend/model_drift.py: snapshot, committed, _scope, drifted</li>
+    <li>Source/GitHub_Connector/api.py:169-206: models_view</li>
+    <li>Source/GitHub_Connector/fetch.py: Comparison.tree_at, read(commit=)</li>
+    <li>Source/drifter/check.py: Reader, _read_files, _model</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="diagram rounded-lg border border-slate-200 p-4 bg-white">
+      <p class="lbl text-slate-500 mb-1">Before: the HTTP route runs its own pipeline</p>
+      <pre class="mermaid">
+flowchart TB
+  R[api.models_view] --> F[fetch]
+  R --> C1[model_drift.committed]
+  R --> P[check.proposed_ownership]
+  R --> DS[check.DEFAULT_SCOPE]
+  R --> S[model_drift.snapshot ×2]
+  R --> D[model_drift.drifted]
+  R --> L[models_from_dicts]
+  S -. tree_at, read at commit<br/>not in Reader .-> CMP[Comparison]
+  C1 -. lenient copy of _model .-> CMP
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+  class S,C1 leak
+      </pre>
+    </div>
+    <div class="diagram rounded-lg border border-slate-200 p-4 bg-white">
+      <p class="lbl text-slate-500 mb-1">After: the route asks the core one question</p>
+      <pre class="mermaid">
+flowchart TB
+  R[api.models_view] --> M["core: models at commit<br/>(reader) → committed, regenerated,<br/>changed since parent"]
+  M --> RD{{Reader seam}}
+  RD --> LR[LocalReader]
+  RD --> CM[Comparison]
+  R --> V[viewer.render]
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+  class M deep
+      </pre>
+    </div>
+  </div>
+  <p><span class="font-semibold">Problem.</span> <span class="font-mono text-sm">model_drift.py</span> repeats the core's read, scope, decode and generate steps with weaker rules (no 1 MB limit, bad files silently dropped, a broken scope.json falls back to the default), and it calls <span class="font-mono text-sm">Comparison</span> methods that the <span class="font-mono text-sm">Reader</span> interface does not have.</p>
+  <p><span class="font-semibold">Solution.</span> Add reading at a given commit to the <span class="font-mono text-sm">Reader</span> interface, and let one core function return what the page shows. The core then decides once whether a page is strict or lenient.</p>
+  <ul class="text-sm list-disc pl-5 grid sm:grid-cols-2 gap-x-6">
+    <li>Locality: one read path, one set of error rules</li>
+    <li>The page runs on the CLI's LocalReader too</li>
+    <li>Untested route gets a test surface</li>
+    <li>The HTTP route stops importing the Frontend</li>
+  </ul>
+  <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm px-3 py-2">Glossary clash: the page's "drift" chip means "the regenerated model changed since the parent commit". <span class="font-mono">GLOSSARY.md</span> defines <b>Drift</b> as code vs Models. That chip needs its own name.</div>
+</article>
+
+<!-- ============================================================ C -->
+<article id="c" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">C. Make ownership one deep module, judged at the base commit</h2>
+    <span class="text-xs font-semibold px-2 py-1 rounded bg-amber-100 text-amber-800">Worth exploring</span>
+    <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-700">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 grid sm:grid-cols-2 gap-x-6">
+    <li>Source/models/ownership_model.py: CommitRecord, PathTouch, validate, propose_ownership</li>
+    <li>Source/drifter/check.py: check_ownership, _changed, _match, _ownership_rule, _parse_history, LETTERS</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="diagram rounded-lg border border-slate-200 p-4 bg-stone-50">
+      <p class="lbl text-slate-500 mb-3">Before: one concept, split across two files</p>
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <div class="border-2 border-slate-400 bg-white rounded p-3 space-y-1">
+          <p class="lbl text-slate-500">ownership_model.py</p>
+          <p class="font-mono">CommitRecord, PathTouch</p>
+          <p class="font-mono">validate()</p>
+          <p class="font-mono">propose_ownership()</p>
+          <p class="font-mono">CHANGE_TYPES</p>
+        </div>
+        <div class="border-2 border-slate-400 bg-white rounded p-3 space-y-1">
+          <p class="lbl text-slate-500">check.py</p>
+          <p class="font-mono text-red-700">_parse_history(), LETTERS</p>
+          <p class="font-mono text-red-700">check_ownership()</p>
+          <p class="font-mono text-red-700">_ownership_rule()</p>
+          <p class="font-mono">Sources: rules at <b>head</b></p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-600 mt-3">A non-owner can add themselves to ownership.json and edit an owned file in the same push (mage_take.md con 5). Fixing it means changes to <span class="font-mono">read_sources</span>, <span class="font-mono">Sources</span> and <span class="font-mono">check_ownership</span> together.</p>
+    </div>
+    <div class="diagram rounded-lg border border-slate-200 p-4 bg-stone-50">
+      <p class="lbl text-slate-500 mb-3">After: one interface, two operations</p>
+      <div class="deep rounded-lg p-4 text-xs space-y-3">
+        <p class="lbl text-slate-300">Ownership</p>
+        <p class="font-mono">propose(history) → ownership.json</p>
+        <p class="font-mono">judge(rules @ base, commits) → violations</p>
+        <div class="border-t border-slate-600 pt-2 text-slate-400 font-mono text-[11px]">inside: log parsing · records · first-match rule · rename on old path · bots</div>
+      </div>
+      <p class="text-xs text-slate-600 mt-3">The core passes in rules read at the base. The module's interface is where "which commit's rules count" is decided.</p>
+    </div>
+  </div>
+  <p><span class="font-semibold">Problem.</span> Understanding ownership means reading both files, and the top fix in the perspectives docs (judge against rules at the base commit) has no single place to land.</p>
+  <p><span class="font-semibold">Solution.</span> Bring log parsing, judging and the shape check together behind <span class="font-mono text-sm">propose</span> and <span class="font-mono text-sm">judge</span>. The base-commit rule then becomes one parameter of <span class="font-mono text-sm">judge</span>.</p>
+  <ul class="text-sm list-disc pl-5 grid sm:grid-cols-2 gap-x-6">
+    <li>Locality: self-grant fix in one module</li>
+    <li>Tests for the 3 C7 cases, no git</li>
+    <li>Change types defined once, not twice</li>
+  </ul>
+  <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm px-3 py-2"><span class="font-mono">model-seam.md</span> gives the checker to the core and <span class="font-mono">propose_ownership</span> to the ownership owner. This merges code two people own, so the owners have to agree on the split first. That is an agreement between people, not a technical blocker.</div>
+</article>
+
+<!-- ============================================================ D -->
+<article id="d" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">D. Share git-format parsing across both Reader adapters, and add an in-memory one</h2>
+    <span class="text-xs font-semibold px-2 py-1 rounded bg-amber-100 text-amber-800">Worth exploring</span>
+    <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-700">ports &amp; adapters</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 grid sm:grid-cols-2 gap-x-6">
+    <li>Source/drifter/check.py:295-341, 448-455: LocalReader, _git, _run</li>
+    <li>Source/GitHub_Connector/fetch.py:54-143: Comparison, _Git</li>
+    <li>LOG_ARGS, REGULAR imported across (fetch.py:17)</li>
+    <li>tests/drift, tests/drifter/test_cli.py (real git repos)</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="diagram rounded-lg border border-slate-200 p-4 bg-white">
+      <p class="lbl text-slate-500 mb-1">Before: two adapters, two parsers</p>
+      <pre class="mermaid">
+flowchart LR
+  A["answer(Sources)<br/>pure, but no test calls it"] --- RS[read_sources]
+  RS --> LR["LocalReader<br/>ls-tree parse<br/>cat-file parse"]
+  RS --> CM["Comparison<br/>ls-tree parse<br/>cat-file parse"]
+  CM -. imports LOG_ARGS, REGULAR .-> RS
+  T[tests] --> G[(real git repo)]
+  G --> LR
+  classDef leak stroke:#dc2626,stroke-width:2px,color:#991b1b;
+  class CM leak
+      </pre>
+    </div>
+    <div class="diagram rounded-lg border border-slate-200 p-4 bg-white">
+      <p class="lbl text-slate-500 mb-1">After: three adapters, one git format</p>
+      <pre class="mermaid">
+flowchart LR
+  RS[read_sources] --> RD{{Reader seam}}
+  RD --> LR[LocalReader]
+  RD --> CM[Comparison]
+  RD --> MEM["InMemoryReader<br/>dict of files + commits"]
+  LR & CM --> GF["git format<br/>ls-tree · cat-file · log"]
+  T[most tests] --> MEM
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a;
+  class GF deep
+      </pre>
+    </div>
+  </div>
+  <p><span class="font-semibold">Problem.</span> The seam is real, with two adapters, but both re-parse git's output formats. Every drift test builds a real git repo, because nothing else can produce <span class="font-mono text-sm">Sources</span>.</p>
+  <p><span class="font-semibold">Solution.</span> Put git's output formats in one module that both adapters use. Add an in-memory adapter so tests can check every no-verdict code and the ownership rules without git.</p>
+  <ul class="text-sm list-disc pl-5 grid sm:grid-cols-2 gap-x-6">
+    <li>Three adapters justify the seam</li>
+    <li>Locality: one git-format parser</li>
+    <li>Fast tests through read_sources</li>
+    <li>Keep one real-git agreement test</li>
+  </ul>
+</article>
+
+<!-- ============================================================ E -->
+<article id="e" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">E. Make each schema the only description of a Models file's shape</h2>
+    <span class="text-xs font-semibold px-2 py-1 rounded bg-amber-100 text-amber-800">Worth exploring</span>
+    <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-700">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 grid sm:grid-cols-2 gap-x-6">
+    <li>Source/drifter/check.py: _ownership_rule, _scope_rule, _schema_rule</li>
+    <li>Source/models/*.schema.json (no scope.schema.json)</li>
+    <li>Source/Frontend/model_loader.py: _field and 13 builders</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="diagram rounded-lg border border-slate-200 p-4 bg-stone-50">
+      <p class="lbl text-slate-500 mb-3">Before: the shape is written three times</p>
+      <div class="flex items-end justify-around h-52">
+        <div class="text-center text-[10px] w-20">
+          <div class="bg-slate-300 h-20 mb-1"></div><div class="bg-slate-500 h-12"></div>
+          <p class="mt-1 font-mono">schema.json</p>
+        </div>
+        <div class="text-center text-[10px] w-20">
+          <div class="bg-red-300 h-16 mb-1"></div><div class="bg-slate-500 h-14"></div>
+          <p class="mt-1 font-mono">_ownership_rule<br>_scope_rule</p>
+        </div>
+        <div class="text-center text-[10px] w-20">
+          <div class="bg-red-300 h-28 mb-1"></div><div class="bg-slate-500 h-16"></div>
+          <p class="mt-1 font-mono">model_loader</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-600 mt-2">Light bar: interface, the field names a reader must know. Dark bar: implementation. Two of the three copies are shallow.</p>
+    </div>
+    <div class="diagram rounded-lg border border-slate-200 p-4 bg-stone-50">
+      <p class="lbl text-slate-500 mb-3">After: one schema per file, plus one cross-file rule</p>
+      <div class="flex items-end justify-around h-52">
+        <div class="text-center text-[10px] w-28">
+          <div class="bg-slate-300 h-8 mb-1"></div><div class="deep h-36 flex items-center justify-center text-[10px] px-1">validate(name, model)<br>schemas + element rule</div>
+          <p class="mt-1 font-mono">core</p>
+        </div>
+        <div class="text-center text-[10px] w-24">
+          <div class="bg-slate-300 h-6 mb-1"></div><div class="bg-slate-500 h-10"></div>
+          <p class="mt-1 font-mono">loader: trusts<br>validated input</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-600 mt-2">Add scope.schema.json. The element rule (unique ids across lists) stays in code, because a schema cannot express it.</p>
+    </div>
+  </div>
+  <p><span class="font-semibold">Problem.</span> <span class="font-mono text-sm">_ownership_rule</span> runs right after <span class="font-mono text-sm">_schema_rule</span> and checks the same thing again. <span class="font-mono text-sm">_scope_rule</span> exists only because <span class="font-mono text-sm">scope.schema.json</span> does not. The loader adds a third, weaker copy with a different error type.</p>
+  <p><span class="font-semibold">Solution.</span> The core validates every Models file once, against its schema plus the element rule. The loader builds its dataclasses only from files the core has already validated.</p>
+  <ul class="text-sm list-disc pl-5 grid sm:grid-cols-2 gap-x-6">
+    <li>Delete 2 shallow hand-written rules</li>
+    <li>One error mode: INVALID_MODELS</li>
+    <li>Owner changes schema, everyone follows</li>
+  </ul>
+</article>
+
+<!-- ============================================================ F -->
+<article id="f" class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-serif text-2xl mr-2">F. Pass parsed code across the generator seam</h2>
+    <span class="text-xs font-semibold px-2 py-1 rounded bg-slate-200 text-slate-700">Speculative</span>
+    <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-700">in-process</span>
+  </div>
+  <ul class="font-mono text-sm text-slate-700 grid sm:grid-cols-2 gap-x-6">
+    <li>Source/models/common.py: parse_files</li>
+    <li>Source/models/structural_model.py: _collect, module_id, FUNCTIONS</li>
+    <li>Source/models/behavioral_model.py: _collect, imports module_id</li>
+    <li>Source/drifter/check.py:247: _read_files</li>
+  </ul>
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="diagram rounded-lg border border-slate-200 p-4 bg-stone-50">
+      <p class="lbl text-slate-500 mb-3">Before: each file parsed three times</p>
+      <div class="space-y-2 text-xs font-mono">
+        <div class="border-l-4 border-slate-400 bg-white h-10 flex items-center px-3">_read_files → parse_files (trees discarded)</div>
+        <div class="border-l-4 border-slate-400 bg-white h-10 flex items-center px-3">generate_structural → parse_files → _collect</div>
+        <div class="border-l-4 border-slate-400 bg-white h-10 flex items-center px-3">generate_behavioral → parse_files → _collect (copy)</div>
+        <div class="border-l-4 border-red-500 bg-white h-10 flex items-center px-3 text-red-700">behavioral imports structural.module_id</div>
+      </div>
+    </div>
+    <div class="diagram rounded-lg border border-slate-200 p-4 bg-stone-50">
+      <p class="lbl text-slate-500 mb-3">After: one parsed-code value feeds both generators</p>
+      <div class="deep rounded p-4 text-xs font-mono space-y-1">
+        <p class="lbl text-slate-300">parsed code</p>
+        <p>path → tree, module id</p>
+        <p>definitions (last one wins)</p>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mt-3 text-xs font-mono">
+        <div class="border-2 border-slate-400 bg-white p-2">structural</div>
+        <div class="border-2 border-slate-400 bg-white p-2">behavioral</div>
+      </div>
+    </div>
+  </div>
+  <p><span class="font-semibold">Problem.</span> The generator interface takes text, so the trees are thrown away. Both owners walk definitions with the same "last definition wins" rule, and behavioral borrows structural's id scheme.</p>
+  <p><span class="font-semibold">Solution.</span> The core parses once and hands generators parsed code, including the module id and the definition walk.</p>
+  <ul class="text-sm list-disc pl-5 grid sm:grid-cols-2 gap-x-6">
+    <li>Element ids agree by construction</li>
+    <li>Parse once per check</li>
+  </ul>
+  <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm px-3 py-2">This changes the owner interface that <span class="font-mono">model-seam.md</span> fixed (D9, D10: <span class="font-mono">generate_x(files: dict[str,str])</span>). The timing cost has not been measured, so reopen that decision only if parsing shows up as slow or the two id schemes drift apart.</div>
+</article>
+
+</section>
+
+<section id="top-recommendation" class="deep rounded-xl p-8 space-y-3">
+  <p class="lbl text-emerald-300">Top recommendation</p>
+  <h2 class="font-serif text-3xl"><a href="#a" class="underline decoration-emerald-400 underline-offset-4">A. One model-kind seam for the drift check</a></h2>
+  <p class="text-slate-300 max-w-3xl">Both top proposals in the perspectives docs change model kinds: an authored <span class="font-mono">rules.json</span> is a new kind, and judging ownership at the base commit changes how one kind is read. Today each of those changes touches eight places. Do A first and both land in one place each. C and E then fit in as how individual kinds are written.</p>
+</section>
+
+</main>
+</body>
+</html>

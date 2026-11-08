@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-MODELS = Path(__file__).resolve().parents[2] / "docs" / "models"
+MODELS = Path(__file__).resolve().parents[2] / "docs" / "diagrams"
 BLOCK = re.compile(r"```mermaid\n(.*?)```", re.S)
 
 
