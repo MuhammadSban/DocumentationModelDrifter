@@ -4,7 +4,7 @@
 
 Question: how does a repository get its first `/models`, and where can init stop?
 
-init is the arrow **No models → Proposed** in `behavioral-model.md`. It runs once per repository and writes a draft; it checks nothing. Structural and behavioral come from the code at the commit, ownership from the git history up to it, and scope.json gets the defaults. A person then reviews the draft and commits it as the baseline (spec §3.2, REQ-03). The hosted `POST /system/generate` runs the same `generate_models` on a fresh clone and returns the four files instead of writing them.
+init is the arrow **No models → Proposed** in `behavior.md`. It runs once per repository and writes a draft; it checks nothing. Structural and behavioral come from the code at the commit, ownership from the git history up to it, and scope.json gets the defaults. A person then reviews the draft and commits it as the baseline (spec §3.2, REQ-03). The hosted `POST /system/generate` runs the same `generate_models` on a fresh clone and returns the four files instead of writing them.
 
 ## How init starts
 

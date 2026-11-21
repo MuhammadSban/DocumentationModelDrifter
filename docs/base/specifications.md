@@ -291,7 +291,7 @@ describes anything at all is visible in /models itself, not in the answer.
 
 #### The system model
 
-The lifecycle of a repository under the tool, drawn in docs/diagrams/behavioral-model.md: the tool
+The lifecycle of a repository under the tool, drawn in docs/diagrams/behavior.md: the tool
 proposes the models once, a person commits them as the baseline, and every push then ends
 Aligned, Drifted or Failed.
 
