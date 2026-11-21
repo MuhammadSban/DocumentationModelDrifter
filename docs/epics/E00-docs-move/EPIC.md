@@ -60,7 +60,7 @@ This Epic's own:
 ## Open questions
 
 - Does `docs/adr/` move with the rest? No. `docs/contract/mapping-v1.1.yaml:30` classifies `docs/adr/**` as DESIGN, so a move would change what Team 16's rules see.
-- Does this Epic file the D9 ruling under `docs/decisions/RULED/`? No. Only the human writes there; it is step 0.2b (W2-5 row, `docs/state/WORK-ITEMS.md`).
+- Does this Epic write anything under `docs/decisions/RULED/`? No. Only the human writes there; step 0.2b creates the folder with its README (W2-5 row, `docs/state/WORK-ITEMS.md`).
 - Can "no link points to a moved path" be a Done criterion? Not one that re-runs. The link check ran once after step 2 and found nothing, and its script was not kept (W2-8 row). If a broken path turns up again, W2-8 adds the check to CI.
 - Can "no row contradicts the build order" be a command? No. The build order is a planning page kept outside this repository; step 3 compared it by hand, row by row (`5bb3d0a`, `e14a5ac`).
 - The title of `docs/proposals/language-engine/README.md` still says "Deviations". Left as it is: a rename of a title is outside "structure only". The W2-5 row records it as still open; it is a small change and needs no Epic.
