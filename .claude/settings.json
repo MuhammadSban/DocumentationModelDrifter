@@ -3,7 +3,6 @@
     "Edit(/docs/decisions/RULED/**)", "Edit(/docs/decisions/ruled/**)",
     "Edit(/docs/base/student-facing-spec.docx.pdf)",
     "Edit(/.claude/settings.json)",
-    "PowerShell(*decisions*RULED*)",
     "Bash(*.claude*settings.json*)", "PowerShell(*.claude*settings.json*)"
   ],
   "ask": [
