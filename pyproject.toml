@@ -20,3 +20,7 @@ packages = ["drifter", "models"]
 # ships each owner's <name>.schema.json beside its generator
 [tool.setuptools.package-data]
 models = ["*.schema.json"]
+
+# pins the lint rules, ruff's default set changes between versions
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
