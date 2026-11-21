@@ -1,6 +1,6 @@
 # E02: The data-flow and behavior models
 
-Status: draft · Owner: Kaan
+Status: ratified · Owner: Kaan
 
 W-row: none. Build order step 0.6b has no W-row; `docs/state/WORK-ITEMS.md` names it by its step number under Next action · Branch: `E02-system-models`
 
@@ -112,6 +112,17 @@ None the draft could not answer for its own work. One question found while plann
 For the rest: The four calls that were the human's were asked and answered on 2026-11-21 and are recorded under Goal. The six places where the code and the build order's wording disagree are in `DESIGN.md`, "Where the code and the build order disagree"; in each the code wins, as the human asked, so none is an open question.
 
 ## Review
+
+RATIFY · design-reviewer at 2230f2d · 2026-11-21
+
+- Every `file:line` cited by `DESIGN.md` holds at `2230f2d`. `git diff --stat 21e7921 HEAD -- Source tests docs/diagrams docs/contract .claude` prints nothing, and each cited line was reread: `analysis.py:36-121`, `:66-67`, `:72-90`, `:83`, `:93-98`, `:117-120`, `:132`, `:143-146`; `check.py:36`, `:94-99`, `:122-136`, `:167-205`, `:211-213`, `:216-250`, `:223`, `:224`, `:232`, `:244`, `:263-287`, `:349`, `:412`, `:455`; `cli.py:43-65`; `fetch.py:64-133`, `:101-107`, `:256-291`; `settings.py:30`, `:39-43`, `:50-54`, `:68-71`; `runs.py:27-44`; `api.py:33-40`, `:77-91`, `:169-206`; `common.py:14`, `:33`; `mapping-v1.1.yaml:78`; `.claude/settings.json:13-14`; `test_diagrams.py:18-20`; `render.py:25-27`; `specifications.md:294`, `:342-346`; `phase4.md:132`, `:172`; `file-fetch.md:30-32` (seven figures, four of them in D11).
+- The commands the premises name hold. `python -m pytest tests/docs -q` prints `11 passed`. `PYTHONPATH=Source python -m drifter.cli check` prints `MODELS_NOT_FOUND` and exits 2. `check 0000000` ends in `subprocess.CalledProcessError` and exits 1. The three schemas exist. `.github/workflows` holds only `ci.yml`. `git ls-files docs/diagrams` lists eleven `.md` files and `render.py`.
+- The third draft's answer to the second review holds. The checks of steps 1 and 3 and Done 8 no longer use `$`. On this CRLF clone, `git grep -c -E "^(.{3}mermaid|## Every ending|## Premises, verified)" -- docs/diagrams/` prints `behavioral-model.md:1` today. Steps 1 and 4 now list `docs/README.md`.
+- Each check was simulated in a CRLF clone in the scratchpad (`core.autocrlf=true`), and none passes before its step is done. Step 2's `git mv` with its reference fixes gives `R100 docs/diagrams/behavioral-model.md docs/diagrams/behavior.md` (Done 9). After that commit, step 3's check prints `behavior.md:1`, and `specifications.md:294` is the one line for Done 2. A CRLF `data-flow.md` with one fence and the premises heading prints `:2` for step 1. A CRLF README with five rows prints `:5` for step 4. After step 6's `git rm` and `git mv`, Done 5 lists exactly the seven files, Done 11 prints the moved path, Done 6 prints `6 passed`, and Done 9 still shows the R100 line. Step 1's `12 passed` follows from 11 pages plus one.
+- Step 2's grep prints exactly the four files step 2 lists: `CLAUDE.md:14`, `docs/README.md:38`, `specifications.md:294` and `diagrams/init.md:7`. Step 6's grep prints exactly the files step 6 lists. `phase4.md:172` ("one-check diagram") cannot match the pattern and is listed by name. A wider search finds no other live file that names a deleted diagram: the `init.md` hits in `owner-approval.md`, `mage_take.md` and `language-engine/README.md` are `proposals/init/init.md` or the proposal's own `06-init.md`. The `WORK-ITEMS.md` rows step 6 names are W0-6 (line 91), the W0-7 detail (line 122), W3-5 (line 188) and W5-3 (line 221). Lines 59, 60 and 86 are dated records.
+- Step 5's check and Done 10 print `model-seam.md:3, 5, 12, 34, 39, 43, 45, 52, 54, 63, 67` and `models-folder.md:27, 35` today, so each fails until the review is done. Done 3, 12 and 14 print nothing today. Done 13 prints nothing today and would print `data-flow.md` or `README.md` if either entry were missing.
+- The filled-copy check prints nothing for `EPIC.md` or `DESIGN.md`. Every step names its files, one check with its output, and its trailer. Every Done line is a command, except line 4, the human's acceptance. `DESIGN.md` exists, as the Epic changes models in `docs/diagrams/` (`docs/epics/README.md:12`). Nothing contradicts a higher level: the spec, the contract and INV-1 to INV-3 are untouched, and `RULED/` holds only its README. The one human question has row CLI-1 (`docs/decisions/OPEN-DECISIONS.md:23`), and no row names `E02`.
+- Minor, not needed for RATIFY: Done 10 searches the whole folder with `-w owner`, so the new `behavior.md` fails it if it quotes the request format "owner/name" (`analysis.py:31`, `:42`; old `one-check.md:13`). Name the format some other way, or narrow the pattern. Step 5's note "at `01c2ab2` the command prints" is still true at `2230f2d`. Step 6's check excludes `WORK-ITEMS.md`, so the repointing of rows W0-6, W0-7, W3-5 and W5-3 is confirmed by reading those rows, not by the command.
 
 REVISE · design-reviewer at babb82f · 2026-11-21
 
