@@ -1,0 +1,59 @@
+# states the module map of docs/diagrams/dependency.md as import contracts, lint-imports checks them in CI
+
+[importlinter]
+root_packages =
+    GitHub_Connector
+    Frontend
+    Tester
+    drifter
+    models
+
+# keeps imports pointing down, rules A1 to A3 of the map
+[importlinter:contract:layers]
+name = Entry points, services, core, generators
+type = layers
+layers =
+    GitHub_Connector.api | Tester | drifter.cli
+    GitHub_Connector.analysis : GitHub_Connector.course : GitHub_Connector.fetch : GitHub_Connector.rules : GitHub_Connector.runs : GitHub_Connector.schemas : GitHub_Connector.settings : Frontend
+    drifter.check
+    models
+ignore_imports =
+    # stays, one container serves the tester's routes; W3-6 removes it if the tester is split out
+    GitHub_Connector.api -> Tester.api
+
+# keeps the tester a black box, rule A4
+[importlinter:contract:tester]
+name = Tester reaches the system over HTTP only
+type = forbidden
+source_modules =
+    Tester
+forbidden_modules =
+    GitHub_Connector
+    Frontend
+    drifter
+
+# keeps the pages off the connector, the tester and the check, rules A3 and A5
+[importlinter:contract:frontend]
+name = Frontend imports neither the connector, the tester nor the check
+type = forbidden
+source_modules =
+    Frontend
+forbidden_modules =
+    GitHub_Connector
+    Tester
+    drifter.check
+ignore_imports =
+    # removed by W3-3, the page asks the core for the models at a commit
+    Frontend.model_drift -> drifter.check
+
+# keeps the core and the generators free of their callers, rule A6
+[importlinter:contract:core]
+name = The core and the generators import no caller
+type = forbidden
+source_modules =
+    drifter
+    models
+forbidden_modules =
+    GitHub_Connector
+    Frontend
+    Tester
