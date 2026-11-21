@@ -18,14 +18,16 @@ An import points down: a module imports from its own layer or a lower one, never
 | | `drifter.cli` | Kaan | the `drifter` command |
 | | `Tester` (the whole package) | Enrique | the tester: its routes, its HTTP client and its tests |
 | 2. Services | `GitHub_Connector.analysis`, `.course`, `.fetch`, `.rules`, `.runs`, `.schemas`, `.settings` | Kaan | what the hosted app adds around one check: the clone, change detection, the result store, sessions, settings |
-| | `Frontend` | open, see the Epic's Open questions | the pages: loading, comparing and drawing models |
+| | `Frontend` | Enrique | the pages: loading, comparing and drawing models |
 | 3. Core | `drifter.check` | Kaan; Muhammad may edit it | one check, the readers, scope, the diff and the ownership checker |
 | 4. Generators | `models.common` | Kaan | `parse_files`, `write_model`, the glob |
 | | `models.structural_model` | Enrique | the structural generator and its schema |
 | | `models.behavioral_model` | Barshan | the behavioral generator and its schema |
 | | `models.ownership_model` | Muhammad | the ownership proposal, `CommitRecord` and its schema |
 
-Owners come from seam decision D9: `docs/diagrams/model-seam.md:11-14` and `docs/base/phase4.md:58-61`. The GitHub Action (Phase 5, not built) calls `drifter.cli` and adds no Python package.
+Owners come from seam decision D9: `docs/diagrams/model-seam.md:11-14` and `docs/base/phase4.md:58-61`. D9 names no owner for `Frontend`: the human named Enrique on 2026-11-21, and this map is where that is recorded. The GitHub Action (Phase 5, not built) calls `drifter.cli` and adds no Python package.
+
+`Source/Frontend/ui.py` can also be started on its own for local work (`python Source/Frontend/ui.py`, `Source/Frontend/README.md:32`). It imports none of the five packages, so it stays under `Frontend` in the services layer and is not a fourth entry point of the map.
 
 ### The allowed calls
 
@@ -72,7 +74,7 @@ Each is one ignore line, with a comment above it that names what removes it or s
 | Import | Breaks | Ignore line in | Removed by |
 |---|---|---|---|
 | `GitHub_Connector.api -> Tester.api` (`Source/GitHub_Connector/api.py:19`) | A2 | `layers` | Stays: the allowed exception. W3-6 removes it if the tester is split into its own service. |
-| `Frontend.model_drift -> drifter.check` (`Source/Frontend/model_drift.py:17`) | A5 | `frontend` | W3-3: the page asks the core for the models at a commit. |
+| `Frontend.model_drift -> drifter.check` (`Source/Frontend/model_drift.py:17`) | A5 | `frontend` | W3-3: the page asks the core for the models at a commit. Step 6 adds the promise to W3-3's Done column, which does not hold it today (`docs/state/WORK-ITEMS.md:184`). |
 
 ### Left out, on purpose
 
@@ -92,15 +94,15 @@ Every fact the structure rests on, checked against the disk before it is written
 | A planted forbidden import fails the run. | On a copy of `Source/` with `from GitHub_Connector import settings` added to `drifter/check.py`: `Contracts: 2 kept, 2 broken.`, exit 1 | yes |
 | An ignore line that matches no import fails the run, at the default setting. | With one ignore line pointed at `drifter.cli`: `No matches for ignored import Frontend.model_drift -> drifter.cli.` | yes |
 | A comment line inside `ignore_imports` is accepted. | The passing run above had one comment line above each ignore line | yes |
-| `import-linter` 2.17 is the newest release, and its contract types are forbidden, protected, layers, independence and acyclic siblings. | `pip index versions import-linter`; the project's docs, `docs/contract_types/index.md` | yes |
+| `import-linter` 2.17 is the newest release, and it has six contract types: forbidden, layers, independence, protected, private_modules and acyclic_siblings. The map uses the first two. | `pip index versions import-linter`; `importlinter/application/use_cases.py:650-655` in the 2.17 install | yes |
 | No module under `Source/` builds an import from a string. | `git grep -n -E "importlib\|__import__\|import_module" -- Source` finds only `from importlib import resources` (`Source/drifter/check.py:18`) | yes |
 | `Tester` imports no other package of the five today. | `git grep -n -E "^(from\|import) (drifter\|models\|GitHub_Connector\|Frontend)" -- Source/Tester` prints nothing | yes |
 | Editing `.importlinter` and `docs/diagrams/dependency.md` already prompts the human. | `.claude/settings.json:12-13` | yes |
 | CI is one job that installs both requirements files, then runs `pytest` and `ruff check`. | `.github/workflows/ci.yml:22-24` | yes |
-| Every box has an owner in D9. | `docs/base/phase4.md:58-61` names no owner for `Source/Frontend/` | no |
-| Rule R5 in `CLAUDE.md` agrees with the allowed calls. | `CLAUDE.md:42` says `Tester` and `Frontend` may import `drifter`; A4 and A5, taken from the W1-5 row, say otherwise | no |
+| Every box has an owner in D9. | `docs/base/phase4.md:58-61` names no owner for `Source/Frontend/` | no; answered by the human on 2026-11-21: Enrique |
+| Rule R5 in `CLAUDE.md` agrees with the allowed calls. | `CLAUDE.md:42` says `Tester` and `Frontend` may import `drifter`; A4 and A5, taken from the W1-5 row, say otherwise | no; answered by the human on 2026-11-21: the row stands, and step 6 rewords R5 |
 
-The two premises that do not hold are lines in the Epic's Open questions.
+The two premises that do not hold are lines in the Epic's Open questions, each with the human's answer.
 
 ## Must stay true
 

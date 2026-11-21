@@ -30,7 +30,7 @@ The file's own content does not change in this commit, so git records a pure ren
 
 ### Step 2/7: Extend the model with the module map
 
-- Files: `docs/diagrams/dependency.md` (three new sections, as in `docs/templates/DESIGN.md`: Intended structure, Premises verified, Must stay true, filled from `DESIGN.md`); `docs/README.md` (the line that describes the file)
+- Files: `docs/diagrams/dependency.md` (three new sections, named as in `docs/templates/DESIGN.md`: "Intended structure", "Premises, verified" and "Must stay true", filled from `DESIGN.md`); `docs/README.md` (the line that describes the file)
 - Check: `git grep -c -E "^## (Intended structure|Premises, verified|Must stay true)" -- docs/diagrams/dependency.md` → `docs/diagrams/dependency.md:3`
 - Trailer: `Step: 2/7`
 
@@ -46,7 +46,7 @@ The file is the four contracts of `DESIGN.md`, "The contracts", with the two ign
 
 ### Step 4/7: Install the linter and run it in CI
 
-- Files: `requirements-dev.txt` (`import-linter==2.17`); `.github/workflows/ci.yml` (one step after `ruff check`: `run: lint-imports` with `env: PYTHONPATH: Source`); `.gitignore` (`.import_linter_cache/`, which a local run creates)
+- Files: `requirements-dev.txt` (`import-linter==2.17`); `.github/workflows/ci.yml` (one step after `ruff check`: `run: lint-imports` with `env: PYTHONPATH: Source`; its header comment on line 1, which says "runs pytest then ruff", is reworded to name the import check too); `CLAUDE.md` (the Commands line "The lint CI runs" gains `lint-imports` with `PYTHONPATH=Source`); `.gitignore` (`.import_linter_cache/`, which a local run creates)
 - Check: `pip install -q -r requirements-dev.txt && PYTHONPATH=Source lint-imports` → ends with `Contracts: 4 kept, 0 broken.`
 - Trailer: `Step: 4/7`
 
@@ -60,9 +60,15 @@ A branch `proof/lint-imports-red`, cut from this one, adds one line to `Source/d
 
 ### Step 6/7: Grade the rule
 
-- Files: `docs/invariants/INVARIANTS.md` (a new row, INV-3, at ENFORCED-PROVEN, citing step 5's run); `CLAUDE.md` (R5: its wording follows A1 to A6 of `DESIGN.md`, and its Check column names the `lint-imports` step instead of "guidance only")
+- Files: `docs/invariants/INVARIANTS.md` (a new row, INV-3, at ENFORCED-PROVEN, citing step 5's run); `CLAUDE.md` (R5, reworded as below); `docs/state/WORK-ITEMS.md` (the Done when column of the W3-3 row gains "drops the `Frontend.model_drift -> drifter.check` ignore line")
 - Check: `git grep -c "INV-3.*ENFORCED-PROVEN" -- docs/invariants/INVARIANTS.md` → `docs/invariants/INVARIANTS.md:1`
 - Trailer: `Step: 6/7`
+
+R5's new row, which the human sees beside the old one before the edit:
+
+- What it says: Imports follow the module map `docs/diagrams/dependency.md`, which `.importlinter` states as contracts. They point down through its four layers: entry points, services, core, generators. `drifter` and `models` import none of `GitHub_Connector`, `Frontend` and `Tester`. `Tester` imports none of `GitHub_Connector`, `Frontend` and `drifter`. `Frontend` imports none of `GitHub_Connector`, `Tester` and `drifter.check`.
+- Principle: own abstractions, unchanged.
+- Check: `lint-imports` in CI (`.github/workflows/ci.yml`).
 
 If the human holds step 5's push, this step waits with it: the row is not written at ENFORCED-PROVEN before the red run has been seen.
 
@@ -93,19 +99,33 @@ This Epic's own:
 8. The contracts pass with the baseline: `PYTHONPATH=Source lint-imports` → ends with `Contracts: 4 kept, 0 broken.`
 9. The baseline is two lines: `git grep -c -e "->" -- .importlinter` → `.importlinter:2`
 10. The linter is pinned: `git grep -n "import-linter" -- requirements-dev.txt` → `requirements-dev.txt:2:import-linter==2.17`
-11. CI runs it with the path set: `git grep -c -e "lint-imports" -e "PYTHONPATH: Source" -- .github/workflows/ci.yml` → `.github/workflows/ci.yml:2`
+11. CI runs the linter and it passes: `gh run view $(gh run list --commit $(git rev-parse HEAD) --limit 1 --json databaseId --jq ".[0].databaseId") --json jobs --jq ".jobs[0].steps[] | select(.name==\"Run lint-imports\") | .conclusion"` → `success`
 12. A planted import turned CI red at the right step: the check of step 5 → `Run lint-imports`
 13. The throwaway PR was closed, not merged: `gh pr list --state all --head proof/lint-imports-red --json state,mergedAt --jq ".[0]"` → `{"mergedAt":null,"state":"CLOSED"}`
 14. The rule is graded: the check of step 6 → `docs/invariants/INVARIANTS.md:1`
 15. No source or test file changed: `git diff --stat main...HEAD -- Source tests` → prints nothing
 16. The strategy no longer lists W1-6: the check of step 7 → prints nothing
+17. W3-3 promises to drop its ignore line: `git grep -c "drops the .Frontend.model_drift -> drifter.check. ignore line" -- docs/state/WORK-ITEMS.md` → `docs/state/WORK-ITEMS.md:1`
 
 ## Open questions
 
-- Who owns `Frontend`? D9 names an owner for the core, the hosted service, the CLI, the tester and each model, and none for `Source/Frontend/` (`docs/base/phase4.md:58-61`). The map needs a label on that box.
-- R5 or the W1-5 row? `CLAUDE.md:42` says `Tester` and `Frontend` may import `drifter`. The W1-5 row says `Tester` must not import `drifter` and `Frontend` must not import `drifter.check`. The draft follows the row (A4 and A5 of `DESIGN.md`) and rewords R5 in step 6.
-- Does the `layers` contract list modules or packages? The draft lists modules, so that `drifter.cli` is an entry point above `drifter.check` and no service imports `GitHub_Connector.api`. The cost is in `DESIGN.md`, "Left out, on purpose": a new `GitHub_Connector` module must be added to the contract by hand.
+- Who owns `Frontend`? D9 names an owner for the core, the hosted service, the CLI, the tester and each model, and none for `Source/Frontend/` (`docs/base/phase4.md:58-61`). The map needs a label on that box. Answer: Enrique. The human's answer on 2026-11-21, recorded in the map (`DESIGN.md`, "The four layers"); the human asked for no row in `docs/decisions/OPEN-DECISIONS.md`.
+- R5 or the W1-5 row? `CLAUDE.md:42` says `Tester` and `Frontend` may import `drifter`. The W1-5 row says `Tester` must not import `drifter` and `Frontend` must not import `drifter.check`. The draft follows the row (A4 and A5 of `DESIGN.md`) and rewords R5 in step 6. Answer: the row stands. The human's answer on 2026-11-21; step 6 holds R5's new wording, and the human sees the old and new wording before the edit.
+- Does the `layers` contract list modules or packages? The draft lists modules, so that `drifter.cli` is an entry point above `drifter.check` and no service imports `GitHub_Connector.api`. The cost is in `DESIGN.md`, "Left out, on purpose": a new `GitHub_Connector` module must be added to the contract by hand. Answer: modules. The row's four layers (entry → service → core → generators, `docs/state/WORK-ITEMS.md:136`) split two packages across layers: `GitHub_Connector.api` is an entry point and the other `GitHub_Connector` modules are services, `drifter.cli` is an entry point and `drifter.check` the core (`Source/drifter/cli.py:15` imports `drifter.check`). A package-level line would put each pair in one layer, so the four layers can only be listed by module; the module-level draft runs `Contracts: 4 kept, 0 broken.` with the baseline (import-linter 2.17, re-run at `1714866`).
 
 ## Review
 
-Not reviewed yet. The design reviewer writes its verdict here.
+Second review: not written yet. It covers the draft as revised after the first review, and its verdict goes here.
+
+First review, kept as the record of what the revision answers:
+
+REVISE · design-reviewer at 1714866 · 2026-11-21
+
+- Two open questions are the human's call and have no row in `docs/decisions/OPEN-DECISIONS.md`: the owner of `Frontend`, and R5 against the W1-5 row. For RATIFY each needs a row there, cited from its line under Open questions (R1). No code, model or ruling answers them. `docs/base/phase4.md:58` gives Kaan the "hosted service", and `docs/base/overview_phase4.html:1052` serves `/` and `/models/view` from `Source/Frontend/`, so Kaan is the likely owner, but D9 does not say so. `CLAUDE.md:42` and `docs/state/WORK-ITEMS.md:136` disagree, and neither is a ruling.
+- A premise fails: import-linter 2.17 has six contract types, not five. `private_modules` is missing (`importlinter/application/use_cases.py:650-657` in the 2.17 install). Correct the premise row in `DESIGN.md:95`. Nothing else rests on it.
+- The baseline table says `W3-3` removes `Frontend.model_drift -> drifter.check` (`DESIGN.md:75`), but nothing in W3-3 says it will. Its row only says `api.py` stops importing `Frontend` (`docs/state/WORK-ITEMS.md:184`). Either a step adds "drops the `Frontend.model_drift -> drifter.check` ignore line" to W3-3's Done column, or the ignore comment and the table name a step that does promise it.
+- Done line 11 counts lines, so it breaks if the stale header comment `.github/workflows/ci.yml:1` ("runs pytest then ruff") is reworded to mention `lint-imports`: the count becomes 3. Step 4 must say whether that comment changes, and line 11 must match.
+- Once step 4 lands, `CLAUDE.md:52` (the lint CI commands) leaves out `lint-imports`. Step 4 or step 6 should list that line under Files.
+- Step 2's Files line names the section "Premises verified", but its check and the template say "Premises, verified" (`docs/templates/DESIGN.md:9`). Make the two the same.
+- Not blocking: `Source/Frontend/ui.py:81-100` is a standalone entry point (`python Source/Frontend/ui.py`, `Source/Frontend/README.md:32`). The map puts it in Services under `Frontend` and still says there are three entry points (`DESIGN.md:17-21`, A2). One sentence in the map would cover it.
+- Holds: the filled-copy check prints nothing for both files. `lint-imports` re-run with 2.17 gives `Analyzed 27 files, 47 dependencies.`, `2 kept, 2 broken` on the two baseline imports without ignore lines, and `4 kept, 0 broken` (exit 0) with them. The planted `drifter.check -> GitHub_Connector.settings` gives `2 kept, 2 broken` (exit 1). An unmatched ignore line fails with `No matches for ignored import`. Also confirmed: `Source/GitHub_Connector/api.py:19`, `Source/Frontend/model_drift.py:17`, `.claude/settings.json:12-13`, `.github/workflows/ci.yml:22-24`, `tests/docs/test_diagrams.py:20`, `docs/diagrams/model-seam.md:11-14`, `docs/base/phase4.md:58-61`, the `importlib` and `Tester` greps, that 2.17 is the newest release, that layers take no wildcard, that `unmatched_ignore_imports_alerting` defaults to error, that `7f1ac0a` is in `--follow` history, and that `STRATEGY.md:21` is the only line naming W1-6. Step 1's grep finds exactly `CLAUDE.md:14`, `CLAUDE.md:42` and `docs/README.md:37`. The plant keeps `pytest` green: `GitHub_Connector/__init__.py` is empty and `settings.py` needs only `pydantic_settings`, not the `fastapi` that `tests/drifter/test_cli.py:185` blocks. So `Run lint-imports` is the only red step.
