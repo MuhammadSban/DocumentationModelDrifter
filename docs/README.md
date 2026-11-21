@@ -6,7 +6,7 @@ Purpose: keep a repository's architecture documentation (the three models in `/m
 
 Every file under `docs/` is listed below, with when to read it. Paths are relative to `docs/`. Keep this map current when a file is added, moved or removed.
 
-**Which doc wins.** The authority order belongs in `CLAUDE.md` at the repository root. That file does not exist yet (W2-1 writes it); until it does, this paragraph is the order. The course's `base/student-facing-spec.docx.pdf` wins over everything. For anything another team's tester or system sees (routes, JSON, tests), `contract/` wins over the spec. The spec wins over a diagram. `state/WORK-ITEMS.md` is a plan: the spec and the contract win over it. `proposals/` are not agreed. `research/` and `history/` are background: never build from them. When a lower doc disagrees with a higher one, fix the lower one in the same change.
+**Which doc wins.** The authority order is in `CLAUDE.md` at the repository root.
 
 ## base/
 
@@ -54,7 +54,7 @@ Architecture decision records: why a hard-to-reverse choice was made. Read them 
 
 ## agents/
 
-How agents work in this repository. `AGENTS.md` at the repository root points here.
+How agents work in this repository. `CLAUDE.md` at the repository root points here.
 
 - `agents/modeling.md` — the rules for designing a model format and drawing a diagram. Read it before either.
 - `agents/domain.md` — where the glossary and the ADRs are and how to use them. Read it before exploring the codebase.
