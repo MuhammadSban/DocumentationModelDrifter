@@ -2,7 +2,7 @@
 
 Question: what happens between a request and the four-field answer, and where can a check stop?
 
-Two kinds of stop: an **HTTP error** answers 400, 404 or 500 and saves nothing; **no verdict** keeps HTTP 200 and status SUCCESS, with `drift: null`, a `drift_error` code and CLI exit 2. A check past its 80 s deadline answers 500 ANALYSIS_FAILED.
+Two kinds of stop: an **HTTP error** answers 400, 404 or 500 and saves nothing; **no verdict** keeps HTTP 200 and leaves `status` as change detection set it (SUCCESS, or ERROR when the change limit is exceeded), with `drift: null`, a `drift_error` code and CLI exit 2. A check past its 80 s deadline answers 500 ANALYSIS_FAILED.
 
 ```mermaid
 flowchart TB

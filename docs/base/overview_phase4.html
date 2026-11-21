@@ -1,0 +1,1668 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drifter architecture tour</title>
+<meta name="description" content="How DocumentationModelDrifter is put together at Phase 4: from the callers, through one check, into the core's seams and the hosted service.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,600;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #ECEFE9;
+  --surface: #F8F9F5;
+  --sunk: #E1E5DE;
+  --ink: #18263A;
+  --muted: #55616E;
+  --line: #C3CBC1;
+  --code: #0B6E6A;
+  --code-tint: #D5EAE7;
+  --model: #4A3F9E;
+  --model-tint: #E3E0F5;
+  --drift: #8A5100;
+  --drift-tint: #F5E6C9;
+  --fail: #A31E36;
+  --fail-tint: #F5D8DD;
+  --ok: #2A6A2E;
+  --ok-tint: #DAEAD6;
+  --focus: #1F5FD6;
+  --sans: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, sans-serif;
+  --mono: "Atkinson Hyperlegible Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --measure: 68ch;
+  --wide: 1080px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10161D; --surface: #17202A; --sunk: #0C1116; --ink: #E3E8EE; --muted: #9AA6B2; --line: #2D3A47;
+    --code: #5FC9C1; --code-tint: #12332F; --model: #ADA1F6; --model-tint: #25214A;
+    --drift: #E8AA4C; --drift-tint: #36270F; --fail: #F27C90; --fail-tint: #3C1720; --ok: #7DCB80; --ok-tint: #152E18;
+    --focus: #7FA8FF; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10161D; --surface: #17202A; --sunk: #0C1116; --ink: #E3E8EE; --muted: #9AA6B2; --line: #2D3A47;
+  --code: #5FC9C1; --code-tint: #12332F; --model: #ADA1F6; --model-tint: #25214A;
+  --drift: #E8AA4C; --drift-tint: #36270F; --fail: #F27C90; --fail-tint: #3C1720; --ok: #7DCB80; --ok-tint: #152E18;
+  --focus: #7FA8FF; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition: none !important; animation: none !important; } }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 400 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { color: inherit; text-decoration-color: var(--line); text-underline-offset: 3px; }
+a:hover { text-decoration-color: currentColor; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+p code, li code, td code, dd code { background: var(--sunk); padding: 0.05em 0.35em; border-radius: 3px; overflow-wrap: anywhere; }
+button { font: inherit; color: inherit; cursor: pointer; }
+
+/* ---------- frame: rail + main ---------- */
+.frame { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+.rail {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  padding: 28px 20px 28px 24px; border-right: 1px solid var(--line); overflow-x: hidden;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.rail .mark { overflow-wrap: anywhere; font-weight: 800; font-size: 1.05rem; letter-spacing: -0.01em; line-height: 1.25; }
+.rail .mark span { display: block; font-weight: 400; color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+.route { list-style: none; margin: 0; padding: 0; position: relative; }
+.route::before { content: ""; position: absolute; left: 11px; top: 8px; bottom: 8px; width: 1px; background: var(--line); }
+.route li { position: relative; }
+.route a {
+  display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: baseline;
+  padding: 5px 0; text-decoration: none; color: var(--muted); font-size: 0.92rem; line-height: 1.35;
+}
+.route a .n {
+  display: inline-grid; place-items: center; width: 23px; height: 23px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--line); font: 600 0.72rem var(--mono); position: relative; top: 0;
+}
+.route a:hover { color: var(--ink); }
+.route a.on { color: var(--ink); font-weight: 600; }
+.route a.on .n { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.legend { font-size: 0.82rem; color: var(--muted); display: grid; gap: 8px; margin-top: auto; }
+.legend .row { display: flex; gap: 8px; align-items: center; }
+.sw { display: inline-block; width: 22px; height: 14px; flex: none; border: 1.5px solid var(--ink); background: var(--surface); }
+.sw.actor { border-radius: 999px; }
+.sw.store { border: 4px double var(--ink); }
+.sw.planned { border-style: dashed; }
+.sw.codec { background: var(--code-tint); border-color: var(--code); }
+.sw.modelc { background: var(--model-tint); border-color: var(--model); }
+.theme-btn { background: none; border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font-size: 0.82rem; color: var(--muted); align-self: flex-start; }
+.theme-btn:hover { color: var(--ink); border-color: var(--ink); }
+
+main { min-width: 0; padding: 0 48px 120px; }
+.mobile-toc { display: none; }
+
+/* ---------- sections ---------- */
+section.ch { max-width: var(--wide); margin: 0 auto; padding-top: 88px; }
+.ch > header { max-width: var(--measure); margin-bottom: 28px; }
+.ch-num { font: 600 0.85rem var(--mono); color: var(--muted); display: block; margin-bottom: 6px; }
+h2 { font-size: clamp(1.7rem, 2.6vw, 2.25rem); line-height: 1.15; letter-spacing: -0.02em; font-weight: 800; margin: 0 0 14px; }
+h3 { font-size: 1.25rem; line-height: 1.3; letter-spacing: -0.01em; font-weight: 800; margin: 40px 0 10px; }
+h4 { font-size: 1rem; margin: 0 0 6px; font-weight: 800; }
+.question { margin: 0; font-style: italic; color: var(--muted); font-size: 1.05rem; padding-left: 14px; border-left: 3px solid var(--ink); }
+.prose { max-width: var(--measure); }
+.prose p, .prose ul, .prose ol { margin: 0 0 14px; }
+.prose li { margin-bottom: 4px; }
+.note { font-size: 0.9rem; color: var(--muted); max-width: var(--measure); }
+.fig { margin: 26px 0; }
+.fig figcaption { font-size: 0.88rem; color: var(--muted); margin-top: 10px; max-width: var(--measure); }
+
+/* ---------- hero ---------- */
+.hero { max-width: var(--wide); margin: 0 auto; padding-top: 56px; }
+.hero h1 {
+  font-size: clamp(2.3rem, 5.2vw, 4.1rem); line-height: 1.02; letter-spacing: -0.035em; font-weight: 800;
+  margin: 0 0 18px; max-width: 17ch;
+}
+.hero .eyebrow { display: inline-block; margin: 0 0 14px; padding: 4px 12px; border: 1.5px solid var(--code); border-radius: 999px; color: var(--code); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.hero h1 .c { color: var(--code); }
+.hero h1 .m { color: var(--model); }
+.hero .lede { font-size: 1.15rem; max-width: 60ch; margin: 0 0 30px; }
+.demo { border: 1.5px solid var(--ink); background: var(--surface); border-radius: 6px; overflow: hidden; }
+.demo-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px; border-bottom: 1px solid var(--line); background: var(--bg); align-items: center; }
+.demo-bar .lbl { font-size: 0.85rem; color: var(--muted); margin-right: 6px; }
+.chip {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 0.86rem; line-height: 1.2;
+}
+.chip:hover { border-color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.demo-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.pane { padding: 16px 18px 18px; min-width: 0; }
+.pane + .pane { border-left: 1px solid var(--line); }
+.pane-h { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; margin-bottom: 10px; flex-wrap: wrap; }
+.pane-h h4 { margin: 0; font-size: 0.95rem; }
+.pane-h .who { font-size: 0.8rem; color: var(--muted); }
+.side-code h4 { color: var(--code); }
+.side-model h4 { color: var(--model); }
+pre.src {
+  margin: 0; font: 400 0.84rem/1.6 var(--mono); background: var(--sunk); border-radius: 4px; padding: 10px 0; overflow-x: auto;
+  counter-reset: ln;
+}
+pre.src .ln { display: block; padding: 0 12px 0 0; white-space: pre; }
+pre.src .ln::before { counter-increment: ln; content: counter(ln); display: inline-block; width: 2.6em; text-align: right; padding-right: 12px; color: var(--muted); opacity: 0.7; }
+pre.src .ln.add { background: var(--code-tint); box-shadow: inset 3px 0 0 var(--code); }
+pre.src .ln.del { background: var(--fail-tint); box-shadow: inset 3px 0 0 var(--fail); text-decoration: line-through; text-decoration-color: var(--fail); }
+.commit-line { font-size: 0.82rem; color: var(--muted); margin: 10px 0 0; }
+.verdict { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font: 600 0.8rem var(--mono); border-radius: 4px; padding: 3px 8px; border: 1.5px solid; }
+.badge.ok { color: var(--ok); background: var(--ok-tint); border-color: var(--ok); }
+.badge.drift { color: var(--drift); background: var(--drift-tint); border-color: var(--drift); }
+.badge.fail { color: var(--fail); background: var(--fail-tint); border-color: var(--fail); }
+.badge.plain { color: var(--muted); border-color: var(--line); background: var(--surface); }
+pre.json {
+  margin: 0; font: 400 0.8rem/1.5 var(--mono); background: var(--sunk); border-radius: 4px; padding: 10px 12px;
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 330px; overflow-y: auto;
+}
+pre.json .k { color: var(--muted); }
+pre.json .chg-ADDED { color: var(--code); font-weight: 600; }
+pre.json .chg-REMOVED, pre.json .chg-VIOLATION { color: var(--fail); font-weight: 600; }
+pre.json .chg-MODIFIED { color: var(--drift); font-weight: 600; }
+.demo-foot { border-top: 1px solid var(--line); padding: 12px 18px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 0.9rem; }
+.demo-foot p { margin: 0; flex: 1 1 320px; color: var(--muted); }
+.btn { border: 1.5px solid var(--ink); background: var(--ink); color: var(--bg); border-radius: 5px; padding: 7px 14px; font-size: 0.9rem; font-weight: 600; }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+/* ---------- shapes (match the repo's Mermaid conventions) ---------- */
+.box { background: var(--surface); border: 1.5px solid var(--ink); border-radius: 4px; padding: 10px 12px; text-align: left; font-size: 0.9rem; line-height: 1.35; min-width: 0; }
+.box.actor { border-radius: 999px; text-align: center; padding: 10px 16px; }
+.box.store { border: 4px double var(--ink); }
+.box.planned { border-style: dashed; color: var(--muted); }
+.box .t { font-weight: 800; display: block; }
+.box .s { color: var(--muted); font-size: 0.82rem; display: block; }
+.box.code-side { border-color: var(--code); background: var(--code-tint); }
+.box.model-side { border-color: var(--model); background: var(--model-tint); }
+
+/* ---------- core idea ---------- */
+.idea { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 18px minmax(0, 1.1fr); gap: 10px 12px; align-items: center; }
+.idea .arr { font-size: 0.8rem; color: var(--muted); text-align: center; max-width: 13ch; line-height: 1.25; }
+.idea .arr::after { content: "→"; display: block; color: var(--ink); font-size: 1.1rem; }
+.idea .brace { grid-column: 4; grid-row: 1 / span 3; align-self: stretch; margin: 20px 0; border: 1.5px solid var(--ink); border-left: none; border-radius: 0 8px 8px 0; position: relative; }
+.idea .brace::after { content: ""; position: absolute; right: -9px; top: calc(50% - 5px); border: 5px solid transparent; border-left: 7px solid var(--ink); border-right: 0; }
+.idea .answer { grid-column: 5; grid-row: 1 / span 3; border-width: 2px; }
+.idea .answer code { background: none; padding: 0; }
+
+/* ---------- system map ---------- */
+.depth { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; align-items: center; }
+.depth .lbl { font-size: 0.88rem; color: var(--muted); margin-right: 4px; }
+.map-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 22px; align-items: start; }
+.map { display: grid; gap: 0; }
+.tier { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.wire { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; height: 44px; }
+.wire span { position: relative; display: block; }
+.wire span::before { content: ""; position: absolute; left: 50%; top: 4px; bottom: 8px; border-left: 1.5px solid var(--ink); }
+.wire span::after { content: ""; position: absolute; left: calc(50% - 5px); bottom: 3px; border: 5px solid transparent; border-top: 7px solid var(--ink); border-bottom: 0; }
+.wire span.none::before, .wire span.none::after { display: none; }
+.wire span.dashed::before { border-left-style: dashed; }
+.wire span em { position: absolute; left: calc(50% + 10px); top: 11px; font-size: 0.78rem; color: var(--muted); font-style: normal; white-space: nowrap; }
+.funnel { text-align: center; font-size: 0.82rem; color: var(--muted); padding: 8px 0 10px; position: relative; }
+.funnel::after { content: ""; display: block; margin: 6px auto 0; width: 0; height: 0; border: 6px solid transparent; border-top: 8px solid var(--ink); border-bottom: 0; }
+.core {
+  border: 1.5px solid var(--ink); border-radius: 6px; padding: 14px; background: color-mix(in srgb, var(--surface) 55%, var(--bg));
+}
+.core-h { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; align-items: baseline; }
+.core-h b { font-size: 0.95rem; }
+.core-h span { font-size: 0.8rem; color: var(--muted); }
+.core-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.core-grid .wide { grid-column: span 3; }
+.core-grid .span2 { grid-column: span 2; }
+.hosted-only {
+  margin-top: 12px; border: 1.5px dotted var(--ink); border-radius: 6px; padding: 12px;
+}
+.hosted-only > .core-h { margin-bottom: 10px; }
+.comp { cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease; width: 100%; }
+.comp:hover { box-shadow: 0 0 0 1.5px var(--ink); }
+.comp[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--focus); }
+.comp .iface, .comp .inner { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 0.78rem; }
+.comp .iface code, .comp .inner code { font-size: 0.95em; background: none; padding: 0; }
+.comp .iface { color: var(--ink); }
+.comp .inner { color: var(--muted); }
+.map[data-depth="2"] .comp .iface, .map[data-depth="3"] .comp .iface { display: block; }
+.map[data-depth="3"] .comp .inner { display: block; }
+.repo-row { display: grid; grid-template-columns: minmax(0, 1fr); }
+.writeback { margin-top: 10px; font-size: 0.82rem; color: var(--muted); border-left: 3px double var(--ink); padding-left: 10px; }
+.detail { position: sticky; top: 24px; border: 1.5px solid var(--ink); border-radius: 6px; background: var(--surface); padding: 16px 18px; font-size: 0.9rem; }
+.detail h4 { font-size: 1.05rem; margin-bottom: 2px; }
+.detail .path { font: 0.8rem var(--mono); color: var(--muted); display: block; margin-bottom: 12px; overflow-wrap: anywhere; }
+.detail dl { margin: 0; display: grid; gap: 10px; }
+.detail dt { font-weight: 800; font-size: 0.82rem; }
+.detail dd { margin: 0; color: var(--ink); }
+.detail dd.hide { color: var(--muted); }
+.detail .empty { color: var(--muted); margin: 0; }
+
+/* ---------- lifecycle ---------- */
+.life { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+.states { display: grid; gap: 0; justify-items: center; }
+.st { min-width: 210px; text-align: center; border-radius: 22px; transition: background 0.15s, color 0.15s; }
+.st.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.st.on .s { color: var(--bg); opacity: 0.8; }
+.st.visited { border-width: 2.5px; }
+.vline { width: 1.5px; height: 22px; background: var(--ink); position: relative; }
+.vline::after { content: ""; position: absolute; left: -4.5px; bottom: -2px; border: 5px solid transparent; border-top: 6px solid var(--ink); border-bottom: 0; }
+.outcomes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.outcomes .st { min-width: 0; }
+.st.out-ok.on { background: var(--ok); border-color: var(--ok); }
+.st.out-drift.on { background: var(--drift); border-color: var(--drift); }
+.st.out-fail.on { background: var(--fail); border-color: var(--fail); }
+.life-panel { border: 1.5px solid var(--ink); border-radius: 6px; background: var(--surface); padding: 16px 18px; }
+.life-panel .now { font-size: 0.85rem; color: var(--muted); margin: 0; }
+.life-panel h4 { font-size: 1.15rem; margin: 2px 0 8px; }
+.life-panel p { margin: 0 0 12px; font-size: 0.93rem; }
+.events { display: flex; flex-wrap: wrap; gap: 8px; }
+.log { margin-top: 14px; font: 0.78rem/1.5 var(--mono); color: var(--muted); max-height: 120px; overflow-y: auto; border-top: 1px solid var(--line); padding-top: 10px; }
+
+/* ---------- steps / pipeline ---------- */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.step { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; position: relative; padding-bottom: 14px; }
+.step::before { content: ""; position: absolute; left: 19px; top: 34px; bottom: 0; width: 1.5px; background: var(--line); }
+.step:last-child::before { display: none; }
+.step .dot { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--ink); display: grid; place-items: center; font: 600 0.8rem var(--mono); background: var(--surface); z-index: 1; }
+.step .body { padding-top: 6px; }
+.step .body b { display: block; }
+.step .body span { color: var(--muted); font-size: 0.9rem; }
+.step .tag { font-size: 0.74rem; border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; margin-left: 6px; color: var(--muted); font-weight: 400; vertical-align: 2px; white-space: nowrap; }
+.step .err { display: block; margin-top: 3px; font: 0.78rem var(--mono); color: var(--muted); }
+.pipe .step.passed .dot { background: var(--ok-tint); border-color: var(--ok); color: var(--ok); }
+.pipe .step.stopped .dot { background: var(--fail); border-color: var(--fail); color: #fff; }
+.pipe .step.stopped .body b { color: var(--fail); }
+.pipe .step.unreached { opacity: 0.38; }
+.pipe .step.skipped .dot { border-style: dashed; }
+.check-wrap { display: grid; grid-template-columns: 300px minmax(0, 1fr) ; gap: 26px; align-items: start; }
+.scen { display: grid; gap: 4px; }
+.scen button { text-align: left; background: none; border: 1px solid transparent; border-radius: 5px; padding: 7px 10px; font-size: 0.9rem; line-height: 1.3; }
+.scen button:hover { border-color: var(--line); }
+.scen button[aria-pressed="true"] { border-color: var(--ink); background: var(--surface); font-weight: 600; }
+.scen .grp { font-size: 0.8rem; color: var(--muted); margin: 10px 0 2px 10px; }
+.outcome { margin-top: 6px; border: 1.5px solid var(--ink); border-radius: 6px; background: var(--surface); padding: 14px 16px; }
+.outcome .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.outcome p { margin: 0; font-size: 0.92rem; }
+
+/* ---------- init sim ---------- */
+.sim { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.controls { border: 1.5px solid var(--ink); border-radius: 6px; background: var(--surface); padding: 14px 16px; display: grid; gap: 10px; font-size: 0.92rem; }
+.controls label { display: flex; gap: 8px; align-items: center; }
+.controls input[type="text"] { font: 0.9rem var(--mono); border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 4px; padding: 5px 8px; width: 100%; }
+.term { font: 0.86rem/1.6 var(--mono); background: var(--ink); color: var(--bg); border-radius: 6px; padding: 12px 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.term .dim { opacity: 0.65; }
+
+/* ---------- encapsulation cards (interface vs hidden) ---------- */
+.seams { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.seam { border-top: 3px solid var(--ink); padding-top: 12px; }
+.seam h4 { font-size: 1.02rem; }
+.seam .contract { font: 0.8rem/1.5 var(--mono); background: var(--sunk); padding: 8px 10px; border-radius: 4px; margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.seam p { font-size: 0.9rem; margin: 0 0 8px; }
+.seam .hid { color: var(--muted); }
+
+/* ---------- readers ---------- */
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.impl { border: 1.5px solid var(--ink); border-radius: 4px; padding: 12px 14px; background: var(--surface); font-size: 0.9rem; }
+.impl ol { margin: 8px 0 0; padding-left: 20px; }
+.impl li { margin-bottom: 3px; }
+pre.code { margin: 0; font: 0.82rem/1.55 var(--mono); background: var(--sunk); padding: 12px 14px; border-radius: 4px; overflow-x: auto; }
+
+/* ---------- chart ---------- */
+.chart { border: 1.5px solid var(--ink); border-radius: 6px; background: var(--surface); padding: 16px 18px 12px; }
+.chart-grid { display: grid; grid-template-columns: 150px minmax(0, 1fr) 150px; row-gap: 6px; column-gap: 12px; align-items: center; font-size: 0.86rem; }
+.chart-grid .grp { grid-column: 1 / -1; font-weight: 800; margin-top: 8px; }
+.chart-grid .opt { color: var(--muted); }
+.track { position: relative; height: 22px; }
+.limit { position: absolute; top: -4px; bottom: -4px; border-left: 1.5px dashed var(--fail); }
+.bar { position: absolute; top: 4px; height: 14px; border-radius: 2px; background: var(--muted); }
+.bar.chosen { background: var(--code); }
+.bar.open { background: repeating-linear-gradient(90deg, var(--muted) 0 6px, transparent 6px 10px); }
+.val { font: 0.76rem var(--mono); color: var(--ink); line-height: 1.3; }
+.axis { position: relative; height: 22px; font: 0.72rem var(--mono); color: var(--muted); }
+.axis span { position: absolute; transform: translateX(-50%); top: 4px; }
+.limit-lbl { font-size: 0.78rem; color: var(--fail); }
+
+/* ---------- tabs ---------- */
+.tabs { display: flex; flex-wrap: wrap; gap: 0; border-bottom: 1.5px solid var(--ink); }
+.tabs button { background: none; border: 1.5px solid transparent; border-bottom: none; padding: 8px 14px; font-size: 0.9rem; margin-bottom: -1.5px; border-radius: 5px 5px 0 0; font-family: var(--mono); }
+.tabs button[aria-selected="true"] { border-color: var(--ink); background: var(--surface); font-weight: 600; }
+.tabpanel { border: 1.5px solid var(--ink); border-top: none; background: var(--surface); padding: 16px 18px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 20px; border-radius: 0 0 6px 6px; }
+.tabpanel p { margin: 0 0 10px; font-size: 0.92rem; }
+.tabpanel dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; font-size: 0.88rem; }
+.tabpanel dt { font-weight: 800; }
+.tabpanel dd { margin: 0; }
+
+/* ---------- decision tree ---------- */
+.tree { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.tree .col { border: 1.5px solid var(--ink); border-radius: 6px; padding: 14px; background: var(--surface); }
+.tree .col h4 { margin-bottom: 10px; }
+.q { font-size: 0.88rem; border: 1.5px solid var(--ink); border-radius: 4px; padding: 6px 10px; display: inline-block; background: var(--bg); }
+.branch { margin: 6px 0 6px 16px; padding-left: 14px; border-left: 1.5px solid var(--ink); font-size: 0.86rem; }
+.branch .lbl { color: var(--muted); font-size: 0.8rem; display: block; margin: 6px 0 3px; }
+.res { display: inline-block; font: 600 0.78rem var(--mono); padding: 2px 7px; border-radius: 3px; border: 1.5px solid; }
+.res.add { color: var(--code); border-color: var(--code); background: var(--code-tint); }
+.res.rem, .res.vio { color: var(--fail); border-color: var(--fail); background: var(--fail-tint); }
+.res.mod { color: var(--drift); border-color: var(--drift); background: var(--drift-tint); }
+.res.none { color: var(--ok); border-color: var(--ok); background: var(--ok-tint); }
+
+/* ---------- ownership playground ---------- */
+.play { border: 1.5px solid var(--ink); border-radius: 6px; background: var(--surface); padding: 16px 18px; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; }
+.play label { display: block; font-size: 0.85rem; font-weight: 800; margin: 0 0 4px; }
+.play textarea, .play input[type="text"] { width: 100%; font: 0.85rem/1.5 var(--mono); border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 4px; padding: 7px 9px; }
+.play textarea { min-height: 120px; resize: vertical; }
+.play .field { margin-bottom: 12px; }
+.play .hint { font-size: 0.8rem; color: var(--muted); margin: 4px 0 0; }
+.rules-out { list-style: none; margin: 0 0 12px; padding: 0; font: 0.82rem var(--mono); display: grid; gap: 4px; }
+.rules-out li { padding: 4px 8px; border-radius: 3px; border: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; overflow-wrap: anywhere; }
+.rules-out li.hit { border-color: var(--ink); background: var(--bg); font-weight: 600; }
+.rules-out li.miss { opacity: 0.55; }
+.rules-out li.never { opacity: 0.35; border-style: dashed; }
+.rules-out .why { color: var(--muted); font-weight: 400; white-space: nowrap; }
+
+/* ---------- tables ---------- */
+.tbl-wrap { overflow-x: auto; border: 1.5px solid var(--ink); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 800; background: var(--bg); }
+tr:last-child td { border-bottom: none; }
+td.st-pass { color: var(--ok); font-weight: 600; }
+td.st-skip { color: var(--muted); }
+td.st-wait { color: var(--drift); font-weight: 600; }
+
+/* ---------- sequence ---------- */
+.seq { border: 1.5px solid var(--ink); border-radius: 6px; background: var(--surface); padding: 14px 16px; overflow-x: auto; }
+.seq-inner { min-width: 640px; position: relative; }
+.lanes, .msg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.lanes .who { text-align: center; font-size: 0.85rem; font-weight: 800; padding: 6px 4px; border: 1.5px solid var(--ink); border-radius: 4px; margin: 0 8px 6px; background: var(--bg); }
+.lanes .who.actor { border-radius: 999px; }
+.lanes .who.store { border: 4px double var(--ink); }
+.lanes .who span { display: block; font-weight: 400; color: var(--muted); font-size: 0.75rem; }
+.seq-body { position: relative; }
+.seq-body::before { content: ""; position: absolute; inset: 0; background:
+  linear-gradient(var(--line), var(--line)) 12.5% 0 / 1.5px 100% no-repeat,
+  linear-gradient(var(--line), var(--line)) 37.5% 0 / 1.5px 100% no-repeat,
+  linear-gradient(var(--line), var(--line)) 62.5% 0 / 1.5px 100% no-repeat,
+  linear-gradient(var(--line), var(--line)) 87.5% 0 / 1.5px 100% no-repeat; }
+.msg { position: relative; padding: 3px 0; }
+.arrow { position: relative; font-size: 0.78rem; text-align: center; padding: 0 6px 6px; line-height: 1.3; }
+.arrow::after { content: ""; position: absolute; left: 25%; right: 25%; bottom: 0; border-bottom: 1.5px solid var(--ink); }
+.arrow.reply::after { border-bottom-style: dashed; }
+.arrow::before { content: ""; position: absolute; bottom: -4px; border: 4.5px solid transparent; }
+.arrow.r::before { right: calc(25% - 2px); border-left: 7px solid var(--ink); border-right: 0; }
+.arrow.l::before { left: calc(25% - 2px); border-right: 7px solid var(--ink); border-left: 0; }
+.arrow.self { grid-column: span 1; }
+.loopbox { border: 1.5px dashed var(--ink); border-radius: 4px; margin: 6px 0; padding: 4px 0 6px; position: relative; }
+.loopbox > .lt { font-size: 0.75rem; font-weight: 800; background: var(--surface); padding: 0 6px; margin-left: 8px; display: inline-block; }
+.seq-note { grid-column: 2 / span 1; font-size: 0.75rem; color: var(--muted); text-align: center; border: 1px solid var(--line); background: var(--bg); margin: 4px 8px; padding: 3px 6px; border-radius: 3px; z-index: 1; }
+
+/* ---------- code map ---------- */
+.codemap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.tree-list { font: 0.84rem/1.75 var(--mono); border: 1.5px solid var(--ink); border-radius: 6px; padding: 12px 16px; background: var(--surface); }
+.tree-list .d { color: var(--muted); }
+.tree-list .tg { font-family: var(--sans); font-size: 0.74rem; border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; margin-left: 6px; color: var(--muted); white-space: nowrap; }
+.tree-list .i1 { padding-left: 1.4em; } .tree-list .i2 { padding-left: 2.8em; }
+.planned-list { display: grid; gap: 10px; }
+
+/* ---------- glossary ---------- */
+dl.gloss { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 10px 22px; max-width: 900px; margin: 0; }
+dl.gloss dt { font-weight: 800; }
+dl.gloss dd { margin: 0; color: var(--ink); }
+
+.end { max-width: var(--wide); margin: 90px auto 0; padding-top: 18px; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1100px) {
+  .map-wrap { grid-template-columns: minmax(0, 1fr); }
+  .detail { position: static; }
+}
+@media (max-width: 900px) {
+  .frame { grid-template-columns: minmax(0, 1fr); }
+  .rail { display: none; }
+  main { padding: 0 16px 80px; }
+  .mobile-toc { display: block; margin-top: 16px; border: 1.5px solid var(--ink); border-radius: 6px; background: var(--surface); padding: 10px 14px; font-size: 0.92rem; }
+  .mobile-toc summary { font-weight: 800; cursor: pointer; }
+  .mobile-toc ol { margin: 8px 0 0; padding-left: 22px; }
+  .mobile-toc .theme-btn { margin-top: 10px; }
+  .demo-body, .life, .check-wrap, .sim, .two, .tabpanel, .tree, .play, .codemap { grid-template-columns: minmax(0, 1fr); }
+  .pane + .pane { border-left: none; border-top: 1px solid var(--line); }
+  .seams { grid-template-columns: minmax(0, 1fr); }
+  .idea { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .idea > * { grid-column: auto !important; grid-row: auto !important; }
+  .idea .arr { max-width: none; }
+  .idea .arr::after { content: "↓"; }
+  .idea .brace { display: none; }
+  .idea > :nth-child(3n) { margin-bottom: 14px; }
+  .idea .answer { margin-top: 10px; }
+  .core-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .core-grid .wide, .core-grid .span2 { grid-column: span 2; }
+  dl.gloss { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  dl.gloss dd { margin-bottom: 12px; }
+  section.ch { padding-top: 64px; }
+  .chart-grid { grid-template-columns: 90px minmax(0, 1fr) 84px; font-size: 0.8rem; }
+}
+@media (max-width: 560px) {
+  body { font-size: 16px; }
+  .tier, .wire { gap: 6px; }
+  .tier .box { padding: 8px 6px; font-size: 0.8rem; }
+  .tier .box .s { font-size: 0.72rem; }
+  .wire span em { display: none; }
+  .core-grid { grid-template-columns: minmax(0, 1fr); }
+  .core-grid .wide, .core-grid .span2 { grid-column: span 1; }
+  .outcomes { grid-template-columns: minmax(0, 1fr); }
+  .st { min-width: 0; width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="frame">
+
+<nav class="rail" aria-label="Chapters">
+  <div class="mark">Documentation&shy;Model&shy;Drifter<span>Architecture at Phase 4, for a new reader</span></div>
+  <ol class="route" id="route">
+    <li><a href="#top"><span class="n">0</span>What drifter does</a></li>
+    <li><a href="#ch1"><span class="n">1</span>The problem and the answer</a></li>
+    <li><a href="#ch2"><span class="n">2</span>Who talks to what</a></li>
+    <li><a href="#ch3"><span class="n">3</span>A repository's lifecycle</a></li>
+    <li><a href="#ch4"><span class="n">4</span>Birth: drifter init</a></li>
+    <li><a href="#ch5"><span class="n">5</span>One check, end to end</a></li>
+    <li><a href="#ch6"><span class="n">6</span>Inside the core: three seams</a></li>
+    <li><a href="#ch7"><span class="n">7</span>Reading a commit</a></li>
+    <li><a href="#ch8"><span class="n">8</span>The models and their owners</a></li>
+    <li><a href="#ch9"><span class="n">9</span>Deciding a difference</a></li>
+    <li><a href="#ch10"><span class="n">10</span>The hosted service</a></li>
+    <li><a href="#ch11"><span class="n">11</span>Proving it: cross-team tests</a></li>
+    <li><a href="#ch12"><span class="n">12</span>Code map and what's next</a></li>
+    <li><a href="#ch13"><span class="n">13</span>Glossary</a></li>
+  </ol>
+  <div class="legend" aria-label="Diagram legend">
+    <div class="row"><span class="sw actor"></span>Actor or caller</div>
+    <div class="row"><span class="sw"></span>Component</div>
+    <div class="row"><span class="sw store"></span>Store</div>
+    <div class="row"><span class="sw planned"></span>Not built yet</div>
+    <div class="row"><span class="sw codec"></span>From the code</div>
+    <div class="row"><span class="sw modelc"></span>Committed /models</div>
+    <button class="theme-btn" type="button" data-theme-toggle>Switch to dark</button>
+  </div>
+</nav>
+
+<main>
+
+<details class="mobile-toc">
+  <summary>Chapters</summary>
+  <ol start="0">
+    <li><a href="#top">What drifter does</a></li>
+    <li><a href="#ch1">The problem and the answer</a></li>
+    <li><a href="#ch2">Who talks to what</a></li>
+    <li><a href="#ch3">A repository's lifecycle</a></li>
+    <li><a href="#ch4">Birth: drifter init</a></li>
+    <li><a href="#ch5">One check, end to end</a></li>
+    <li><a href="#ch6">Inside the core: three seams</a></li>
+    <li><a href="#ch7">Reading a commit</a></li>
+    <li><a href="#ch8">The models and their owners</a></li>
+    <li><a href="#ch9">Deciding a difference</a></li>
+    <li><a href="#ch10">The hosted service</a></li>
+    <li><a href="#ch11">Proving it: cross-team tests</a></li>
+    <li><a href="#ch12">Code map and what's next</a></li>
+    <li><a href="#ch13">Glossary</a></li>
+  </ol>
+  <button class="theme-btn" type="button" data-theme-toggle>Switch to dark</button>
+</details>
+
+<!-- ================================================================ 0 hero -->
+<section class="hero" id="top" aria-labelledby="h-top">
+  <p class="eyebrow">Deterministic tooling</p>
+  <h1 id="h-top">Rebuild the models from <span class="c">the code</span>, compare them with <span class="m">the committed&nbsp;/models</span>.</h1>
+  <p class="lede">That is the whole product. <b>drifter</b> keeps three architecture models (structural, behavioral, ownership) beside the code and, on every check, answers one question: do they still describe it? Try it on a tiny repository below. The answer is computed by this page with the same rules as <code>Source/drifter/check.py</code>.</p>
+
+  <div class="demo" id="demo">
+    <div class="demo-bar" role="group" aria-label="Choose a commit to check">
+      <span class="lbl">Push a commit:</span>
+      <button class="chip" data-scen="base" aria-pressed="true">The baseline</button>
+      <button class="chip" data-scen="addfn" aria-pressed="false">Add a function</button>
+      <button class="chip" data-scen="params" aria-pressed="false">Change a signature</button>
+      <button class="chip" data-scen="import" aria-pressed="false">Drop an import</button>
+      <button class="chip" data-scen="state" aria-pressed="false">Add a status change</button>
+      <button class="chip" data-scen="owner" aria-pressed="false">A non-owner edits</button>
+      <button class="chip" data-scen="parse" aria-pressed="false">Push broken Python</button>
+    </div>
+    <div class="demo-body">
+      <div class="pane side-code">
+        <div class="pane-h"><h4>The code at the commit</h4><span class="who mono">src/shop/orders.py</span></div>
+        <pre class="src" id="demo-src" aria-label="Source of src/shop/orders.py"></pre>
+        <p class="commit-line" id="demo-commit"></p>
+      </div>
+      <div class="pane side-model">
+        <div class="pane-h"><h4>What drifter answers</h4><span class="who">compared with the committed /models</span></div>
+        <div class="verdict" id="demo-verdict" aria-live="polite"></div>
+        <pre class="json" id="demo-json"></pre>
+      </div>
+    </div>
+    <div class="demo-foot">
+      <p id="demo-explain"></p>
+      <button class="btn" id="demo-accept" type="button">Accept the drift: drifter update</button>
+    </div>
+  </div>
+  <p class="note" style="margin-top:12px">The tiny repository has <code>src/shop/models.py</code>, <code>payments.py</code> and <code>orders.py</code>, and one ownership rule per file. Accepting drift commits the regenerated models, so the next check of the same code is aligned again.</p>
+</section>
+
+<!-- ================================================================ 1 problem -->
+<section class="ch" id="ch1" aria-labelledby="h1">
+  <header>
+    <span class="ch-num">Chapter 1</span>
+    <h2 id="h1">The problem and the answer</h2>
+    <p class="question">Question: what does the tool promise, and what shape is its answer?</p>
+  </header>
+  <div class="prose">
+    <p>Architecture changes between commits are normal, but they happen silently. Reviews and separate documents miss them, the documented architecture drifts from the code, and people end up re-reading the code to learn what is true. The users are engineering and compliance teams at general-purpose AI model providers. They must keep technical documentation current, which is EU AI Act Article 53(1)(a).</p>
+    <p>drifter keeps that documentation as <b>three models</b> committed in <code>/models</code>, each the smallest representation that answers one question. That idea comes from the MAGE method the spec cites:</p>
+  </div>
+  <div class="tbl-wrap fig">
+    <table>
+      <thead><tr><th>Model</th><th>Question it answers</th><th>How a check treats it</th><th>Owner</th></tr></thead>
+      <tbody>
+        <tr><td><code>structural.json</code></td><td>What exists, and how do the parts relate? Modules, classes, functions, methods; imports and inherits edges.</td><td>Regenerated from the code and diffed by element id</td><td>Enrique</td></tr>
+        <tr><td><code>behavioral.json</code></td><td>What may happen, in what order? States a variable takes and the transitions between them.</td><td>Regenerated from the code and diffed by element id</td><td>Barshan</td></tr>
+        <tr><td><code>ownership.json</code></td><td>Who may change what? An ordered list of path rules, first match wins.</td><td><b>Never regenerated.</b> Each commit in the push is judged against the rules.</td><td>Muhammad</td></tr>
+        <tr><td><code>scope.json</code></td><td>Not a model: which files feed the two generators.</td><td>Read first; picks the input</td><td>Core (Kaan)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="prose">
+    <p><b>The core idea, in one picture.</b> A check never asks "is this code good?". It asks whether two descriptions of the same commit agree. One is <b>fresh</b>: rebuilt from the code right now. The other is <b>committed</b>: what a person last reviewed and accepted. Ownership is the odd one out. Who wrote a change is not visible in the code, only in the commits, so it is judged commit by commit instead of rebuilt.</p>
+  </div>
+  <figure class="fig">
+    <div class="idea">
+      <div class="box code-side"><span class="t">The code at the commit</span><span class="s">the .py files scope.json picks; parsed, never run</span></div>
+      <span class="arr">generate</span>
+      <div class="box code-side"><span class="t">Fresh model</span><span class="s">what the code says now</span></div>
+      <div class="box model-side"><span class="t">/models at the same commit</span><span class="s">structural.json, behavioral.json</span></div>
+      <span class="arr">read</span>
+      <div class="box model-side"><span class="t">Committed model</span><span class="s">what a person last accepted</span></div>
+      <div class="box"><span class="t">Commits base..head</span><span class="s">who changed which path</span></div>
+      <span class="arr">judge against ownership.json</span>
+      <div class="box"><span class="t">Violations</span><span class="s">an author outside the path's owners</span></div>
+      <span class="brace" aria-hidden="true"></span>
+      <div class="box answer"><span class="t">The four-field answer</span><span class="s"><code>structural</code>, <code>behavioral</code>: fresh against committed, matched by element id.<br><code>ownership</code>: the violations.<br><code>aligned</code>: true only when all three are empty.</span></div>
+    </div>
+    <figcaption>Fresh and committed come from the <i>same</i> commit, so the check needs no memory of earlier runs: everything it compares is inside the repository at that commit.</figcaption>
+  </figure>
+  <div class="prose">
+    <p>Every check ends in one of three ways. The answer always has the same <b>four fields</b>, keys sorted, written as canonical JSON:</p>
+  </div>
+  <div class="two fig">
+    <pre class="code">{
+  "aligned": false,        <span class="mono" style="color:var(--muted)">// true only when all three lists are empty</span>
+  "behavioral": [],
+  "ownership": [],
+  "structural": [
+    {"change": "ADDED", "file": "src/shop/orders.py",
+     "id": "shop.orders:refund", "kind": "function"}
+  ]
+}</pre>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Verdict</th><th>CLI exit</th><th>Hosted <code>/analyze</code></th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge ok">aligned</span></td><td>0</td><td>200, <code>drift.aligned: true</code></td></tr>
+          <tr><td><span class="badge drift">drift</span></td><td>1</td><td>200, <code>drift.aligned: false</code></td></tr>
+          <tr><td><span class="badge fail">no verdict</span></td><td>2</td><td>200, <code>drift: null</code> plus a <code>drift_error</code> code</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="prose">
+    <p>A difference means the code and the documentation disagree, not that the code is wrong. A person either fixes the code or <b>accepts the drift</b> by committing updated models, and git history records who accepted it and when. drifter never commits anything. <code>init</code> and <code>update</code> write files into your working copy for you to review, <code>check</code> only reads, and the hosted service never touches the repository at all.</p>
+  </div>
+</section>
+
+<!-- ================================================================ 2 context -->
+<section class="ch" id="ch2" aria-labelledby="h2">
+  <header>
+    <span class="ch-num">Chapter 2</span>
+    <h2 id="h2">Who talks to what</h2>
+    <p class="question">Question: who reaches the drifter core, through which entry point, and what does each one read or write?</p>
+  </header>
+  <div class="prose">
+    <p>Three callers, three entry points, <b>one core</b>. The analysed repository is only ever read. Use the depth control to open the boxes one level at a time. At depth 1 you only need the names. Depth 2 adds each component's interface, which is all its neighbours rely on. Depth 3 adds what each one hides. Select a component for its full card.</p>
+  </div>
+
+  <div class="depth" role="group" aria-label="Diagram depth">
+    <span class="lbl">Depth</span>
+    <button class="chip" data-depth="1" aria-pressed="false">1: boundaries</button>
+    <button class="chip" data-depth="2" aria-pressed="true">2: interfaces</button>
+    <button class="chip" data-depth="3" aria-pressed="false">3: internals</button>
+  </div>
+
+  <div class="map-wrap">
+    <div class="map" id="map" data-depth="2">
+      <div class="tier">
+        <button class="box actor comp" data-comp="dev" aria-pressed="false"><span class="t">Developer</span><span class="s">decides on drift</span></button>
+        <button class="box actor comp" data-comp="gh" aria-pressed="false"><span class="t">GitHub</span><span class="s">push, pull request</span></button>
+        <button class="box actor comp" data-comp="tester" aria-pressed="false"><span class="t">A tester</span><span class="s">ours or Team 16's</span></button>
+      </div>
+      <div class="wire" aria-hidden="true"><span><em>runs</em></span><span class="dashed"><em>on push</em></span><span><em>POST /analyze</em></span></div>
+      <div class="tier">
+        <button class="box comp" data-comp="cli" aria-pressed="false"><span class="t">drifter CLI</span><span class="s">init, update, check</span>
+          <span class="iface">exit <code>0</code> aligned, <code>1</code> drift, <code>2</code> no verdict</span>
+          <span class="inner"><code>LocalReader</code> on the checkout; writes /models only for init and update</span></button>
+        <button class="box planned comp" data-comp="action" aria-pressed="false"><span class="t">GitHub Action</span><span class="s">Phase 5, not built yet</span>
+          <span class="iface">would run <code>drifter check</code> per push</span>
+          <span class="inner">a PR check and an artifact</span></button>
+        <button class="box comp" data-comp="hosted" aria-pressed="false"><span class="t">Hosted /system</span><span class="s">FastAPI on Railway</span>
+          <span class="iface"><code>POST /analyze</code>, <code>GET /analysis/{id}</code>, <code>POST /generate</code>, <code>GET /health</code></span>
+          <span class="inner">validate, 2 slots, 80 s deadline, save once</span></button>
+      </div>
+      <div class="funnel">all three call the same orchestrator</div>
+
+      <div class="core">
+        <div class="core-h"><b>drifter core: one codebase, three callers</b><span><code>Source/drifter/</code> and <code>Source/models/</code></span></div>
+        <div class="core-grid">
+          <button class="box comp wide" data-comp="orch" aria-pressed="false"><span class="t">Orchestrator</span><span class="s">reads sources, runs the models, builds the answer</span>
+            <span class="iface"><code>answer(read_sources(reader))</code>, <code>generate_models(reader)</code>, <code>regenerate_models(reader)</code>, raises <code>DriftError(code)</code></span>
+            <span class="inner">the order of validation, which file is judged first, the four drift_error codes</span></button>
+          <button class="box comp" data-comp="readers" aria-pressed="false"><span class="t">Git readers</span><span class="s">the only parts that run git</span>
+            <span class="iface"><code>Reader</code>: <code>head</code>, <code>tree()</code>, <code>read(paths)</code>, <code>log()</code>, <code>history()</code></span>
+            <span class="inner">local <code>cat-file --batch</code>, or a blobless clone with one batched fetch</span></button>
+          <button class="box comp code-side" data-comp="gens" aria-pressed="false"><span class="t">Generators</span><span class="s">structural, behavioral</span>
+            <span class="iface"><code>generate_x(files: {path: text}) -&gt; dict</code>, pure</span>
+            <span class="inner">kinds, id scheme, mining rules, JSON Schema: each owner's own</span></button>
+          <button class="box comp model-side" data-comp="own" aria-pressed="false"><span class="t">Ownership</span><span class="s">propose once, then check</span>
+            <span class="iface"><code>propose_ownership(head, records)</code>; <code>check_ownership(rules, commits)</code></span>
+            <span class="inner">window of 10 commits, 50-file sweep limit, bot detection</span></button>
+          <button class="box comp" data-comp="cmp" aria-pressed="false"><span class="t">Comparison</span><span class="s">diff by element id</span>
+            <span class="iface"><code>differences(fresh, committed)</code> returns <code>{change, file, id, kind}</code></span>
+            <span class="inner">flattens every top-level list to <code>{id: element}</code></span></button>
+          <button class="box comp span2" data-comp="kernel" aria-pressed="false"><span class="t">Shared kernel</span><span class="s"><code>models/common.py</code></span>
+            <span class="iface"><code>parse_files</code>, <code>write_model</code>, <code>glob</code>, <code>ParseFailed</code></span>
+            <span class="inner">the one glob dialect shared by scope, ownership and mapping-v1.1.yaml; canonical JSON layout</span></button>
+        </div>
+        <div class="hosted-only">
+          <div class="core-h"><b>Hosted only</b><span>dotted border: runs only behind /system</span></div>
+          <div class="core-grid">
+            <button class="box comp" data-comp="chg" aria-pressed="false"><span class="t">Change detection</span><span class="s">the pod's shared part</span>
+              <span class="iface"><code>changes</code>, <code>skipped</code>, <code>unmapped</code> per mapping-v1.1.yaml</span>
+              <span class="inner"><code>fetch.py</code> diff, <code>rules.py</code> classify</span></button>
+            <button class="box store comp" data-comp="store" aria-pressed="false"><span class="t">Result store</span><span class="s">write-once, durable</span>
+              <span class="iface"><code>save(id, bytes)</code>, <code>load(id)</code></span>
+              <span class="inner">one file per run on a Railway volume, temp file then rename</span></button>
+            <button class="box comp" data-comp="course" aria-pressed="false"><span class="t">Course and tester routes</span><span class="s">test sessions, coverage</span>
+              <span class="iface"><code>/system/test/*</code>, <code>/tester/*</code></span>
+              <span class="inner">one active session; line coverage of the system package only</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="wire" aria-hidden="true"><span class="none"></span><span><em>readers read one commit</em></span><span class="none"></span></div>
+      <div class="repo-row">
+        <button class="box store comp" data-comp="repo" aria-pressed="false"><span class="t">Analysed repository</span><span class="s">one commit, read-only: in-scope .py files, /models, history</span>
+          <span class="iface">never imported, never executed</span>
+          <span class="inner">a blobless GitHub clone for the hosted service, the local checkout for the CLI</span></button>
+      </div>
+      <p class="writeback">The only write into the repository is a person reviewing, then committing <code>/models</code>.</p>
+    </div>
+
+    <aside class="detail" id="detail" aria-live="polite">
+      <p class="empty">Select any box to see what it promises to its neighbours, what it keeps to itself, and where it lives.</p>
+    </aside>
+  </div>
+  <p class="note">This is the encapsulation line the whole design follows. A caller sees only the orchestrator's three functions. The orchestrator sees only the <code>Reader</code> protocol and a generator's signature. A generator never sees git. A reader never sees a model.</p>
+</section>
+
+<!-- ================================================================ 3 lifecycle -->
+<section class="ch" id="ch3" aria-labelledby="h3">
+  <header>
+    <span class="ch-num">Chapter 3</span>
+    <h2 id="h3">A repository's lifecycle</h2>
+    <p class="question">Question: what states does a repository pass through under the tool, and what moves it between them?</p>
+  </header>
+  <div class="prose"><p>The tool proposes the models once, a person reviews and commits them as the baseline, and every push is then checked. Only <b>Drifted</b> needs a person. Drive the state machine with the events on the right.</p></div>
+  <div class="life fig">
+    <div class="states" id="states" aria-label="Lifecycle states">
+      <div class="box actor st" data-st="none"><span class="t">No models</span><span class="s">a repository without /models</span></div>
+      <div class="vline"></div>
+      <div class="box actor st" data-st="proposed"><span class="t">Proposed</span><span class="s">init wrote a draft, uncommitted</span></div>
+      <div class="vline"></div>
+      <div class="box actor st" data-st="baselined"><span class="t">Baselined</span><span class="s">/models committed</span></div>
+      <div class="vline"></div>
+      <div class="box actor st" data-st="checking"><span class="t">Checking</span><span class="s">fetch, generate, compare</span></div>
+      <div class="vline"></div>
+      <div class="outcomes">
+        <div class="box actor st out-ok" data-st="aligned"><span class="t">Aligned</span><span class="s">true, exit 0</span></div>
+        <div class="box actor st out-drift" data-st="drifted"><span class="t">Drifted</span><span class="s">false, exit 1</span></div>
+        <div class="box actor st out-fail" data-st="failed"><span class="t">Failed</span><span class="s">no verdict, exit 2</span></div>
+      </div>
+    </div>
+    <div class="life-panel">
+      <p class="now">Current state</p>
+      <h4 id="life-name">No models</h4>
+      <p id="life-text"></p>
+      <div class="events" id="life-events"></div>
+      <div class="log" id="life-log" aria-label="Event history"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ 4 init -->
+<section class="ch" id="ch4" aria-labelledby="h4">
+  <header>
+    <span class="ch-num">Chapter 4</span>
+    <h2 id="h4">Birth: <code>drifter init</code></h2>
+    <p class="question">Question: how does a repository get its first /models, and where can init stop?</p>
+  </header>
+  <div class="prose"><p>init is the arrow <b>No models → Proposed</b>. It runs once per repository, writes a draft and checks nothing. Structural and behavioral come from the code at the commit. Ownership is proposed from the git history up to it. <code>scope.json</code> gets the defaults. The hosted <code>POST /system/generate</code> runs the very same <code>generate_models</code> on a fresh clone and returns the four files instead of writing them.</p></div>
+
+  <div class="sim fig">
+    <div>
+      <div class="controls" aria-label="init options">
+        <label><input type="checkbox" id="init-exists"> /models already holds one of the four files</label>
+        <label><input type="checkbox" id="init-force"> add <code>--force</code></label>
+        <label style="display:block">Commit (blank means HEAD)<input type="text" id="init-commit" placeholder="abc123" autocomplete="off" spellcheck="false"></label>
+        <label><input type="checkbox" id="init-bad"> one in-scope file does not parse</label>
+      </div>
+      <div class="term fig" id="init-term" aria-live="polite"></div>
+    </div>
+    <ol class="steps" id="init-steps">
+      <li class="step" data-s="guard"><span class="dot">1</span><div class="body"><b>Overwrite guard</b><span>Any of the four files already in /models and no <code>--force</code>: stop, exit 1, nothing written.</span></div></li>
+      <li class="step" data-s="resolve"><span class="dot">2</span><div class="body"><b>Resolve the commit</b><span>The given commit or HEAD, to its full SHA.</span></div></li>
+      <li class="step" data-s="scope"><span class="dot">3</span><div class="body"><b>Pick files with the default scope</b><span>Every <code>.py</code> file except under the top-level <code>tests/</code>. A nested <code>src/tests/</code> stays in.</span></div></li>
+      <li class="step" data-s="parse"><span class="dot">4</span><div class="body"><b>Read every file, then check each one parses</b><span>Size, then UTF-8, then pinned CPython <code>ast</code>, in path order. Parsed, never run.</span><span class="err">no verdict, exit 2: FILE_TOO_LARGE, PARSE_FAILED</span></div></li>
+      <li class="step" data-s="gen"><span class="dot">5</span><div class="body"><b>Generate structural and behavioral; propose ownership</b><span>Ownership walks the whole history up to the commit. Each file still present gets one exact-path rule owned by the authors of its 10 newest commits. Merges, bots and sweeps over 50 files do not count toward the 10. Vendored folders and <code>/models</code> itself get no rule.</span></div></li>
+      <li class="step" data-s="write"><span class="dot">6</span><div class="body"><b>Write all four files</b><span>Built in memory first, so a stop leaves /models as it was. Canonical JSON, exit 0.</span></div></li>
+      <li class="step" data-s="review"><span class="dot">7</span><div class="body"><b>A person reviews, corrects ownership.json, commits</b><span>Proposed becomes Baselined. That commit is the human decision on record.</span></div></li>
+    </ol>
+  </div>
+  <p class="note">Later, <code>drifter update</code> is the way to accept drift. It rewrites only <code>structural.json</code> and <code>behavioral.json</code>, using the committed scope. Your hand-corrected <code>ownership.json</code> and <code>scope.json</code> are left alone.</p>
+</section>
+
+<!-- ================================================================ 5 one check -->
+<section class="ch" id="ch5" aria-labelledby="h5">
+  <header>
+    <span class="ch-num">Chapter 5</span>
+    <h2 id="h5">One check, end to end</h2>
+    <p class="question">Question: what happens between a request and the four-field answer, and where can a check stop?</p>
+  </header>
+  <div class="prose">
+    <p>A check can stop early in two different ways, and the difference matters to whoever reads the result.</p>
+    <ul>
+      <li><b>HTTP error: "we could not look."</b> The request was malformed, the repository or commit does not exist, git ran out of time, or the result could not be saved. The reply is 400, 404 or 500 and nothing is saved. Fix the request or retry.</li>
+      <li><b>No verdict: "we looked, but cannot judge."</b> The commit was read fine, but it is in a state the check cannot compare: <code>/models</code> is missing or broken, or a file is too big or not Python. The reply is still HTTP 200 and the run is saved with <code>drift: null</code> and a <code>drift_error</code> code; the CLI exits 2. Fix the repository.</li>
+    </ul>
+    <p>Either way, a check that did not finish is never reported as aligned. Pick a scenario to see where it stops.</p>
+  </div>
+  <div class="check-wrap fig">
+    <div class="scen" id="scen" role="group" aria-label="Check scenarios">
+      <span class="grp">Completes</span>
+      <button data-k="aligned" aria-pressed="true">Code matches the models</button>
+      <button data-k="drift" aria-pressed="false">A model differs</button>
+      <button data-k="limit" aria-pressed="false">Too many changed files</button>
+      <span class="grp">HTTP error, nothing saved</span>
+      <button data-k="badreq" aria-pressed="false">Repository is not a GitHub path</button>
+      <button data-k="norepo" aria-pressed="false">Repository not public</button>
+      <button data-k="nocommit" aria-pressed="false">Commit does not exist</button>
+      <button data-k="batch" aria-pressed="false">Batch download cut off</button>
+      <button data-k="deadline" aria-pressed="false">Past the 80 s deadline</button>
+      <button data-k="storage" aria-pressed="false">Run file cannot be saved</button>
+      <span class="grp">No verdict, HTTP 200</span>
+      <button data-k="nomodels" aria-pressed="false">/models is missing a file</button>
+      <button data-k="invalid" aria-pressed="false">A model breaks its schema</button>
+      <button data-k="large" aria-pressed="false">A file is over 1 MB</button>
+      <button data-k="parse" aria-pressed="false">A file is not valid Python</button>
+    </div>
+    <div>
+      <ol class="steps pipe" id="pipe"></ol>
+      <div class="outcome" id="pipe-out" aria-live="polite"></div>
+    </div>
+  </div>
+  <p class="note">Steps tagged <i>hosted</i> run only behind /system. The CLI enters at "Resolve" with a <code>LocalReader</code> and leaves at "Answer". Everything between is the same code.</p>
+</section>
+
+<!-- ================================================================ 6 seams -->
+<section class="ch" id="ch6" aria-labelledby="h6">
+  <header>
+    <span class="ch-num">Chapter 6</span>
+    <h2 id="h6">Inside the core: three seams</h2>
+    <p class="question">Question: where are the boundaries that let four people build the core in parallel?</p>
+  </header>
+  <div class="prose">
+    <p>A <b>seam</b> is a place where two parts meet through a small, fixed promise: a function signature and a data shape. Anything behind the promise can be rewritten without the other side noticing. That is what lets Enrique change how structural ids are built, or the hosted service change how it downloads files, without touching the core.</p>
+    <p>The core is small: <code>check.py</code> is about 450 lines. It stays small because it talks to everything else through just three seams. The next three chapters open one each.</p>
+  </div>
+  <div class="seams fig">
+    <div class="seam">
+      <h4>Readers</h4>
+      <div class="contract">class Reader(Protocol):
+    head: str
+    def tree() -&gt; {path: blob}
+    def read(paths) -&gt; {path: bytes}
+    def log() -&gt; str  # base..head</div>
+      <p><b>The core relies on:</b> four calls, one commit.</p>
+      <p class="hid"><b>Hidden:</b> local or remote, clones, partial fetches, timeouts, the deadline, how blobs get there.</p>
+      <p><a href="#ch7">Chapter 7</a></p>
+    </div>
+    <div class="seam">
+      <h4>Generators</h4>
+      <div class="contract">def generate_structural(
+    files: dict[str, str]) -&gt; dict
+def generate_behavioral(
+    files: dict[str, str]) -&gt; dict</div>
+      <p><b>The core relies on:</b> purity, and the element rule (every element has a unique <code>id</code>, a <code>kind</code> and a <code>file</code>).</p>
+      <p class="hid"><b>Hidden:</b> kinds, id scheme, attributes, mining rules, schema. All of it belongs to the model's owner.</p>
+      <p><a href="#ch8">Chapter 8</a></p>
+    </div>
+    <div class="seam">
+      <h4>Comparison</h4>
+      <div class="contract">differences(fresh, committed)
+  -&gt; [{change, file, id, kind}]
+check_ownership(rules, commits)
+  -&gt; [{author, change, commit,
+       owners, path}]</div>
+      <p><b>Callers rely on:</b> the contract's ModelDifference and OwnershipViolation shapes, sorted.</p>
+      <p class="hid"><b>Hidden:</b> how elements are indexed; the glob dialect.</p>
+      <p><a href="#ch9">Chapter 9</a></p>
+    </div>
+  </div>
+  <div class="prose">
+    <p>One choice holds the seams together. <b>The core diffs every model the same way</b>, by element id, instead of each owner writing a diff. The tester compares the diff byte for byte with the expected answers, order included. Three diff implementations would mean three chances to sort differently. The core also <b>checks that every file parses</b> before any generator runs. That way <code>PARSE_FAILED</code> and <code>FILE_TOO_LARGE</code> fire in one place, for the first bad file in path order, and the same broken file gives the same error whichever generator would have hit it first. Each generator then parses again with the same parser, and may assume it succeeds. These are phase4.md decisions Q1 and Q2.</p>
+  </div>
+</section>
+
+<!-- ================================================================ 7 readers -->
+<section class="ch" id="ch7" aria-labelledby="h7">
+  <header>
+    <span class="ch-num">Chapter 7</span>
+    <h2 id="h7">Reading a commit</h2>
+    <p class="question">Question: how does one check get every file it needs, within the 80 s deadline, without running any of it?</p>
+  </header>
+  <div class="prose">
+    <p><code>read_sources(reader)</code> gathers everything before any model is built, in this order:</p>
+    <ol>
+      <li><b>List the tree</b>: every file path at the commit, with no contents yet.</li>
+      <li><b>Read and validate the four <code>/models</code> files</b>: JSON, then the owner's schema, the element rule, scope, ownership rules.</li>
+      <li><b>Read the in-scope code files</b>. This has to wait for step 2, because <code>scope.json</code> is what says which files those are.</li>
+      <li><b>Read the commit log</b> base..head, for the ownership check.</li>
+    </ol>
+    <p>The hosted service has to do this over the network, which is where time goes. Its trick is a <b>blobless clone</b>. Git stores a commit as three kinds of object: the commit, folder listings ("trees") and file contents ("blobs"). A blobless clone downloads only the first two, which is small and fast, so the reader can see every path before deciding which contents to ask for. It then asks for all of them in one request. Two implementations sit behind the same protocol:</p>
+  </div>
+  <div class="two fig">
+    <div class="impl">
+      <h4><code>LocalReader</code>, for the CLI</h4>
+      <span class="s mono" style="color:var(--muted);font-size:.8rem">Source/drifter/check.py</span>
+      <ol>
+        <li><code>git rev-parse</code> the head; the base defaults to its first parent</li>
+        <li><code>git ls-tree -r -z --full-tree</code>, regular files only</li>
+        <li>all blobs in one <code>git cat-file --batch</code> process</li>
+        <li><code>git log -z --name-status -M</code> for base..head</li>
+      </ol>
+    </div>
+    <div class="impl">
+      <h4><code>Comparison</code>, for the hosted service</h4>
+      <span class="s mono" style="color:var(--muted);font-size:.8rem">Source/GitHub_Connector/fetch.py</span>
+      <ol>
+        <li><code>git clone --filter=blob:none --no-checkout</code>: commits and folder listings only</li>
+        <li><code>git ls-tree</code> at the commit</li>
+        <li>one batched <code>git fetch --stdin</code> per read: /models, then the in-scope files</li>
+        <li><code>cat-file</code> with <code>GIT_NO_LAZY_FETCH=1</code>, so a missing blob is an immediate 500, never a slow crawl</li>
+        <li>temporary clone deleted when the check ends</li>
+      </ol>
+    </div>
+  </div>
+  <figure class="fig">
+    <div class="chart" id="chart" role="img" aria-label="Measured time for one check, by fetch strategy. Chosen one-batch strategy: pytest 9 to 13 seconds, Django 38 to 41 seconds. Full clone: pytest 26, Django 155 seconds. File by file: pytest 163 to 221 seconds, Django over the limit. The limit is 80 seconds."></div>
+    <figcaption>Why the batched, blobless clone (decision D11): time for one check, measured on a home connection with git 2.50. The dashed line is the 80 s limit per check. The course fixtures take 1 to 3 s with any option; real repositories decide. Re-measuring on Railway is still open (#22).</figcaption>
+  </figure>
+  <div class="prose">
+    <p>Deliberately left out, each needing a conscious decision: a retry when the batch download is cut off, a GitHub token for higher rate limits, a clone cache per repository, and spotting a file over 1 MB before downloading it. A blobless clone cannot report sizes without fetching, so size is judged after the download.</p>
+  </div>
+</section>
+
+<!-- ================================================================ 8 models -->
+<section class="ch" id="ch8" aria-labelledby="h8">
+  <header>
+    <span class="ch-num">Chapter 8</span>
+    <h2 id="h8">The models and their owners</h2>
+    <p class="question">Question: what does each model file hold, and what must every generator promise?</p>
+  </header>
+  <div class="prose">
+    <p>Each owner decides everything inside their model. The core relies on two rules only.</p>
+    <ul>
+      <li><b>The element rule.</b> Every top-level list holds elements. Each element has an <code>id</code> that is unique in the whole model, a <code>kind</code>, and the in-scope <code>file</code> it comes from. Every other field is an attribute. A value that is not a list, such as <code>schema_version</code>, is not diffed.</li>
+      <li><b>Purity.</b> No git, network, clock, randomness or environment. Never import or run the analysed code. Sort each list by id and leave out line numbers, so moving code is not drift. The output is byte-identical on Linux and Windows.</li>
+    </ul>
+    <p>A committed model is validated against its owner's <code>*.schema.json</code> beside the generator; breaking it gives <code>INVALID_MODELS</code>. The shared seam test in <code>tests/common/test_seam.py</code> holds every generator to both rules.</p>
+  </div>
+  <div class="fig">
+    <div class="tabs" role="tablist" aria-label="Model files">
+      <button role="tab" id="tab-structural" aria-controls="panel-model" aria-selected="true" data-tab="structural">structural.json</button>
+      <button role="tab" id="tab-behavioral" aria-controls="panel-model" aria-selected="false" data-tab="behavioral" tabindex="-1">behavioral.json</button>
+      <button role="tab" id="tab-ownership" aria-controls="panel-model" aria-selected="false" data-tab="ownership" tabindex="-1">ownership.json</button>
+      <button role="tab" id="tab-scope" aria-controls="panel-model" aria-selected="false" data-tab="scope" tabindex="-1">scope.json</button>
+    </div>
+    <div class="tabpanel" role="tabpanel" id="panel-model" aria-labelledby="tab-structural"></div>
+  </div>
+</section>
+
+<!-- ================================================================ 9 comparison -->
+<section class="ch" id="ch9" aria-labelledby="h9">
+  <header>
+    <span class="ch-num">Chapter 9</span>
+    <h2 id="h9">Deciding a difference</h2>
+    <p class="question">Question: when is an element ADDED, REMOVED or MODIFIED, and when is a commit an ownership VIOLATION?</p>
+  </header>
+  <div class="tree fig">
+    <div class="col">
+      <h4>Structural and behavioral: per element id</h4>
+      <span class="q">Is the id in the committed /models?</span>
+      <div class="branch"><span class="lbl">no</span><span class="res add">ADDED</span> in the code, not in the model</div>
+      <div class="branch"><span class="lbl">yes, and is it in the fresh model from the code?</span>
+        <div class="branch"><span class="lbl">no</span><span class="res rem">REMOVED</span> in the model, not in the code</div>
+        <div class="branch"><span class="lbl">yes, and are all fields equal?</span>
+          <div class="branch"><span class="lbl">no</span><span class="res mod">MODIFIED</span> same id, fields differ</div>
+          <div class="branch"><span class="lbl">yes</span><span class="res none">aligned</span> no entry</div>
+        </div>
+      </div>
+      <p class="note" style="margin-top:12px">Reported from the code's side and sorted by id. An id that encodes its identity parts, such as a behavioral guard, turns a change into one REMOVED plus one ADDED, never MODIFIED.</p>
+    </div>
+    <div class="col">
+      <h4>Ownership: per non-merge commit in base..head</h4>
+      <span class="q">For each path the commit changes (a rename: its old path)</span>
+      <div class="branch"><span class="lbl">first rule whose pattern matches?</span>
+        <div class="branch"><span class="lbl">none</span><span class="res none">open to anyone</span> no entry</div>
+        <div class="branch"><span class="lbl">found: is the author's email among its owners?</span>
+          <div class="branch"><span class="lbl">yes</span><span class="res none">owner</span> no entry</div>
+          <div class="branch"><span class="lbl">no</span><span class="res vio">VIOLATION</span> names commit, path, author, owners</div>
+        </div>
+      </div>
+      <p class="note" style="margin-top:12px">Why ownership is never regenerated: history grows with every push, so re-mining it would make anyone new touching a file look like drift.</p>
+    </div>
+  </div>
+
+  <h3>Everything hangs on the id</h3>
+  <div class="prose"><p>The left tree only works because an element's id is built from <i>what</i> it is, never <i>where</i> it sits. So the same everyday edit can land in any of the three outcomes, depending on whether it touches the id or only the fields beside it:</p></div>
+  <div class="tbl-wrap fig">
+    <table>
+      <thead><tr><th>You change</th><th>The element's id</th><th>Reported as</th></tr></thead>
+      <tbody>
+        <tr><td>Move <code>Order.cancel</code> lower in the file, or edit a comment</td><td>unchanged: ids hold no line numbers</td><td><span class="res none">no entry</span></td></tr>
+        <tr><td>Add a parameter to <code>Order.cancel</code></td><td>unchanged: <code>shop.orders:Order.cancel</code></td><td><span class="res mod">MODIFIED</span> its <code>params</code> differ</td></tr>
+        <tr><td>Rename <code>cancel</code> to <code>void</code></td><td>the old id disappears, a new one appears</td><td><span class="res rem">REMOVED</span> + <span class="res add">ADDED</span></td></tr>
+        <tr><td>Change a guard from <code>'open'</code> to <code>'new'</code></td><td>a transition's id contains its states</td><td><span class="res rem">REMOVED</span> + <span class="res add">ADDED</span></td></tr>
+        <tr><td>Change what a method <i>does</i>, with no new state or signature</td><td>unchanged: bodies are not modeled</td><td><span class="res none">no entry</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">The last row is the honest limit: the models describe shape and states, not behaviour line by line. A rewrite that keeps every name, signature, import and string state is not drift.</p>
+
+  <h3>Try the ownership checker</h3>
+  <div class="prose"><p>This runs a port of <code>check_ownership</code> and of the shared <code>glob</code> from <code>models/common.py</code>. In that glob, <code>**/</code> is zero or more folders, <code>**</code> is anything, <code>*</code> is one path segment's text and <code>?</code> is one character. scope.json, ownership rules and the pod's mapping-v1.1.yaml all use this one matcher, so a pattern means the same thing everywhere.</p></div>
+  <div class="play fig">
+    <div>
+      <div class="field">
+        <label for="own-rules">ownership.json rules, in order: pattern, then owners</label>
+        <textarea id="own-rules" spellcheck="false">src/shop/orders.py alice@example.com
+src/shop/** carol@example.com
+docs/*.md bob@example.com carol@example.com</textarea>
+        <p class="hint">One rule per line. Order matters: the first match wins.</p>
+      </div>
+      <div class="field">
+        <label for="own-path">Path the commit changes</label>
+        <input type="text" id="own-path" value="src/shop/orders.py" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="own-author">Author email</label>
+        <input type="text" id="own-author" value="Bob@Example.com" spellcheck="false" autocomplete="off">
+        <p class="hint">Compared in lowercase.</p>
+      </div>
+      <label style="font-weight:400;display:flex;gap:8px;align-items:center"><input type="checkbox" id="own-merge"> this commit is a merge</label>
+    </div>
+    <div>
+      <label>Rules, as the checker walks them</label>
+      <ul class="rules-out" id="own-walk"></ul>
+      <label>Result</label>
+      <pre class="json" id="own-out" aria-live="polite"></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ 10 hosted -->
+<section class="ch" id="ch10" aria-labelledby="h10">
+  <header>
+    <span class="ch-num">Chapter 10</span>
+    <h2 id="h10">The hosted service</h2>
+    <p class="question">Question: what does the hosted service add around the core, and why?</p>
+  </header>
+  <div class="prose">
+    <p>One FastAPI app (<code>GitHub_Connector/api.py</code>) on Railway serves four things: the pod contract's API under <code>/system</code>, the course's test-session routes, our own tester under <code>/tester</code>, and a console at <code>/</code>. Every push to <code>main</code> deploys, and <code>/system/health</code>'s <code>tool_version</code> names the deployed commit.</p>
+    <p>The contract is shared with Team 16, so <code>/analyze</code> answers two different questions in one reply. They are easy to confuse:</p>
+    <ul>
+      <li><b>Change detection</b>, the pod's shared layer: <i>which files changed between base and head, and what kind of file is each?</i> It compares two commits and classifies paths with mapping-v1.1.yaml. It knows nothing about models.</li>
+      <li><b>Drift</b>, Team 15's optional <code>drift</code> key: <i>does <code>/models</code> still describe the code at head?</i> It looks at one commit's full contents, not at a diff, and carries the core's four-field answer.</li>
+    </ul>
+    <p>Both run on the same clone. Team 15 has no prose detector, so <code>issues</code> is always <code>[]</code>. That is contract deviation 1.</p>
+  </div>
+  <div class="tbl-wrap fig">
+    <table>
+      <thead><tr><th>Route</th><th>What it does</th><th>Behind it</th></tr></thead>
+      <tbody>
+        <tr><td><code>POST /system/analyze</code></td><td>Validate, take one of 2 slots, clone, detect changes, run the drift check on the same clone, save once, reply with the saved bytes</td><td><code>analysis.analyze</code>, <code>fetch</code>, <code>rules</code>, <code>check</code>, <code>runs</code></td></tr>
+        <tr><td><code>GET /system/analysis/{id}</code></td><td>Serve a saved run byte for byte; any unknown or malformed id gets the same 404</td><td><code>runs.load</code>, ids match <code>an-</code> plus 32 hex</td></tr>
+        <tr><td><code>POST /system/generate</code></td><td>The four /models files as init would write them; saves nothing. A file that would stop init (too large, not Python) is a 500 <code>ANALYSIS_FAILED</code> here, since this route has no <code>drift_error</code> field</td><td><code>check.generate_models</code> on the clone</td></tr>
+        <tr><td><code>GET /system/health</code></td><td>No git work. Reports <code>features: ["model_drift"]</code>, so a tester skips the prose tests, plus <code>storage: volume</code> or <code>ephemeral</code></td><td><code>settings</code>, <code>rules</code></td></tr>
+        <tr><td><code>POST /system/test/setup</code>, <code>GET /system/test/report</code></td><td>One active test session; line coverage of the system package since setup</td><td><code>course.py</code></td></tr>
+        <tr><td><code>/tester/*</code></td><td>Our tester runs T-01 to T-33 against any team's system</td><td><code>Source/Tester/</code></td></tr>
+        <tr><td><code>/</code>, <code>/models/view</code></td><td>Console, and a rendered view of one commit's models (kept out of the OpenAPI document)</td><td><code>Source/Frontend/</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="seams fig">
+    <div class="seam">
+      <h4>Concurrency and time</h4>
+      <p>A bounded semaphore admits at most <b>2</b> analyses. The <b>80 s</b> deadline starts once a slot is free and caps every git call (each also capped at 60 s). It stays under the tester's 90 s per call.</p>
+    </div>
+    <div class="seam">
+      <h4>Durable, write-once results</h4>
+      <p><code>runs.py</code> writes each result once, to a temp file and then <code>os.replace</code>, on a Railway volume. On Railway without a volume, the app refuses to start rather than silently lose results. That is decision D6, and <code>runs.py</code> is the only file a different store would change.</p>
+    </div>
+    <div class="seam">
+      <h4>One error table</h4>
+      <p>Every failure goes through <code>STATUS_FOR</code>: <code>INVALID_REQUEST</code> 400; <code>REPOSITORY_NOT_FOUND</code>, <code>COMMIT_NOT_FOUND</code>, <code>ANALYSIS_NOT_FOUND</code> 404; <code>ANALYSIS_FAILED</code>, <code>STORAGE_FAILED</code> 500. FastAPI's 422 is reworded as 400.</p>
+    </div>
+  </div>
+  <figure class="fig">
+<pre class="code">{                                   <span style="color:var(--muted)">// AnalysisResult, as POST /analyze saves and returns it</span>
+  "analysis_id": "an-…", "repository": "owner/name",
+  "head_commit": "…40 hex…", "base_commit": "…first parent, or null for a root commit…",
+  "config_version": "mapping-v1.1", "tool_version": "1.1.0+…",
+  "status": "SUCCESS",                <span style="color:var(--muted)">// ERROR only for CHANGE_LIMIT_EXCEEDED, still HTTP 200</span>
+  "error": null,
+  "changes": [ … ], "skipped": [ … ], "unmapped": [ … ],   <span style="color:var(--muted)">// the pod's change detection</span>
+  "issues": [],                       <span style="color:var(--muted)">// always empty: no prose detector</span>
+  <span style="color:var(--model);font-weight:600">"drift": {"aligned": …, "behavioral": […], "ownership": […], "structural": […]},</span>
+  <span style="color:var(--model);font-weight:600">"drift_error": null</span>,                <span style="color:var(--muted)">// or {code, message} when drift is null</span>
+  "created_at": "2026-…Z"
+}</pre>
+    <figcaption>Change detection and drift run on the same clone, so one request clones once. A no-verdict code leaves <code>status</code> untouched and <code>drift</code> null, so a check that could not finish is never read as aligned.</figcaption>
+  </figure>
+</section>
+
+<!-- ================================================================ 11 tests -->
+<section class="ch" id="ch11" aria-labelledby="h11">
+  <header>
+    <span class="ch-num">Chapter 11</span>
+    <h2 id="h11">Proving it: cross-team tests</h2>
+    <p class="question">Question: which calls make up one test session between a tester and another team's system, and what does each test need?</p>
+  </header>
+  <div class="prose"><p>The course pairs Team 15 with Team 16. Each team's tester runs the contract's tests T-01 to T-33 against the other team's system, within 600 s per run and 90 s per call, with no retries. A tester reads <code>/health</code> once. It <b>skips, never fails</b>, a test whose feature the target does not list.</p></div>
+  <div class="seq fig" role="img" aria-label="Sequence: a person starts tester A, which opens a session on system B, reads B's health once, runs T-01 to T-33 while B reads the fixture repositories, then reads B's coverage report and returns the suite report.">
+    <div class="seq-inner">
+      <div class="lanes">
+        <div class="who actor">Person or staff</div>
+        <div class="who">Tester, team A<span>/tester/test/*</span></div>
+        <div class="who">System, team B<span>/system/*</span></div>
+        <div class="who store">Fixture repos<span>c0 to c8, L-pre to L7</span></div>
+      </div>
+      <div class="seq-body">
+        <div class="msg"><div class="arrow r" style="grid-column:1/3">POST /test/setup {target_url}</div></div>
+        <div class="msg"><div class="arrow r" style="grid-column:2/4">POST /test/setup {session_id}</div></div>
+        <div class="msg"><div class="arrow l reply" style="grid-column:2/4">201, or 409 while another session is active</div></div>
+        <div class="msg"><div class="arrow r" style="grid-column:1/3">POST /test/run {session_id}</div></div>
+        <div class="msg"><div class="arrow r" style="grid-column:2/4">GET /health, once before T-01</div></div>
+        <div class="msg"><div class="arrow l reply" style="grid-column:2/4">features: ["model_drift"], or absent</div></div>
+        <div class="loopbox"><span class="lt">loop T-01 to T-33, in order, within 600 s</span>
+          <div class="msg"><div class="arrow r" style="grid-column:2/4">POST /analyze, GET /analysis/{id}, POST /generate</div></div>
+          <div class="msg"><div class="arrow r" style="grid-column:3/5">read one fixture commit</div></div>
+          <div class="msg"><div class="arrow l reply" style="grid-column:2/4">AnalysisResult with drift, or an error</div></div>
+          <div class="msg"><div class="seq-note">compare with golden-outputs.json and model-golden-outputs.json</div></div>
+        </div>
+        <div class="msg"><div class="arrow r" style="grid-column:2/4">GET /test/report?session_id=…</div></div>
+        <div class="msg"><div class="arrow l reply" style="grid-column:2/4">coverage since setup; frees the session</div></div>
+        <div class="msg"><div class="arrow l reply" style="grid-column:1/3">report: outcome and message per test</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="tbl-wrap fig">
+    <table>
+      <thead><tr><th>Tests</th><th>What they check</th><th>Against our system</th><th>Against Team 16</th></tr></thead>
+      <tbody>
+        <tr><td>T-01 to T-07</td><td>Change detection on Team 16's fixture, compared with golden-outputs.json</td><td class="st-pass">pass</td><td class="st-pass">pass</td></tr>
+        <tr><td>T-08 to T-13</td><td>Bad requests and missing repositories or commits: status and error code</td><td class="st-pass">pass</td><td class="st-pass">pass</td></tr>
+        <tr><td>T-14 to T-17</td><td>Saved results, durability, five-run repeatability</td><td class="st-pass">pass</td><td class="st-pass">pass</td></tr>
+        <tr><td>T-18 to T-21</td><td>Prose findings</td><td class="st-skip">skip: no prose_detector</td><td class="st-pass">pass</td></tr>
+        <tr><td>T-22, T-23</td><td>Review decisions; read-only by inspection</td><td class="st-skip">skip: Phase 5</td><td class="st-skip">skip</td></tr>
+        <tr><td>T-24 to T-31</td><td>Drift at model fixture commits L0 to L7: aligned, ADDED, REMOVED, behavioral, ownership</td><td class="st-wait">run for real since the fixture landed (#36)</td><td class="st-skip">skip: no model_drift</td></tr>
+        <tr><td>T-32</td><td>L-pre: <code>drift: null</code>, <code>MODELS_NOT_FOUND</code></td><td class="st-wait">run for real (#33)</td><td class="st-skip">skip</td></tr>
+        <tr><td>T-33</td><td><code>/generate</code> at L0 byte-equal to the committed structural, behavioral and scope</td><td class="st-wait">run for real (#36)</td><td class="st-skip">skip</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">The planned outcomes come from phase4.md's contract test map. The amber rows describe the latest commits on <code>phase5-kk</code>. Confirm them with a live tester run before quoting them as passing. The repository's own tests live in <code>tests/</code>, one folder per component, including the seam test and golden tests for each generator.</p>
+</section>
+
+<!-- ================================================================ 12 code map -->
+<section class="ch" id="ch12" aria-labelledby="h12">
+  <header>
+    <span class="ch-num">Chapter 12</span>
+    <h2 id="h12">Code map and what's next</h2>
+    <p class="question">Question: where does each component live, and which parts are not built yet?</p>
+  </header>
+  <div class="codemap fig">
+    <div class="tree-list" aria-label="Source tree">
+      <div class="d">Source/</div>
+      <div class="i1">drifter/<span class="tg">core</span></div>
+      <div class="i2">check.py <span class="tg">orchestrator, readers, diff, ownership check</span></div>
+      <div class="i2">cli.py <span class="tg">init, update, check</span></div>
+      <div class="i1">models/<span class="tg">generators and schemas</span></div>
+      <div class="i2">common.py <span class="tg">shared kernel</span></div>
+      <div class="i2">structural_model.py <span class="tg">Enrique</span></div>
+      <div class="i2">behavioral_model.py <span class="tg">Barshan</span></div>
+      <div class="i2">ownership_model.py <span class="tg">Muhammad</span></div>
+      <div class="i2">*.schema.json <span class="tg">one per model</span></div>
+      <div class="i1">GitHub_Connector/<span class="tg">hosted service</span></div>
+      <div class="i2">api.py, analysis.py <span class="tg">routes, one analysis</span></div>
+      <div class="i2">fetch.py <span class="tg">blobless clone, Comparison reader</span></div>
+      <div class="i2">rules.py, runs.py <span class="tg">mapping, run store</span></div>
+      <div class="i2">course.py, settings.py <span class="tg">sessions, config</span></div>
+      <div class="i1">Tester/<span class="tg">T-01 to T-33</span></div>
+      <div class="i1">Frontend/<span class="tg">console, model viewer</span></div>
+      <div class="d" style="margin-top:6px">docs/<span class="tg">spec, contract, diagrams</span></div>
+      <div class="d">tests/<span class="tg">one folder per component</span></div>
+      <div class="d">scripts/model_fixture.py <span class="tg">builds L-pre to L7</span></div>
+    </div>
+    <div class="planned-list">
+      <div class="box planned"><span class="t">GitHub Action</span><span class="s">Phase 5. Runs <code>drifter check</code> on every push and pull request, with a PR check and an artifact. T-22 and T-23 come with it.</span></div>
+      <div class="box planned"><span class="t">Timing on real repositories</span><span class="s">#22, a person: one full check of pytest and of Django on Railway, Django under 60 s.</span></div>
+      <div class="box planned"><span class="t">One download per check</span><span class="s">A check downloads twice today, /models then the code. See tracker-gaps row 3.</span></div>
+      <div class="box planned"><span class="t">Calls as structural edges</span><span class="s">Would be <code>schema_version</code> 2 and would change every committed structural.json.</span></div>
+      <p class="note" style="margin:0">Where documents disagree: the course PDF wins over everything, the contract wins over the spec for anything another team sees, and the spec wins over the diagrams. <code>docs/README.md</code> maps every document.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ 13 glossary -->
+<section class="ch" id="ch13" aria-labelledby="h13">
+  <header>
+    <span class="ch-num">Chapter 13</span>
+    <h2 id="h13">Glossary</h2>
+    <p class="question">Question: what do the project's words mean, exactly?</p>
+  </header>
+  <dl class="gloss">
+    <dt>Models</dt><dd>The files in <code>/models</code> that describe the code's structure, behavior and ownership. This system's documentation.</dd>
+    <dt>Drift</dt><dd>A difference between what the code is and what the models say it is. Not "issue" or "finding"; those are the pod's prose findings.</dd>
+    <dt>Element</dt><dd>One thing the structural or behavioral model describes, such as a class, an import or a transition. It has an id that stays the same while the thing does.</dd>
+    <dt>Accepting drift</dt><dd>A person committing updated models after a false verdict. The git history of <code>/models</code> records who and when.</dd>
+    <dt>Element id</dt><dd>The name that says which thing an element is, built from what it is and never from where it sits: <code>shop.orders:Order.cancel</code>, <code>imports:shop.orders-&gt;shop.models</code>. The diff matches elements by id alone.</dd>
+    <dt>Baseline</dt><dd>The <code>/models</code> a person last committed. Every check compares against it; accepting drift replaces it.</dd>
+    <dt>Scope</dt><dd><code>scope.json</code>: include and exclude patterns that pick which files feed the two generators. Not a model, never diffed. Ownership ignores it.</dd>
+    <dt>Base and head</dt><dd>Head is the commit being checked. Base is where the push started, by default head's first parent. Only the ownership check uses base: it judges the commits base..head.</dd>
+    <dt>Seam</dt><dd>A boundary where two parts meet through a small fixed promise (a signature and a data shape), so each side can change behind it.</dd>
+    <dt>Blobless clone</dt><dd>A git clone with commits and folder listings but no file contents. The hosted reader then downloads exactly the contents it needs, in one batch.</dd>
+    <dt>Fresh model</dt><dd>The model regenerated from the code at the commit being checked.</dd>
+    <dt>Committed model</dt><dd>The model as it sits in <code>/models</code> at that commit: the baseline a person accepted.</dd>
+    <dt>No verdict</dt><dd>A check that could not decide: <code>drift: null</code>, a <code>drift_error</code> code (MODELS_NOT_FOUND, INVALID_MODELS, FILE_TOO_LARGE, PARSE_FAILED), and CLI exit 2.</dd>
+    <dt>Acceptance criterion</dt><dd>One of the pod's checks AC-01 to AC-10, with the pod's meaning. AC-11 is this system's own and counts as AC-02.</dd>
+    <dt>Pod, contract</dt><dd>Teams 15 and 16 share a contract in <code>docs/contract/</code>: routes, JSON, the test list and fixtures. Team 15 adds <code>drift</code>, <code>drift_error</code> and <code>/generate</code> as optional features.</dd>
+    <dt>MAGE</dt><dd>The modeling method the spec cites. Each model answers one question with the smallest representation that does, and every model has a check that keeps it true to the code.</dd>
+  </dl>
+</section>
+
+<footer class="end">
+  Built from <code>docs/diagrams/</code>, <code>docs/base/</code> and <code>Source/</code> on branch <code>phase5-kk</code>, 2026-11-02. Where this page and the spec disagree, the spec wins.
+</footer>
+
+</main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  /* ---------------- theme ---------------- */
+  const root = document.documentElement;
+  const darkNow = () => root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  const syncThemeBtns = () => $$("[data-theme-toggle]").forEach((b) => { b.textContent = darkNow() ? "Switch to light" : "Switch to dark"; });
+  try { const saved = localStorage.getItem("drifter-tour-theme"); if (saved) root.dataset.theme = saved; } catch (e) {}
+  syncThemeBtns();
+  $$("[data-theme-toggle]").forEach((b) => b.addEventListener("click", () => {
+    root.dataset.theme = darkNow() ? "light" : "dark";
+    try { localStorage.setItem("drifter-tour-theme", root.dataset.theme); } catch (e) {}
+    syncThemeBtns();
+  }));
+
+  /* ---------------- rail: active chapter ---------------- */
+  const links = $$("#route a");
+  const byId = new Map(links.map((a) => [a.getAttribute("href").slice(1), a]));
+  const seen = new Map();
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach((e) => seen.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0));
+    let best = null, bestTop = Infinity;
+    $$("section[id]").forEach((s) => {
+      const r = s.getBoundingClientRect();
+      if (r.top < window.innerHeight * 0.45 && r.bottom > 80 && Math.abs(r.top) < bestTop) { best = s.id; bestTop = Math.abs(r.top); }
+    });
+    if (best) links.forEach((a) => a.classList.toggle("on", a === byId.get(best)));
+  }, { threshold: [0, 0.1, 0.3, 0.6] });
+  $$("section[id]").forEach((s) => obs.observe(s));
+  window.addEventListener("scroll", () => {
+    let cur = "top";
+    $$("section[id]").forEach((s) => { if (s.getBoundingClientRect().top < window.innerHeight * 0.4) cur = s.id; });
+    links.forEach((a) => a.classList.toggle("on", a === byId.get(cur)));
+  }, { passive: true });
+
+  /* ---------------- canonical JSON, as write_model renders it ---------------- */
+  function canon(v, ind = "") {
+    const n = ind + "  ";
+    if (Array.isArray(v)) return v.length ? "[\n" + v.map((x) => n + canon(x, n)).join(",\n") + "\n" + ind + "]" : "[]";
+    if (v && typeof v === "object") {
+      const ks = Object.keys(v).sort();
+      return ks.length ? "{\n" + ks.map((k) => n + JSON.stringify(k) + ": " + canon(v[k], n)).join(",\n") + "\n" + ind + "}" : "{}";
+    }
+    return JSON.stringify(v);
+  }
+  function paint(json) {
+    return esc(json)
+      .replace(/(&quot;change&quot;: )&quot;(ADDED|REMOVED|MODIFIED|VIOLATION)&quot;/g, '$1<span class="chg-$2">&quot;$2&quot;</span>')
+      .replace(/^(\s*)(&quot;[a-z_]+&quot;):/gm, '$1<span class="k">$2</span>:');
+  }
+
+  /* ---------------- ports of check.py ---------------- */
+  function glob(pattern) {
+    let out = "", i = 0;
+    const reEsc = (c) => c.replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&");
+    while (i < pattern.length) {
+      if (pattern[i] === "\\" && i + 1 < pattern.length) { out += reEsc(pattern[i + 1]); i += 2; }
+      else if (pattern.startsWith("**/", i)) { out += "(?:.*/)?"; i += 3; }
+      else if (pattern.startsWith("**", i)) { out += ".*"; i += 2; }
+      else if (pattern[i] === "*") { out += "[^/]*"; i += 1; }
+      else if (pattern[i] === "?") { out += "[^/]"; i += 1; }
+      else { out += reEsc(pattern[i]); i += 1; }
+    }
+    return new RegExp("^" + out + "$", "s");
+  }
+  const elements = (model) => {
+    const m = new Map();
+    Object.values(model).forEach((v) => { if (Array.isArray(v)) v.forEach((e) => m.set(e.id, e)); });
+    return m;
+  };
+  const diffOne = (change, e) => ({ change, file: e.file, id: e.id, kind: e.kind });
+  const sameFields = (a, b) => canon(a) === canon(b);
+  function differences(fresh, committed) {
+    const f = elements(fresh), c = elements(committed);
+    const ids = Array.from(new Set([...f.keys(), ...c.keys()])).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    const found = [];
+    ids.forEach((id) => {
+      const inCode = f.get(id), inModel = c.get(id);
+      if (!inModel) found.push(diffOne("ADDED", inCode));
+      else if (!inCode) found.push(diffOne("REMOVED", inModel));
+      else if (!sameFields(inCode, inModel)) found.push(diffOne("MODIFIED", inCode));
+    });
+    return found;
+  }
+  function checkOwnership(rules, commits) {
+    const pats = (rules.rules || []).map((r) => [r.pattern, r.owners.map((o) => o.toLowerCase())]);
+    const v = [];
+    commits.forEach((c) => {
+      if (c.parents.length > 1) return;
+      Array.from(new Set(c.paths)).sort().forEach((p) => {
+        const hit = pats.find(([pat]) => glob(pat).test(p));
+        const author = c.author.toLowerCase();
+        if (hit && !hit[1].includes(author)) v.push({ author, change: "VIOLATION", commit: c.sha, owners: hit[1].slice().sort(), path: p });
+      });
+    });
+    return v.sort((a, b) => (a.commit + a.path < b.commit + b.path ? -1 : 1));
+  }
+
+  /* ---------------- hero demo ---------------- */
+  const F = { o: "src/shop/orders.py", m: "src/shop/models.py", p: "src/shop/payments.py", i: "src/shop/__init__.py" };
+  const fn = (id, kind, file, params) => ({ async: false, decorators: [], file, id, kind, params });
+  const mod = (id, file) => ({ file, id, kind: "module" });
+  const edge = (kind, s, t, file) => ({ file, id: `${kind}:${s}->${t}`, kind, source: s, target: t });
+  const stateId = (v) => "state:" + JSON.stringify([F.o, "shop.orders:Order", "self.status", v]);
+  const state = (v) => ({ file: F.o, id: stateId(v), kind: "state", machine: "shop.orders:Order", value: v, variable: "self.status" });
+  const trans = (trigger, a, b) => ({
+    file: F.o, guard: `self.status == '${a}'`,
+    id: "transition:" + JSON.stringify([F.o, trigger, stateId(a), stateId(b)]),
+    kind: "transition", source: stateId(a), target: stateId(b), trigger,
+  });
+  const idOrder = (a, b) => (a.id < b.id ? -1 : 1);
+  function structural(o = {}) {
+    const nodes = [
+      mod("shop", F.i), mod("shop.models", F.m), { file: F.m, id: "shop.models:Base", kind: "class" },
+      fn("shop.models:Base.save", "method", F.m, ["self"]), mod("shop.orders", F.o),
+      { file: F.o, id: "shop.orders:Order", kind: "class" },
+      fn("shop.orders:Order.cancel", "method", F.o, o.cancelParams || ["self", "reason"]),
+      fn("shop.orders:Order.pay", "method", F.o, ["self"]),
+      mod("shop.payments", F.p), fn("shop.payments:charge", "function", F.p, ["amount", "*", "currency"]),
+    ];
+    if (o.refund) nodes.push(fn("shop.orders:refund", "function", F.o, ["order"]));
+    const edges = [edge("imports", "shop.orders", "shop.models", F.o), edge("inherits", "shop.orders:Order", "shop.models:Base", F.o)];
+    if (!o.noPayments) edges.push(edge("imports", "shop.orders", "shop.payments", F.o));
+    return { edges: edges.sort(idOrder), nodes: nodes.sort(idOrder), schema_version: 1 };
+  }
+  function behavioral(o = {}) {
+    const states = [state("open"), state("paid")];
+    const transitions = [trans("shop.orders:Order.pay", "open", "paid")];
+    if (o.shipped) { states.push(state("shipped")); transitions.push(trans("shop.orders:Order.pay", "paid", "shipped")); }
+    return { schema_version: 1, states: states.sort(idOrder), transitions: transitions.sort(idOrder) };
+  }
+  const OWNERSHIP = { rules: [
+    { owners: ["carol@example.com"], pattern: F.m },
+    { owners: ["alice@example.com"], pattern: F.o },
+    { owners: ["carol@example.com"], pattern: F.p },
+  ], schema_version: 1 };
+  const BASE_CODE = [
+    "from shop.models import Base",
+    "from shop import payments",
+    "",
+    "class Order(Base):",
+    "    def pay(self):",
+    '        if self.status == "open":',
+    '            self.status = "paid"',
+    "",
+    "    def cancel(self, reason=None):",
+    "        payments.charge(0)",
+  ];
+  const sha = (seed) => (seed.repeat(40)).slice(0, 40);
+  const SCEN = {
+    base: { code: BASE_CODE.map((t) => [t]), fresh: {}, author: "alice@example.com", sha: sha("3e91c0a"),
+      msg: "The committed models were generated from this very code, so every element id matches and no commit broke a rule." },
+    addfn: { code: [...BASE_CODE.map((t) => [t]), [""], ["def refund(order):", "add"], ["    payments.charge(-1)", "add"]],
+      fresh: { refund: true }, author: "alice@example.com", sha: sha("7b2d14f"),
+      msg: "A module-level function is a new structural node, shop.orders:refund. It exists in the code but not in the model, so it is ADDED. The call to charge gives no edge, because calls are not edges in schema_version 1." },
+    params: { code: BASE_CODE.map((t, i) => (i === 8 ? ["    def cancel(self, reason=None, notify=False):", "add"] : [t])),
+      fresh: { cancelParams: ["self", "reason", "notify"] }, author: "alice@example.com", sha: sha("c40a9e2"),
+      msg: "The method keeps its id, shop.orders:Order.cancel, but its params attribute changed. Same id with different fields is MODIFIED." },
+    import: { code: BASE_CODE.flatMap((t, i) => (i === 1 ? [[t, "del"]] : i === 9 ? [[t, "del"], ['        self.status = "cancelled"', "add"]] : [[t]])),
+      fresh: { noPayments: true }, author: "alice@example.com", sha: sha("e5f6078"),
+      msg: "The imports edge to shop.payments is still in the committed model but no longer in the code, so it is REMOVED. The new lone assignment is no behavioral state: the miner needs an == guard to see a transition." },
+    state: { code: [...BASE_CODE.slice(0, 7).map((t) => [t]), ['        elif self.status == "paid":', "add"], ['            self.status = "shipped"', "add"], ...BASE_CODE.slice(7).map((t) => [t])],
+      fresh: { shipped: true }, author: "alice@example.com", sha: sha("1a2b3c4"),
+      msg: "The miner reads the == guard and the assignment under it: one new state (shipped) and one new transition (paid to shipped). Both are ADDED to behavioral. Behavioral ids are JSON arrays of their identity parts, with no line numbers." },
+    owner: { code: [...BASE_CODE.slice(0, 4).map((t) => [t]), ["    # an order moves open, paid, then shipped", "add"], ...BASE_CODE.slice(4).map((t) => [t])],
+      fresh: {}, author: "bob@example.com", sha: sha("9d8c7b6"),
+      msg: "A comment changes no model, so structural and behavioral are empty. But bob@example.com changed src/shop/orders.py, whose first matching rule names only alice@example.com. That is one ownership VIOLATION." },
+    parse: { code: BASE_CODE.map((t, i) => (i === 8 ? ["    def cancel(self, reason=None)", "add"] : [t])),
+      fresh: null, author: "alice@example.com", sha: sha("ffee001"),
+      msg: "Every in-scope file is checked to parse before any generator runs. One that is not valid Python ends the check with no verdict: drift is null, a drift_error names the file and line, and the CLI exits 2. The committed baseline stays as it was." },
+  };
+  let demoKey = "base";
+  const accepted = {};
+  function renderDemo() {
+    const s = SCEN[demoKey];
+    $("#demo-src").innerHTML = s.code.map(([t, cls]) => `<span class="ln${cls ? " " + cls : ""}">${esc(t) || " "}</span>`).join("");
+    $("#demo-commit").innerHTML = `commit <span class="mono">${s.sha.slice(0, 7)}</span> by <span class="mono">${esc(s.author)}</span>${demoKey === "base" ? ", the commit /models was generated from" : ", one commit after the baseline"}`;
+    let body, badge, exit;
+    if (s.fresh === null) {
+      body = { drift: null, drift_error: { code: "PARSE_FAILED", message: "src/shop/orders.py, line 9: expected ':'" } };
+      badge = '<span class="badge fail">no verdict</span>'; exit = 2;
+    } else {
+      const committedS = accepted[demoKey] ? structural(s.fresh) : structural();
+      const committedB = accepted[demoKey] ? behavioral(s.fresh) : behavioral();
+      const commits = [{ sha: s.sha, author: s.author, parents: [sha("3e91c0a")], paths: [F.o] }];
+      const st = differences(structural(s.fresh), committedS);
+      const be = differences(behavioral(s.fresh), committedB);
+      const ow = checkOwnership(OWNERSHIP, demoKey === "base" ? [] : commits);
+      body = { aligned: !(st.length || be.length || ow.length), behavioral: be, ownership: ow, structural: st };
+      exit = body.aligned ? 0 : 1;
+      badge = body.aligned ? '<span class="badge ok">aligned</span>' : '<span class="badge drift">drift</span>';
+    }
+    $("#demo-verdict").innerHTML = `${badge}<span class="badge plain">exit ${exit}</span>`;
+    $("#demo-json").innerHTML = paint(canon(body));
+    const btn = $("#demo-accept");
+    const canAccept = s.fresh !== null && demoKey !== "base" && demoKey !== "owner";
+    btn.disabled = !canAccept || !!accepted[demoKey];
+    let explain = s.msg;
+    if (accepted[demoKey]) explain = "Accepted: drifter update rewrote structural.json and behavioral.json from this code, a person committed them, and the same code now checks aligned. Git history records who accepted it.";
+    if (demoKey === "owner") explain += " drifter update cannot accept this: ownership is never regenerated. If the rule is wrong, a person edits ownership.json.";
+    $("#demo-explain").textContent = explain;
+  }
+  $$("#demo [data-scen]").forEach((b) => b.addEventListener("click", () => {
+    demoKey = b.dataset.scen;
+    $$("#demo [data-scen]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    renderDemo();
+  }));
+  $("#demo-accept").addEventListener("click", () => { accepted[demoKey] = true; renderDemo(); });
+  renderDemo();
+
+  /* ---------------- system map ---------------- */
+  const COMP = {
+    dev: { n: "Developer", p: "a person", role: "Runs the CLI, reviews proposed models, and decides on every drift: fix the code, or accept the drift by committing updated /models.", rely: "The CLI's exit codes and the four-field answer.", hide: "Nothing: the person is the one write into the repository.", talks: "drifter CLI; the repository (commits /models)" },
+    gh: { n: "GitHub", p: "external", role: "Hosts the analysed repository. In Phase 5 it triggers the Action on every push and pull request.", rely: "Public clone over HTTPS; any commit fetchable by full SHA.", hide: "Not ours.", talks: "GitHub Action (Phase 5); the hosted readers clone from it" },
+    tester: { n: "A tester", p: "Source/Tester/ (ours) or Team 16's", role: "Runs the pod contract's T-01 to T-33 against a system's public URL and reports pass, fail, skip or error per test.", rely: "The /system routes and JSON in pod-contract.openapi.yml; /health's features list.", hide: "How the system computes anything.", talks: "Hosted /system" },
+    cli: { n: "drifter CLI", p: "Source/drifter/cli.py", role: "The local entry point: init writes the first /models, update accepts drift for structural and behavioral, check prints the answer.", rely: "drifter init [commit] [--force], drifter update [commit], drifter check [commit] [--base X]. Exit 0 aligned, 1 drift, 2 no verdict. init refusing to overwrite is exit 1.", hide: "Finding the checkout's top-level /models; writing UTF-8 bytes so Windows adds no CR.", talks: "Orchestrator, through a LocalReader" },
+    action: { n: "GitHub Action", p: "Phase 5, not built yet", role: "Would run drifter check on every push and pull request and publish a PR check and an artifact.", rely: "The same CLI and exit codes.", hide: "Workflow wiring.", talks: "Orchestrator" },
+    hosted: { n: "Hosted /system", p: "Source/GitHub_Connector/api.py, analysis.py", role: "The pod contract's HTTP API on Railway. It wraps the core with validation, concurrency limits, a deadline, the pod's change detection and a durable result store.", rely: "POST /analyze, GET /analysis/{id}, POST /generate, GET /health, /test/setup, /test/report. One error table: 400, 404, 500 with contract codes.", hide: "Semaphore of 2 slots, 80 s deadline, clone per request, run file format, the console and tester sharing the app.", talks: "Orchestrator (via a Comparison reader), change detection, result store" },
+    orch: { n: "Orchestrator", p: "Source/drifter/check.py", role: "Gathers the sources of one commit, validates the committed models, runs the generators and the ownership check, and builds the four-field answer.", rely: "answer(read_sources(reader)) returns the DriftAnswer. generate_models(reader) returns the four files' text for init and /generate. regenerate_models(reader) does the same for update. It raises DriftError(code) for the four no-verdict codes.", hide: "Validation order (JSON, then schema, then element rule, then scope, then ownership); judging files in path order by size, encoding, syntax; the GENERATORS registry.", talks: "Readers, generators, comparison, ownership, kernel" },
+    readers: { n: "Git readers", p: "LocalReader in check.py; Comparison in GitHub_Connector/fetch.py", role: "Read exactly one commit: its file tree, file bytes and commit log. They are the only parts that run git.", rely: "The Reader protocol: head, tree() mapping path to blob, read(paths) mapping path to bytes, log() for base..head. A HistoryReader adds history(), every commit up to head, which only init and /generate need for proposing ownership.", hide: "Local checkout or blobless clone, batched fetch with lazy fetching off, per-call timeouts, the deadline, deleting the clone.", talks: "The analysed repository" },
+    gens: { n: "Structural and behavioral generators", p: "Source/models/structural_model.py, behavioral_model.py", role: "Turn the in-scope files' text into a model dict. Structural: modules, classes, functions, methods, and imports and inherits edges. Behavioral: string states of a variable, and the transitions between them.", rely: "generate_x(files: {path: text}) -> dict. Pure, sorted by id, element rule, schema_version pinned. Validated by the owner's *.schema.json and the shared seam test.", hide: "Kinds, id scheme, attributes, mining rules, the AST walk itself. Each owner may change these behind the schema.", talks: "Kernel (parse_files) only. Never git, never the network." },
+    own: { n: "Ownership", p: "Source/models/ownership_model.py (propose); check.py (check)", role: "Proposes the first ownership.json from history at init. The core then judges each commit of a push against those rules.", rely: "propose_ownership(head_sha, records: [CommitRecord]) -> {rules, schema_version}; check_ownership(rules, commits) -> [OwnershipViolation]. CommitRecord carries sha, lowercase author_email, parents and paths.", hide: "Window of 10 commits per path, skipping commits over 50 files, bots, vendored folders, escaping paths into exact-path patterns.", talks: "Kernel (glob, literal); readers supply CommitRecords" },
+    cmp: { n: "Comparison", p: "Source/drifter/check.py: differences()", role: "Sets a fresh model against the committed one by element id, from the code's side.", rely: "differences(fresh, committed) -> [{change, file, id, kind}], sorted by id. ADDED, REMOVED, MODIFIED.", hide: "Flattening every top-level list into {id: element}; field equality as MODIFIED.", talks: "Nothing. A pure function of two dicts." },
+    kernel: { n: "Shared kernel", p: "Source/models/common.py", role: "The few things every part must agree on, so they are written once.", rely: "parse_files (raises ParseFailed with file and line), write_model (sorted keys, 2-space indent, LF, one trailing newline), glob (the one pattern dialect), literal.", hide: "The regex translation, warning suppression, LRU cache of compiled patterns.", talks: "Python's ast, json, re" },
+    chg: { n: "Change detection", p: "GitHub_Connector/fetch.py (diff), rules.py (mapping)", role: "The pod's shared analysis, compared byte for byte with Team 16's goldens in T-01 to T-07: which files changed between base and head, and how each is classified.", rely: "changes[] with path, old_path, change_type and category; skipped[]; unmapped[]; CHANGE_LIMIT_EXCEEDED as status ERROR with HTTP 200.", hide: "git diff flags, rename detection, the mapping-v1.1.yaml loader and its cache.", talks: "The same clone the drift check uses" },
+    store: { n: "Result store", p: "GitHub_Connector/runs.py", role: "Keeps every /analyze result so GET /analysis/{id} returns it byte for byte, even after a redeploy.", rely: "save(id, bytes) writes once; load(id) returns the bytes or None. Ids are an- plus 32 hex.", hide: "A Railway volume via RAILWAY_VOLUME_MOUNT_PATH, temp file plus os.replace, refusing to start on Railway without a volume.", talks: "The filesystem" },
+    course: { n: "Course and tester routes", p: "GitHub_Connector/course.py; Source/Tester/", role: "The course's cross-team testing: one active test session with line coverage of the system package, and our own tester at /tester.", rely: "POST /system/test/setup, GET /system/test/report; /tester/test/setup, /run, /report.", hide: "The line monitor, session release after 720 s, test catalog.", talks: "Hosted /system of any team" },
+    repo: { n: "Analysed repository", p: "any public GitHub repository, or the local checkout", role: "The subject of the check. Read at exactly one commit: in-scope .py files, the four /models files, and history.", rely: "Its /models folder holds behavioral.json, ownership.json, scope.json and structural.json.", hide: "Its code is never imported or executed: parsing only (REQ-06).", talks: "A person commits /models into it" },
+  };
+  const map = $("#map");
+  $$(".depth [data-depth]").forEach((b) => b.addEventListener("click", () => {
+    map.dataset.depth = b.dataset.depth;
+    $$(".depth [data-depth]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  }));
+  $$("#map .comp").forEach((b) => b.addEventListener("click", () => {
+    const c = COMP[b.dataset.comp];
+    $$("#map .comp").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    $("#detail").innerHTML = `<h4>${esc(c.n)}</h4><span class="path">${esc(c.p)}</span><dl>
+      <dt>Its job</dt><dd>${esc(c.role)}</dd>
+      <dt>Neighbours rely on</dt><dd>${esc(c.rely)}</dd>
+      <dt>Hidden inside, free to change</dt><dd class="hide">${esc(c.hide)}</dd>
+      <dt>Talks to</dt><dd>${esc(c.talks)}</dd></dl>`;
+  }));
+
+  /* ---------------- lifecycle ---------------- */
+  const LIFE = {
+    none: { n: "No models", t: "A repository with no /models. Nothing can be checked yet: a check here has no verdict, MODELS_NOT_FOUND. That is test T-32 at fixture commit L-pre.",
+      ev: [["drifter init", "proposed", "init generates the 3 models and the default scope"], ["push (check anyway)", "failed", "no /models at the commit: MODELS_NOT_FOUND"]] },
+    proposed: { n: "Proposed", t: "init wrote four files into /models, uncommitted. A person reviews them and corrects ownership.json, which is a proposal mined from history, not truth.",
+      ev: [["review, correct, commit /models", "baselined", "a person commits the baseline"]] },
+    baselined: { n: "Baselined", t: "/models is committed. From now on every push is checked against it. While checks pass, /models describes the code.",
+      ev: [["push", "checking", "a push triggers a check"]] },
+    checking: { n: "Checking", t: "Fetch the code, /models and commits at the head. Regenerate structural and behavioral, judge commits against the ownership rules, compare.",
+      ev: [["all 3 models match", "aligned", "aligned: true"], ["any model differs", "drifted", "aligned: false"], ["fetch error, /models missing or invalid, file over 1 MB, not UTF-8 or not Python", "failed", "no verdict"]] },
+    aligned: { n: "Aligned", t: "true, exit 0. Nothing to do.", ev: [["back to baseline", "baselined", "baseline unchanged"]] },
+    drifted: { n: "Drifted", t: "false, exit 1. The only state that needs a person. Either fix the code, or accept the drift: drifter update rewrites structural.json and behavioral.json, and the person pushes them. That commit is the record of who accepted it.",
+      ev: [["push a code fix", "checking", "a person fixed the code"], ["drifter update, push /models", "checking", "a person accepted the drift"]] },
+    failed: { n: "Failed", t: "error, exit 2, no verdict. The baseline is kept as it was; the code is neither aligned nor drifted until a check can complete.",
+      ev: [["back to baseline", "baselined", "baseline kept"]] },
+  };
+  let lifeCur = "none";
+  const visited = new Set(["none"]);
+  function renderLife() {
+    const s = LIFE[lifeCur];
+    $$("#states .st").forEach((el) => {
+      el.classList.toggle("on", el.dataset.st === lifeCur);
+      el.classList.toggle("visited", visited.has(el.dataset.st));
+    });
+    $("#life-name").textContent = s.n;
+    $("#life-text").textContent = s.t;
+    $("#life-events").innerHTML = s.ev.map(([label], i) => `<button class="btn ${i ? "ghost" : ""}" data-i="${i}">${esc(label)}</button>`).join("") +
+      `<button class="btn ghost" data-reset>Start over</button>`;
+  }
+  $("#life-events").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.hasAttribute("data-reset")) { lifeCur = "none"; visited.clear(); visited.add("none"); $("#life-log").textContent = ""; renderLife(); return; }
+    const [label, to, why] = LIFE[lifeCur].ev[+b.dataset.i];
+    const line = document.createElement("div");
+    line.textContent = `${LIFE[lifeCur].n} → ${LIFE[to].n}: ${why}`;
+    $("#life-log").prepend(line);
+    lifeCur = to; visited.add(to); renderLife();
+  });
+  renderLife();
+
+  /* ---------------- init simulator ---------------- */
+  function renderInit() {
+    const exists = $("#init-exists").checked, force = $("#init-force").checked, bad = $("#init-bad").checked;
+    const commit = $("#init-commit").value.trim();
+    const cmd = "drifter init" + (commit ? " " + commit : "") + (force ? " --force" : "");
+    const steps = $$("#init-steps .step");
+    const mark = (upto, stopAt) => steps.forEach((s, i) => {
+      s.classList.remove("passed", "stopped", "unreached");
+      s.classList.add(i < upto ? "passed" : i === stopAt ? "stopped" : "unreached");
+    });
+    steps.forEach((s) => s.closest(".steps").classList.add("pipe"));
+    let out;
+    if (exists && !force) {
+      mark(0, 0);
+      out = `<span class="dim">$</span> ${esc(cmd)}\ndrifter: models/behavioral.json exists; use --force to overwrite\n<span class="dim">exit 1, nothing written</span>`;
+    } else if (bad) {
+      mark(3, 3);
+      out = `<span class="dim">$</span> ${esc(cmd)}\n{\n  "drift": null,\n  "drift_error": {\n    "code": "PARSE_FAILED",\n    "message": "src/shop/orders.py, line 9: expected ':'"\n  }\n}\n<span class="dim">exit 2, /models left as it was</span>`;
+    } else {
+      mark(6, 6);
+      steps[6].classList.remove("stopped"); steps[6].classList.add("unreached");
+      out = `<span class="dim">$</span> ${esc(cmd)}\n<span class="dim">read ${commit ? "commit " + esc(commit) : "HEAD"}, resolved to its full SHA${exists ? "; replacing existing files, a hand-corrected ownership.json included" : ""}</span>\nwrote models/behavioral.json\nwrote models/ownership.json\nwrote models/scope.json\nwrote models/structural.json\n<span class="dim">exit 0. Next: review, correct ownership.json, git commit /models</span>`;
+    }
+    $("#init-term").innerHTML = out;
+  }
+  ["#init-exists", "#init-force", "#init-bad"].forEach((s) => $(s).addEventListener("change", renderInit));
+  $("#init-commit").addEventListener("input", renderInit);
+  renderInit();
+
+  /* ---------------- one check pipeline ---------------- */
+  const STEPS = [
+    { k: "val", n: "Validate", d: "repository is a GitHub path, owner then repo name, such as kaan-kanadasi/doc-tracker-model-fixtures; commit_id and base_commit are 7 to 40 hex characters", h: true, e: "400 INVALID_REQUEST" },
+    { k: "slot", n: "Wait for a slot", d: "at most 2 checks at once; the 80 s deadline starts here", h: true },
+    { k: "res", n: "Clone and resolve", d: "blobless clone; short SHA to full; base defaults to the first parent, null for a root commit", e: "404 REPOSITORY_NOT_FOUND, COMMIT_NOT_FOUND" },
+    { k: "chg", n: "Change detection", d: "diff base..head, classify by mapping-v1.1.yaml, skipped and unmapped", h: true, e: "status ERROR: CHANGE_LIMIT_EXCEEDED (still 200)" },
+    { k: "read", n: "Read /models, then the in-scope files", d: "JSON, owner schema, element rule, scope and ownership rules; then the files scope.json picks, in one batch", e: "no verdict: MODELS_NOT_FOUND, INVALID_MODELS" },
+    { k: "parse", n: "Check every file parses", d: "in path order: size, then UTF-8, then pinned CPython ast; the first bad file is the one reported. Never run.", e: "no verdict: FILE_TOO_LARGE, PARSE_FAILED" },
+    { k: "gen", n: "Regenerate and compare", d: "two fresh models diffed by id against the committed ones; non-merge commits base..head judged against ownership rules" },
+    { k: "ans", n: "Four-field answer", d: "aligned, behavioral, ownership, structural. The CLI prints it and exits 0, 1 or 2." },
+    { k: "save", n: "Save the run, reply", d: "write-once run file, then 200 with exactly the saved bytes", h: true, e: "500 STORAGE_FAILED" },
+  ];
+  const ORDER = STEPS.map((s) => s.k);
+  const CASES = {
+    aligned: { stop: null, badge: "ok", label: "200, aligned", text: "Every step passes. drift is {aligned: true, three empty lists}. The CLI exits 0." },
+    drift: { stop: null, badge: "drift", label: "200, drift", text: "Every step passes and at least one list is non-empty. drift.aligned is false; the CLI exits 1. Saved like any other run." },
+    limit: { stop: null, flag: "chg", badge: "drift", label: "200, status ERROR", text: "More changed files than mapping-v1.1.yaml allows: status ERROR with CHANGE_LIMIT_EXCEEDED, and changes, skipped and unmapped are emptied. The drift check still runs on the same clone, so drift is answered anyway." },
+    badreq: { stop: "val", badge: "fail", label: "400 INVALID_REQUEST", text: "The repository field must be owner/name, as in a GitHub URL; a value without the slash, such as not-a-repository, is test T-10. Rejected before any network call, so garbage never reaches git. Nothing is saved. FastAPI's own 422 is reworded to this 400 too." },
+    norepo: { stop: "res", badge: "fail", label: "404 REPOSITORY_NOT_FOUND", text: "The clone failed: the repository was not found or is not public. Nothing is saved." },
+    nocommit: { stop: "res", badge: "fail", label: "404 COMMIT_NOT_FOUND", text: "A full SHA is fetched by id when no branch reaches it; a short SHA only works for a commit on a branch or tag. Nothing is saved." },
+    batch: { stop: "read", badge: "fail", label: "500 ANALYSIS_FAILED", text: "The one batched download did not bring every blob. Lazy fetching is off, so the check stops at once instead of crawling file by file past the deadline." },
+    deadline: { stop: "read", badge: "fail", label: "500 ANALYSIS_FAILED", text: "The deadline guards git, where the time goes: every git call gets only what is left of the 80 s (and never more than 60 s), and an overrun kills its process group and deletes the clone. Once the last read is done, parsing and comparing run in memory and are not cut off. 80 s keeps a reply inside the tester's 90 s per call." },
+    storage: { stop: "save", badge: "fail", label: "500 STORAGE_FAILED", text: "The run file could not be written, so the result is not returned: a result the caller cannot fetch again would break GET /analysis/{id}." },
+    nomodels: { stop: "read", badge: "fail", label: "200, drift: null, MODELS_NOT_FOUND", nv: true, text: "One of the four /models files is missing at the commit. The run is saved with status as change detection set it, drift null and a drift_error. The CLI exits 2." },
+    invalid: { stop: "read", badge: "fail", label: "200, drift: null, INVALID_MODELS", nv: true, text: "A committed model is not JSON, breaks its owner's schema, repeats an id or has an element without a string id, kind and file. The message names the file and where." },
+    large: { stop: "parse", badge: "fail", label: "200, drift: null, FILE_TOO_LARGE", nv: true, text: "An in-scope file is over 1 MB. A blobless clone cannot report sizes without downloading, so this is judged on what arrived." },
+    parse: { stop: "parse", badge: "fail", label: "200, drift: null, PARSE_FAILED", nv: true, text: "Not UTF-8, or not valid Python. Skipping the file is not an option: it would show up as fake REMOVED drift." },
+  };
+  function renderPipe(k) {
+    const c = CASES[k];
+    const stopIdx = c.stop ? ORDER.indexOf(c.stop) : -1;
+    $("#pipe").innerHTML = STEPS.map((s, i) => {
+      let cls = "passed";
+      if (stopIdx >= 0 && i === stopIdx) cls = "stopped";
+      else if (stopIdx >= 0 && i > stopIdx) cls = c.nv && s.k === "save" ? "passed" : "unreached";
+      if (c.nv && (s.k === "gen" || s.k === "ans") && i > stopIdx) cls = "unreached";
+      const dot = cls === "stopped" ? "!" : i + 1;
+      return `<li class="step ${cls}"><span class="dot">${dot}</span><div class="body"><b>${esc(s.n)}${s.h ? '<span class="tag">hosted</span>' : ""}</b><span>${esc(s.d)}</span>${s.e ? `<span class="err">${esc(s.e)}</span>` : ""}</div></li>`;
+    }).join("");
+    $("#pipe-out").innerHTML = `<div class="row"><span class="badge ${c.badge}">${esc(c.label)}</span>${c.nv ? '<span class="badge plain">CLI exit 2</span>' : ""}</div><p>${esc(c.text)}</p>`;
+  }
+  $$("#scen button").forEach((b) => b.addEventListener("click", () => {
+    $$("#scen button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    renderPipe(b.dataset.k);
+  }));
+  renderPipe("aligned");
+
+  /* ---------------- fetch chart ---------------- */
+  (function chart() {
+    const MAX = 240, LIMIT = 80;
+    const pct = (v) => (Math.min(v, MAX) / MAX) * 100;
+    const rows = [
+      ["pytest, 274 Python files", [["One batch (chosen)", 9, 13, "9 to 13 s", "chosen"], ["Full clone", 26, 26, "26 s"], ["File by file", 163, 221, "163 to 221 s"]]],
+      ["Django, 2,939 Python files", [["One batch (chosen)", 38, 41, "38 to 41 s", "chosen"], ["Full clone", 155, 155, "155 s"], ["File by file", 90, MAX, "over the limit: 81 files in 90 s", "open"]]],
+    ];
+    let h = '<div class="chart-grid">';
+    rows.forEach(([g, opts]) => {
+      h += `<div class="grp">${esc(g)}</div>`;
+      opts.forEach(([name, lo, hi, label, cls]) => {
+        // draws a solid bar to the fastest run and a lighter one across the measured range
+        const solid = cls === "open" ? pct(hi) : Math.max(pct(lo), 0.8);
+        const range = cls !== "open" && hi > lo ? `<span class="bar ${cls || ""}" style="left:${pct(lo)}%;width:${pct(hi) - pct(lo)}%;opacity:.45"></span>` : "";
+        h += `<div class="opt">${esc(name)}</div><div class="track"><span class="limit" style="left:${pct(LIMIT)}%"></span>` +
+          `<span class="bar ${cls || ""}" style="left:0;width:${solid}%"></span>${range}</div><div class="val">${esc(label)}</div>`;
+      });
+    });
+    h += '<div></div><div class="axis">' + [0, 40, 80, 120, 160, 200, 240].map((t) => `<span style="left:${pct(t)}%">${t}${t === 240 ? " s" : ""}</span>`).join("") + "</div><div></div>";
+    h += `<div></div><div class="limit-lbl">Dashed line: the 80 s limit per check</div><div></div></div>`;
+    $("#chart").innerHTML = h;
+  })();
+
+  /* ---------------- model file tabs ---------------- */
+  const S0 = structural(), B0 = behavioral();
+  const TABS = {
+    structural: { q: "What exists, and how do the parts relate?", owner: "Enrique", gen: "generate_structural(files) -> dict",
+      facts: [["Node kinds", "module, class, function, method"], ["Edge kinds", "imports, inherits. Calls are not edges in schema_version 1."], ["Module id", "path without .py, / as ., leading src/ dropped, .__init__ dropped: src/shop/orders.py is shop.orders"], ["Member id", "module:qualname, for example shop.orders:Order.cancel"], ["Edge id", "kind:source->target"], ["Left out", "external libraries; a base class from outside, such as ValueError, gives no edge"]],
+      sample: { edges: S0.edges.slice(0, 2), nodes: S0.nodes.filter((n) => n.id.startsWith("shop.orders")).slice(0, 3), schema_version: 1 } },
+    behavioral: { q: "What may happen, in what order?", owner: "Barshan", gen: "generate_behavioral(files) -> dict",
+      facts: [["Kinds", "state, transition"], ["Mined from", "an if or elif directly in a function's body, testing one == between a variable (a local or self.attr) and a string; then, inside it, an assignment of a string to the same variable. The guard's string is the source state, the assigned one the target."], ["Trigger", "the function or method holding the if, by its structural id"], ["Machine", "for self.attr: the class's structural id, shared by all its methods; for a local: the function's own"], ["Ids", "kind: plus a JSON array of identity parts, no line numbers"], ["Left out", "else, and, or, !=, in, match, Enums, aliases; an if nested inside a for, with or try; an assignment after a call or another branch; functions with global or nonlocal"]],
+      sample: { schema_version: 1, states: B0.states.slice(0, 1), transitions: B0.transitions } },
+    ownership: { q: "Who may change what?", owner: "Muhammad", gen: "propose_ownership(head_sha, records) -> dict",
+      facts: [["Shape", "ordered rules, each a pattern and a list of owner emails"], ["Matching", "first matching rule wins; no rule means anyone"], ["Judged", "every non-merge commit in base..head; a rename under its old path"], ["Proposed by init", "one exact-path rule per live file, owned by the authors of its 10 newest commits. Merges, bots ([bot] emails, AI-tool noreply addresses) and sweeps over 50 files do not count. Vendored folders and /models get no rule."], ["Never", "regenerated or diffed; scope is ignored, every path counts"]],
+      sample: OWNERSHIP },
+    scope: { q: "Which files feed the two generators?", owner: "Core", gen: "DEFAULT_SCOPE, written by init",
+      facts: [["include", "patterns a file must match, default **/*.py"], ["exclude", "patterns that drop a file, default tests/**, the top-level tests/ only"], ["Patterns", "the shared glob, the same as ownership and mapping-v1.1.yaml"], ["Not a model", "it has no elements and is never diffed; T-33 checks /generate reproduces it byte for byte"]],
+      sample: { exclude: ["tests/**"], include: ["**/*.py"] } },
+  };
+  function renderTab(k) {
+    const t = TABS[k];
+    const panel = $("#panel-model");
+    panel.setAttribute("aria-labelledby", "tab-" + k);
+    panel.innerHTML = `<div><p><b>Question:</b> ${esc(t.q)}</p><p><b>Owner:</b> ${esc(t.owner)}. <b>Writer:</b> <code>${esc(t.gen)}</code></p>
+      <dl>${t.facts.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join("")}</dl></div>
+      <div><pre class="json">${paint(canon(t.sample))}</pre><p class="note" style="margin-top:6px">${k === "structural" ? "An excerpt for the shop example." : k === "behavioral" ? "An excerpt: Order.pay moves self.status from open to paid." : "The whole file for the shop example."}</p></div>`;
+  }
+  const tabs = $$('[role="tab"]');
+  tabs.forEach((b, i) => {
+    b.addEventListener("click", () => {
+      tabs.forEach((x) => { x.setAttribute("aria-selected", String(x === b)); x.tabIndex = x === b ? 0 : -1; });
+      renderTab(b.dataset.tab);
+    });
+    b.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      const n = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+      n.focus(); n.click();
+    });
+  });
+  renderTab("structural");
+
+  /* ---------------- ownership playground ---------------- */
+  function renderOwn() {
+    const lines = $("#own-rules").value.split("\n").map((l) => l.trim()).filter(Boolean);
+    const rules = lines.map((l) => { const [pattern, ...owners] = l.split(/\s+/); return { pattern, owners }; });
+    const path = $("#own-path").value.trim();
+    const author = $("#own-author").value.trim().toLowerCase();
+    const merge = $("#own-merge").checked;
+    let hitIdx = -1;
+    if (!merge) rules.some((r, i) => { let ok = false; try { ok = glob(r.pattern).test(path); } catch (e) {} if (ok) { hitIdx = i; return true; } return false; });
+    $("#own-walk").innerHTML = rules.length ? rules.map((r, i) => {
+      const cls = merge ? "never" : i === hitIdx ? "hit" : hitIdx >= 0 && i > hitIdx ? "never" : "miss";
+      const why = merge ? "not judged" : i === hitIdx ? "first match" : cls === "never" ? "not reached" : "no match";
+      return `<li class="${cls}"><span>${esc(r.pattern)} <span style="color:var(--muted)">${esc(r.owners.join(" "))}</span></span><span class="why">${why}</span></li>`;
+    }).join("") : '<li class="miss">no rules</li>';
+    const v = checkOwnership({ rules }, [{ sha: sha("9d8c7b6"), author, parents: merge ? ["a", "b"] : ["a"], paths: path ? [path] : [] }]);
+    let note;
+    if (merge) note = "// a merge carries no change of its own: never judged";
+    else if (hitIdx < 0) note = "// no rule matches: open to anyone";
+    else if (!v.length) note = "// the author is an owner: no entry";
+    else note = "// one ownership entry in the answer";
+    $("#own-out").innerHTML = paint(canon(v)) + "\n" + esc(note);
+  }
+  ["#own-rules", "#own-path", "#own-author"].forEach((s) => $(s).addEventListener("input", renderOwn));
+  $("#own-merge").addEventListener("change", renderOwn);
+  renderOwn();
+})();
+</script>
+</body>
+</html>

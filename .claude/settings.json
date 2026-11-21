@@ -1,0 +1,37 @@
+{ "permissions": {
+  "deny": [
+    "Edit(/docs/decisions/RULED/**)", "Edit(/docs/decisions/ruled/**)",
+    "Edit(/docs/base/student-facing-spec.docx.pdf)",
+    "Edit(/.claude/settings.json)",
+    "Bash(*.claude*settings.json*)", "PowerShell(*.claude*settings.json*)"
+  ],
+  "ask": [
+    "Edit(/CLAUDE.md)", "Edit(/AGENTS.md)", "Edit(/STRATEGY.md)",
+    "Edit(/docs/invariants/**)", "Edit(/docs/templates/**)", "Edit(/docs/closed/**)",
+    "Edit(/.github/workflows/**)",
+    "Edit(/.importlinter)",
+    "Edit(/docs/diagrams/dependency.md)", "Edit(/docs/diagrams/data-flow.md)",
+    "Edit(/docs/diagrams/behavior.md)", "Edit(/docs/diagrams/model-seam.md)",
+    "Edit(/docs/base/specifications.md)", "Edit(/docs/base/structure.md)",
+    "Edit(/docs/base/behavioral.md)", "Edit(/docs/contract/**)",
+    "Bash(git push*)", "Bash(git * push*)",
+    "PowerShell(git push*)", "PowerShell(git * push*)",
+    "Bash(git.exe *push*)", "PowerShell(git.exe *push*)",
+    "Bash(gh pr create*)", "Bash(gh pr merge*)", "Bash(gh api*)",
+    "PowerShell(gh pr create*)", "PowerShell(gh pr merge*)", "PowerShell(gh api*)",
+    "Edit(/.claude/agents/**)", "Edit(/.claude/hooks/**)"
+  ] },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/step-trailer.py"]
+          }
+        ]
+      }
+    ]
+  } }

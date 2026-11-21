@@ -1,7 +1,8 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.mypy_cache/
 *.egg-info/
 
-# ignores diagrams rendered on demand, the Mermaid in docs/models/*.md is the only copy
-docs/models/*.png
+# ignores diagrams rendered on demand, the Mermaid in docs/diagrams/*.md is the only copy
+docs/diagrams/*.png

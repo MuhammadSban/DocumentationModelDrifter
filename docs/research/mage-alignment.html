@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAGE Alignment Checks</title>
+<style>
+:root{
+  --bg:#f7f6f2;--card:#ffffff;--ink:#1d1d1b;--mute:#6b6a64;--line:#e2e0d8;
+  --accent:#2f5bd3;--ok:#1f8a4c;--warn:#b7791f;--bad:#c0392b;--soft:#eef2fd;--guide:#7a5af5;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#15161a;--card:#1e2026;--ink:#ecebe6;--mute:#9b9a94;--line:#30323a;
+  --accent:#7b9cff;--ok:#4cc584;--warn:#e0a84a;--bad:#ef6b5d;--soft:#232a3f;--guide:#a990ff;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1060px;margin:0 auto;padding:40px 16px 80px}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.15;margin:0 0 8px;letter-spacing:-.01em}
+h2{font-size:21px;margin:64px 0 4px}
+h2 .sec{font:600 13px ui-monospace,Consolas,monospace;color:var(--accent);margin-right:8px}
+h3{font-size:15px;margin:0 0 6px}
+.sub{color:var(--mute);margin:0 0 18px;max-width:72ch}
+.kicker{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.quote{border-left:3px solid var(--accent);padding:6px 0 6px 16px;margin:18px 0;font-size:18px;max-width:72ch}
+.quote small{display:block;color:var(--mute);font-size:13px;margin-top:4px}
+.principle{background:var(--soft);border:1px solid var(--accent);border-radius:12px;padding:18px 20px;font-size:19px;margin:22px 0}
+.principle small{display:block;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;font-weight:600}
+.note{font-size:13px;color:var(--mute);margin-top:10px}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.92em}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+@media (max-width:860px){.grid4,.grid5{grid-template-columns:1fr 1fr}.grid3{grid-template-columns:1fr}}
+@media (max-width:560px){.grid2,.grid4,.grid5{grid-template-columns:1fr}}
+.chip{display:inline-block;font:12px ui-monospace,Consolas,monospace;padding:2px 8px;border-radius:999px;margin:2px 4px 2px 0;border:1px solid var(--line);white-space:nowrap}
+.c-ok{background:color-mix(in srgb,var(--ok) 15%,transparent);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.c-warn{background:color-mix(in srgb,var(--warn) 15%,transparent);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+.c-bad{background:color-mix(in srgb,var(--bad) 13%,transparent);border-color:color-mix(in srgb,var(--bad) 45%,transparent)}
+.c-guide{background:color-mix(in srgb,var(--guide) 14%,transparent);border-color:color-mix(in srgb,var(--guide) 45%,transparent)}
+.tag{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+.t-guide{color:var(--guide)}.t-enf{color:var(--ok)}.t-bad{color:var(--bad)}.t-warn{color:var(--warn)}
+
+/* guidance vs enforcement */
+.vs .card ul{margin:6px 0 0;padding-left:18px}
+
+/* boundaries */
+.bounds{display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative}
+.bd{padding:14px;border:1px solid var(--line);background:var(--card);cursor:pointer;transition:background .15s}
+.bd:first-child{border-radius:12px 0 0 12px}.bd:last-child{border-radius:0 12px 12px 0}
+.bd+.bd{border-left:none}
+.bd.guide{background:color-mix(in srgb,var(--guide) 7%,var(--card))}
+.bd .when{font-size:12px;color:var(--mute);margin-bottom:8px}
+.bd.hit{outline:2px solid var(--accent);outline-offset:-2px;background:var(--soft)}
+.bd .chip{opacity:.35;transition:opacity .15s}
+.bd .chip.on{opacity:1}
+@media (max-width:760px){.bounds{grid-template-columns:1fr}.bd,.bd:first-child,.bd:last-child{border-radius:0}.bd+.bd{border-left:1px solid var(--line);border-top:none}.bd:first-child{border-radius:12px 12px 0 0}.bd:last-child{border-radius:0 0 12px 12px}}
+.picker{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 10px}
+.picker button{font:13px ui-monospace,Consolas,monospace;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.picker button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.explain{min-height:64px}
+.arrowline{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin:6px 2px 0}
+
+/* relations */
+.rel .card{border-top:4px solid var(--line)}
+.rel .r1{border-top-color:var(--warn)}.rel .r2{border-top-color:var(--ok)}.rel .r3{border-top-color:var(--accent)}
+.rel .q{font-style:italic;color:var(--mute);font-size:14px;margin:4px 0 10px}
+
+/* roles */
+.role .ex{margin-top:10px}
+.bundle{display:flex;align-items:stretch;gap:0;margin-top:14px;flex-wrap:wrap}
+.bundle div{flex:1;min-width:140px;padding:10px 12px;border:1px dashed var(--line);font-size:14px}
+.bundle div b{display:block;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+
+/* table */
+.wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+.tbl th,.tbl td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);font-weight:600}
+.tbl tr:last-child td{border-bottom:none}
+
+/* venn */
+.venn{display:grid;grid-template-columns:minmax(260px,420px) 1fr;gap:18px;align-items:center}
+@media (max-width:760px){.venn{grid-template-columns:1fr}}
+svg text{font-family:system-ui,sans-serif}
+
+/* stopping points */
+.stops{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.stop{padding:14px;border:1px solid var(--line);background:var(--card)}
+.stop:first-child{border-radius:12px 0 0 12px}.stop:last-child{border-radius:0 12px 12px 0}
+.stop+.stop{border-left:none}
+.stop .lvl{height:6px;border-radius:3px;background:var(--line);margin:8px 0 10px;overflow:hidden}
+.stop .lvl i{display:block;height:100%;background:var(--accent)}
+@media (max-width:760px){.stops{grid-template-columns:1fr 1fr}.stop,.stop:first-child,.stop:last-child{border-radius:0;border:1px solid var(--line)}}
+
+/* conversion */
+.conv .card{position:relative;padding-top:30px}
+.conv .n{position:absolute;top:10px;left:16px;font:600 12px ui-monospace,Consolas,monospace;color:var(--accent)}
+.conv p{margin:0;font-size:14px;color:var(--mute)}
+.conv .ex{margin-top:8px;font-size:13px}
+
+.story{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.story .card{padding:12px;font-size:14px}
+.story .ok{border-color:color-mix(in srgb,var(--ok) 50%,var(--line))}
+.story .bad{border-color:var(--bad)}
+@media (max-width:760px){.story{grid-template-columns:1fr 1fr}}
+
+.summary ol{margin:0;padding-left:20px}
+.summary li{margin:6px 0}
+.foot{margin-top:48px;font-size:13px;color:var(--mute)}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+  <div class="kicker">MAGE · Chapter 3 · Alignment</div>
+  <h1>Linters, tests and CI as Alignment: how MAGE sees checks</h1>
+  <p class="sub">In MAGE (Davis, 2026), checks aren't hygiene. They are how an obligation stops depending on each future agent remembering it. Chapter 3 calls this <b>Alignment</b>, the partner of Modeling. Each section below covers one of its moves and applies it to <code>DocumentationModelDrifter</code>.</p>
+
+  <div class="principle"><small>Alignment principle</small>Make engineering obligations enforceable by encoding them into mechanisms that <b>constrain actions</b>, <b>produce evidence</b>, <b>evaluate that evidence</b>, and <b>control admission</b>.</div>
+
+  <!-- 1 -->
+  <h2><span class="sec">§3.1</span>Guidance is not enforcement</h2>
+  <p class="sub">"Guidance improves the producer's odds; enforcement changes what admission must trust." MAGE counts an obligation as enforced only when the environment can block the action or reject the result.</p>
+  <div class="grid2 vs">
+    <div class="card"><span class="tag t-guide">Guidance</span><h3>Shifts the odds</h3>
+      <ul><li><code>AGENTS.md</code> today: "Verifiable goals … don't call it done until the checks pass"</li><li>Proposed <code>AGENTS.md</code> line (<code>mage_take.md</code> C9, not yet added): "Run <code>pytest</code> and <code>drifter check</code> before declaring a task done"</li><li><code>docs/agents/modeling.md</code> house rules</li><li>Prompts, skills, examples</li></ul>
+      <p class="note">The agent can misread, forget or ignore any of these.</p></div>
+    <div class="card"><span class="tag t-enf">Enforcement</span><h3>Changes what is admitted</h3>
+      <ul><li>A required <code>ci / test</code> status check on <code>main</code></li><li><code>CODEOWNERS</code> review on <code>models/ownership.json</code></li><li>Harness permissions or hooks that refuse a tool call</li></ul>
+      <p class="note">These hold no matter what the agent believed. <b>This repo has none of them yet.</b></p></div>
+  </div>
+
+  <!-- 2 -->
+  <h2><span class="sec">§3.1–3.2</span>Place each check at the earliest decidable boundary</h2>
+  <p class="sub">There are four intervention boundaries. The rule is to place enforcement "at the earliest boundary where the obligation is both <b>legible</b> and <b>decidable</b>." Earlier means cheaper repair. Earlier than the property allows means false refusals. Pick a check to see where it belongs.</p>
+  <div class="picker" role="group" aria-label="Pick a check">
+    <button data-k="ruff" aria-pressed="true">ruff</button>
+    <button data-k="pytest">pytest</button>
+    <button data-k="audit">pip-audit</button>
+    <button data-k="drifter">drifter check</button>
+    <button data-k="owner">ownership rule</button>
+    <button data-k="health">health check</button>
+    <button data-k="agents">AGENTS.md rule</button>
+  </div>
+  <div class="bounds">
+    <div class="bd guide" data-b="0"><span class="tag t-guide">guidance</span><h3>Reasoning input</h3><div class="when">context, instructions, models</div>
+      <span class="chip c-guide" data-c="agents">AGENTS.md</span></div>
+    <div class="bd" data-b="1"><span class="tag t-enf">enforce</span><h3>Agent action</h3><div class="when">one tool call, one edit</div>
+      <span class="chip c-ok" data-c="ruff">ruff (post-edit hook)</span></div>
+    <div class="bd" data-b="2"><span class="tag t-enf">enforce</span><h3>Work unit</h3><div class="when">task, pull request, build</div>
+      <span class="chip c-ok" data-c="ruff">ruff</span><span class="chip c-ok" data-c="pytest">pytest</span><span class="chip c-ok" data-c="audit">pip-audit</span><span class="chip c-warn" data-c="drifter">drifter check</span><span class="chip c-ok" data-c="owner">ownership + CODEOWNERS</span></div>
+    <div class="bd" data-b="3"><span class="tag t-enf">enforce</span><h3>Artifact / runtime</h3><div class="when">deployed system, types, seams</div>
+      <span class="chip c-ok" data-c="health">Railway health check</span></div>
+  </div>
+  <div class="arrowline"><span>← earlier, cheaper to repair</span><span>later, more evidence assembled →</span></div>
+  <div class="card explain" id="explain" aria-live="polite"></div>
+  <p class="note"><b>Placement and strength are separate decisions.</b> A narrow permission at the action boundary can enforce more strictly than a late CI check. The boundaries aren't a scale from weak to strong.</p>
+  <p class="note"><b>Local hooks vs CI.</b> A local git hook (pre-commit, pre-push) gives fast feedback but can be bypassed; hosted CI is "enforced for everyone." The course lecture puts it this way: "Local hooks are a convenience layer; CI is the control layer" (Building with Agents, deck 2-7, S20). So a hook can run <code>ruff</code> early, but the gate is the required CI check.</p>
+
+  <!-- 3 -->
+  <h2><span class="sec">§3.2.1</span>Agreement is not correctness</h2>
+  <p class="sub">"Enforcement requires something against which the work can actually be wrong." MAGE separates three relations, and evidence for one says nothing about the others.</p>
+  <div class="grid3 rel">
+    <div class="card r1"><span class="tag t-warn">Correspondence</span><h3>Do two representations agree?</h3><p class="q">model ↔ code</p>
+      <span class="chip c-warn">drifter check</span>
+      <p class="note">This is drifter's exact job. If the code has an open endpoint, a model derived from that code records it as open, and the check stays green.</p></div>
+    <div class="card r2"><span class="tag t-enf">Conformance</span><h3>Does it meet an independent obligation?</h3><p class="q">code → authored rule</p>
+      <span class="chip c-ok">pytest</span><span class="chip c-ok">ruff</span><span class="chip c-ok">pip-audit</span><span class="chip c-ok">ownership.json</span>
+      <p class="note">Tests, lint rules and the CVE database are written independently of the change being judged, so the work can actually fail them.</p></div>
+    <div class="card r3"><span class="tag" style="color:var(--accent)">Acceptance</span><h3>Will the receiving environment take it?</h3><p class="q">result → gate</p>
+      <span class="chip">branch protection</span><span class="chip">review</span>
+      <p class="note">Whether <code>main</code> admits the PR. Today that's anyone who pushes.</p></div>
+  </div>
+  <div class="quote">"The independence that matters … runs between the <b>source of the obligation</b> and the <b>realization being evaluated</b> against it."<small>§3.2.1. This is why an <code>ownership.json</code> read at the PR head isn't independent: the change can rewrite its own obligation.</small></div>
+
+  <!-- 4 -->
+  <h2><span class="sec">§3.3</span>Four roles: constraint, sensor, validator, gate</h2>
+  <p class="sub">There are two pairs. <b>Constraint and sensor</b> act on the work: one prevents, the other observes. <b>Validator and gate</b> act on evidence: one judges, the other enforces. "Prefer a constraint where the unwanted state can be excluded cheaply and reliably."</p>
+  <div class="grid4">
+    <div class="card role"><span class="tag" style="color:var(--mute)">prevent</span><h3>Constraint</h3>Removes or narrows what can be expressed.<div class="ex"><span class="chip">enum vs string</span><span class="chip">CODEOWNERS</span><span class="chip">permissions</span></div></div>
+    <div class="card role"><span class="tag" style="color:var(--mute)">observe</span><h3>Sensor</h3>Produces evidence: <code>actual = observe(system)</code>. It doesn't judge.<div class="ex"><span class="chip">drifter generators</span><span class="chip">coverage</span></div></div>
+    <div class="card role"><span class="tag" style="color:var(--mute)">judge</span><h3>Validator</h3>Evaluates evidence against an obligation.<div class="ex"><span class="chip">pytest asserts</span><span class="chip">ruff rules</span><span class="chip">pip-audit</span></div></div>
+    <div class="card role"><span class="tag" style="color:var(--mute)">admit</span><h3>Gate</h3>Decides whether work may cross a boundary.<div class="ex"><span class="chip c-bad">branch protection (missing)</span></div></div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <h3>One CI step bundles three roles</h3>
+    <div class="bundle">
+      <div><b>sense</b>run the code</div>
+      <div><b>validate</b>compare result to the assert</div>
+      <div><b>gate</b>red build blocks the merge, but <i>only if a branch rule says so</i></div>
+    </div>
+    <p class="note">"Wiring a validator's verdict into a gate is a <b>commitment</b>. Making an uncertain validator blocking converts its false positives into rejected work." That's why <code>pytest</code> can block from day one but <code>drifter check</code> stays advisory.</p>
+  </div>
+  <div class="grid2" style="margin-top:12px">
+    <div class="card"><h3>Re-derive at admission</h3><p style="margin:0">"The thing asking to pass does not get to define what counts as having passed." CI re-runs the tests itself rather than trusting an agent's "all tests pass", and ownership should be read at the PR <b>base</b>, not the head.</p></div>
+    <div class="card"><h3>Enforcement is conditional</h3><p style="margin:0">A hard control doesn't mean "the system is correct." It means that, <i>within a stated scope</i>, acceptance no longer depends on the agent voluntarily satisfying the obligation. A behavioral model with 0 states is green over an empty observation surface.</p></div>
+  </div>
+
+  <!-- 5 -->
+  <h2><span class="sec">§3.3.7</span>Under- and overconstraint</h2>
+  <p class="sub">A = realizations that satisfy the obligations. P = realizations the controls permit. Ideally they match. Each mismatch is a different failure.</p>
+  <div class="venn">
+    <svg viewBox="0 0 400 250" role="img" aria-label="Venn diagram of acceptable versus permitted realizations">
+      <rect x="4" y="4" width="392" height="242" rx="12" fill="none" stroke="var(--line)"/>
+      <text x="16" y="26" font-size="12" fill="var(--mute)">R: all possible realizations</text>
+      <circle cx="160" cy="135" r="88" fill="var(--ok)" fill-opacity=".14" stroke="var(--ok)" stroke-width="1.5"/>
+      <circle cx="245" cy="135" r="88" fill="var(--warn)" fill-opacity=".14" stroke="var(--warn)" stroke-width="1.5"/>
+      <text x="100" y="80" font-size="15" font-weight="700" fill="var(--ok)">A</text>
+      <text x="290" y="80" font-size="15" font-weight="700" fill="var(--warn)">P</text>
+      <text x="203" y="140" text-anchor="middle" font-size="12" fill="var(--ink)">A ∩ P</text>
+      <text x="203" y="155" text-anchor="middle" font-size="11" fill="var(--mute)">good</text>
+      <text x="112" y="140" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">A∖P</text>
+      <text x="112" y="155" text-anchor="middle" font-size="11" fill="var(--mute)">over-</text>
+      <text x="294" y="140" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">P∖A</text>
+      <text x="294" y="155" text-anchor="middle" font-size="11" fill="var(--mute)">under-</text>
+    </svg>
+    <div>
+      <div class="card" style="margin-bottom:10px"><span class="tag t-bad">Underconstraint · P∖A</span><p style="margin:4px 0 0">Bad work gets through, which threatens correctness. <b>Here:</b> no gate at all, so P is "everything". A non-owner can grant themselves ownership in the same push.</p></div>
+      <div class="card"><span class="tag t-warn">Overconstraint · A∖P</span><p style="margin:4px 0 0">Good work gets refused, which costs engineering freedom. <b>Here, if drifter blocked:</b> renaming a parameter or moving a file counts as drift, because the grain is close to a symbol table.</p></div>
+    </div>
+  </div>
+
+  <!-- 6 -->
+  <h2><span class="sec">§3.4</span>Governance conversion: turn failures into structure</h2>
+  <p class="sub">"The repair fixes this instance. Conversion changes the environment." When something fails, diagnose <i>what was missing</i> before adding another gate. The fix can land in five places.</p>
+  <div class="grid5 conv">
+    <div class="card"><span class="n">1 · representation</span><b>Improve the model</b><p>The fact wasn't represented.</p></div>
+    <div class="card"><span class="n">2 · obligation</span><b>State the boundary</b><p>"Free" variation wasn't actually acceptable.</p><div class="ex">e.g. a forbidden-imports table</div></div>
+    <div class="card"><span class="n">3 · evidence</span><b>Add a sensor</b><p>The state wasn't observable.</p></div>
+    <div class="card"><span class="n">4 · evaluation</span><b>Strengthen the validator</b><p>No repeatable judgment existed.</p><div class="ex">e.g. <code>INVALID_MODELS</code>, <code>BOTS</code></div></div>
+    <div class="card"><span class="n">5 · enforcement</span><b>Add a constraint or gate</b><p>The verdict controlled nothing.</p><div class="ex">e.g. branch protection</div></div>
+  </div>
+
+  <h3 style="margin-top:28px">The book's cautionary story: correct judgment without enforcement</h3>
+  <div class="story">
+    <div class="card">A merge bot auto-resolved conflicts by picking one side.</div>
+    <div class="card ok"><b>Sensor ✓</b> detected conflicts on critical files.</div>
+    <div class="card ok"><b>Validator ✓</b> judged the resolution unsafe and logged a warning.</div>
+    <div class="card bad"><b>Gate ✗</b> it proceeded anyway, and content was lost.</div>
+  </div>
+  <p class="note">The fix wasn't a louder warning. They <b>removed the unsafe capability</b>. Rule: a temporary warning-only check needs "an owner and resolution condition." For this repo, that means <code>drifter check</code> advisory, owned by a named person, until fewer than 10 false alerts per 100 red checks.</p>
+
+  <h3 style="margin-top:28px">Where enforcement stops is a design choice</h3>
+  <div class="stops">
+    <div class="stop"><b>Residual</b><div class="lvl"><i style="width:8%"></i></div><span style="font-size:14px">Not explicit, so someone has to reconstruct it.</span><div style="margin-top:8px"><span class="chip">"is the architecture right?"</span></div></div>
+    <div class="stop"><b>Judgment required</b><div class="lvl"><i style="width:35%"></i></div><span style="font-size:14px">Explicit, but no mechanism can evaluate it well.</span><div style="margin-top:8px"><span class="chip">design trade-offs → review</span></div></div>
+    <div class="stop"><b>Evaluated only</b><div class="lvl"><i style="width:65%"></i></div><span style="font-size:14px">Evidence and a verdict exist, but nothing is blocked.</span><div style="margin-top:8px"><span class="chip c-warn">drifter check</span><span class="chip c-warn">coverage</span></div></div>
+    <div class="stop"><b>Governed</b><div class="lvl"><i style="width:100%"></i></div><span style="font-size:14px">The environment refuses violations.</span><div style="margin-top:8px"><span class="chip c-ok">pytest</span><span class="chip c-ok">ruff</span><span class="chip c-ok">pip-audit</span></div></div>
+  </div>
+  <p class="note">"Non-enforcement is sometimes the engineered result." Not every check should block. The page lists where each <i>should</i> land. Today every check is at best "evaluated only", because there's no gate.</p>
+
+  <div class="grid2" style="margin-top:16px">
+    <div class="card"><span class="tag t-enf">Engineering capital</span><p style="margin:4px 0 0">Durable structure that lowers the future cost of change: a model, a constraint, a validator, a gate, a runbook. It's the opposite of technical debt: "capital lets future work inherit today's judgment."</p></div>
+    <div class="card"><span class="tag t-warn">…and it depreciates</span><p style="margin:4px 0 0">A validator can encode an assumption the architecture has outgrown. A sensor gets noisy, and a gate can cost more than the failure it prevents. "A governed environment with more mechanisms is not necessarily richer." Maintain, reconcile or retire.</p></div>
+  </div>
+
+  <!-- 7 -->
+  <h2><span class="sec">§3.5</span>Govern the controls as a system</h2>
+  <p class="sub">Once checks pile up, they can collide, overlap or outlive their purpose. MAGE asks three questions: <b>What controls exist? How do they interact? Which obligations do they cover?</b> Here is that view applied to the proposed pipeline.</p>
+  <div class="card wrap">
+    <table class="tbl">
+      <tr><th>Control</th><th>Boundary</th><th>Roles</th><th>Obligation it serves</th><th>Coverage finding</th></tr>
+      <tr><td><code>pytest</code> (277)</td><td>Work unit</td><td>sense · validate · gate*</td><td>Behaviour described by the tests</td><td><span class="chip c-warn">gate missing</span></td></tr>
+      <tr><td><code>ruff check</code></td><td>Work unit</td><td>validate · gate*</td><td>No unused or undefined names, etc.</td><td><span class="chip c-bad">not installed</span></td></tr>
+      <tr><td><code>pip-audit</code></td><td>Work unit</td><td>sense · validate · gate*</td><td>No dependency with a known CVE</td><td><span class="chip c-bad">not installed</span></td></tr>
+      <tr><td><code>drifter check</code></td><td>Work unit</td><td>sense · validate</td><td>Models correspond to code</td><td><span class="chip c-warn">no /models, no owner or exit</span></td></tr>
+      <tr><td>Ownership rule</td><td>Work unit</td><td>validate</td><td>Only owners change owned files</td><td><span class="chip c-bad">self-grant hole</span></td></tr>
+      <tr><td><code>CODEOWNERS</code></td><td>Work unit</td><td>constraint · gate</td><td>Owners approve <code>ownership.json</code></td><td><span class="chip c-bad">not installed</span></td></tr>
+      <tr><td>Railway health check</td><td>Runtime</td><td>sense · gate</td><td>Deployed service answers</td><td><span class="chip c-ok">present</span></td></tr>
+      <tr><td>Railway auto-deploy</td><td>Runtime</td><td><i>none</i></td><td>Only tested code reaches production</td><td><span class="chip c-bad">no gate: every push to main deploys</span></td></tr>
+      <tr><td><i>no control</i></td><td>Work unit</td><td>n/a</td><td>"Module X must not import Y"</td><td><span class="chip c-bad">coverage gap: no authored ought</span></td></tr>
+    </table>
+  </div>
+  <p class="note">* only once branch protection makes <code>ci / test</code> a required check. That same setting closes the deploy gap: Railway deploys every push to <code>main</code>, so once only CI-passing commits can reach <code>main</code>, only tested code deploys. <b>Possible interaction edge to check:</b> the ownership rule judges per-commit authors, and a squash merge rewrites them. Each control is reasonable on its own; a conflict between two of them lives "in the edge" between them.</p>
+
+  <!-- summary -->
+  <h2><span class="sec">§3.6</span>The five moves, applied</h2>
+  <div class="card summary">
+    <ol>
+      <li><b>Enforcement makes an obligation more than a request.</b> AGENTS.md asks; branch protection requires.</li>
+      <li><b>Place each check where it becomes decidable.</b> <code>ruff</code> can run at the action boundary. <code>pytest</code>, <code>pip-audit</code> and <code>drifter</code> need the whole PR. "Does it serve?" needs the runtime.</li>
+      <li><b>Correspondence is not correctness.</b> Drifter keeps models and code agreeing, and tests plus authored rules say what's <i>right</i>. Write at least one architecture rule.</li>
+      <li><b>Convert recurring judgment into structure.</b> Every past bug that became a test is capital, but it only pays off when CI runs it.</li>
+      <li><b>Govern the governance machinery.</b> Catalogue the controls, watch for collisions, and give every advisory check an owner and an exit.</li>
+    </ol>
+  </div>
+
+  <p class="foot">Sources: MAGE Ch. 3, <a href="https://davisjam.github.io/model-based-agentic-software-engineering/book/mage-book/part-3-intro.html">Alignment</a> (§3.1–3.6); the course lecture <a href="https://davisjam.github.io/model-based-agentic-software-engineering/teach/lectures/act-2-delegation-and-control/05-building-with-agents/">Building with Agents</a> (local hooks vs CI); <code><a href="mage_take.md">mage_take.md</a></code>. Quotes are from the book; the mappings to this repo are an interpretation, not the book.</p>
+</main>
+<script>
+const info={
+  ruff:{b:[1,2],t:"<b>ruff</b>: a lint finding is legible in a single file, so the earliest decidable boundary is the <b>agent action</b>, as a post-edit hook that gives feedback while the change is fresh. CI repeats it at the PR as the gate, because the PR is what gets admitted."},
+  pytest:{b:[2],t:"<b>pytest</b>: tests judge behaviour across many files, and intermediate commits may legitimately fail. The property belongs to the <b>work unit</b>. Deterministic evidence means it can block from day one."},
+  audit:{b:[2],t:"<b>pip-audit</b>: the obligation (no known CVE) is legible as soon as <code>requirements.txt</code> changes, and it's checked against an independent database. Place it in <b>PR CI</b>, blocking."},
+  drifter:{b:[2],t:"<b>drifter check</b>: a semantic-gap case. \"Intermediate commits may legitimately disagree with the models\", so a pre-commit check acts too early. The PR is the earliest decidable boundary. It's <b>advisory</b> because its false-alert rate is unmeasured."},
+  owner:{b:[2],t:"<b>Ownership rule</b>: who changed what is only meaningful across the whole push. It must read the rules at the PR <b>base</b>: \"the thing asking to pass does not get to define what counts as having passed.\" CODEOWNERS adds an authenticated constraint."},
+  health:{b:[3],t:"<b>Health check</b>: \"A deployment can pass twenty checks and still serve a blank page.\" Whether it serves only exists in the running system, so the <b>runtime</b> boundary is the earliest one that can decide it."},
+  agents:{b:[0],t:"<b>AGENTS.md rule</b>: this is <b>guidance</b> at the reasoning-input boundary. It improves the odds that the agent runs the checks, but enforces nothing. CI must hold the same obligation."}
+};
+const btns=document.querySelectorAll('.picker button'),bds=document.querySelectorAll('.bd'),ex=document.getElementById('explain');
+function pick(k){
+  btns.forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===k));
+  bds.forEach(d=>d.classList.toggle('hit',info[k].b.includes(+d.dataset.b)));
+  document.querySelectorAll('.bd .chip').forEach(c=>c.classList.toggle('on',c.dataset.c===k));
+  ex.innerHTML=info[k].t;
+}
+btns.forEach(b=>b.addEventListener('click',()=>pick(b.dataset.k)));
+pick('ruff');
+</script>
+</body>
+</html>

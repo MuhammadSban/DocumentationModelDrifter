@@ -44,7 +44,7 @@ MACHINE_SLOTS = 8
 STAGGER_STEPS = 8
 
 # draws the diagrams in the browser, pinned so the same model always draws the same picture;
-# docs/models/render.py pins the same major for the PNGs it makes of the hand-drawn diagrams
+# docs/diagrams/render.py pins the same major for the PNGs it makes of the hand-drawn diagrams
 MERMAID = "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs"
 
 # the one stylesheet, beside this module, read at render time and inlined so a saved page needs

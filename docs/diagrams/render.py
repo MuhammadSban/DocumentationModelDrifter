@@ -1,6 +1,6 @@
-# renders each docs/models/*.md's Mermaid block to a PNG beside it on demand, for a report or slide; the PNGs are git-ignored
+# renders each docs/diagrams/*.md's Mermaid block to a PNG beside it on demand, for a report or slide; the PNGs are git-ignored
 #
-# usage: python docs/models/render.py [name ...]   (no names renders every diagram)
+# usage: python docs/diagrams/render.py [name ...]   (no names renders every diagram)
 # needs Node (npx) and Chrome; CHROME overrides the browser path
 
 from __future__ import annotations

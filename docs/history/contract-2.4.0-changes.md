@@ -3,8 +3,8 @@
 Written 2026-10-31 for Teams 15 and 16. History, not instructions: the contract itself is
 `docs/contract/`, and where this file and the contract disagree, the contract wins.
 
-Contract 2.4.0 is proposed and waits for Team 16's agreement; Team 16 has agreed to no
-version yet (contract section 10). This file says what changed since 2.3.0, why, what it means for each
+Contract 2.4.0 was proposed on 2026-10-31; Team 16 agreed to it later (recorded
+2026-11-05, contract section 10). This file says what changed since 2.3.0, why, what it means for each
 team's system and tester, and what changed in Team 15's specification alongside it.
 
 ## The versions compared
@@ -13,7 +13,7 @@ team's system and tester, and what changed in Team 15's specification alongside 
 flowchart LR
     V11["Team 16 v1.1 package<br/>SPEC.md, openapi-system-v1.1.yaml,<br/>mapping, goldens<br/>proposed 2026-10-30"]
     C23["Pod contract 2.3.0<br/>Team 15 draft, not agreed<br/>2026-10-31"]
-    C24["Pod contract 2.4.0<br/>proposed 2026-10-31<br/>pending Team 16"]
+    C24["Pod contract 2.4.0<br/>proposed 2026-10-31<br/>agreed, recorded 2026-11-05"]
     V11 -->|"two deviations:<br/>no prose detector required,<br/>optional drift additions"| C23
     C23 -->|"this file"| C24
 ```
@@ -216,7 +216,7 @@ and skip on every system.
 - A full run makes about 45 calls, about 34 of which analyze a commit. Team 15 makes a fresh
   clone without file contents per check and downloads every needed file in one batch, which
   takes 1 to 3 s on the fixtures and keeps a run well inside 600 s; it keeps no clone between
-  checks (`docs/models/file-fetch.md`). Team 16 may want the same.
+  checks (`docs/diagrams/file-fetch.md`). Team 16 may want the same.
 
 ## 5. What changes for Team 15's code
 
@@ -229,7 +229,7 @@ Nothing in `Source/` implements 2.4.0 yet. `docs/base/phase4.md` lists the work;
 | System `/test/setup` | one active session: 409 for a new id until the last session's report is read, or for 720 s after its setup | A |
 | System deadline | stop a check at 80 s, so its 500 arrives before the tester's 90 s timeout; a third concurrent check waits within that deadline | A |
 | System `/analyze` | run the model check whatever `status` is; sort ownership violations by SHA then path, and owners, as strings | A, C |
-| System storage and fetch | a fresh clone without file contents per check, one batched file download (`docs/models/file-fetch.md`) | A |
+| System storage and fetch | a fresh clone without file contents per check, one batched file download (`docs/diagrams/file-fetch.md`) | A |
 | Tester runner | read `/health` once; one table of tests with a feature column; skip, `error` on a failed `/health`, stop at 570 s | B |
 | Tester T-17 | no `drift` comparison | B |
 | Tester T-22, T-23 | fixed skip messages | B |
@@ -251,14 +251,14 @@ Nothing in `Source/` implements 2.4.0 yet. `docs/base/phase4.md` lists the work;
 | §5.3 | T-18 to T-21 are skipped against this system: T-18, T-19 and T-21 no longer fail, and T-20 no longer passes without testing anything; drift repeatability is checked by Team 15's own tests, no longer by T-17 |
 | `docs/base/phase4.md` | step A adds `features`, an 80 s deadline, one active session and clone caching (done when a second `/analyze` on the same repository clones nothing); step B's runner reads `/health` and skips by feature; the test map shows skip instead of fail |
 | `docs/README.md` | the contract entry describes feature-based skips; diagram entries updated |
-| `docs/models/` | `cross-team-test.png` and `four-field-answer.png` show the `/health` read and feature skips; `models-folder.png` uses the structural kinds of `structure.md` |
+| `docs/diagrams/` | `cross-team-test.png` and `four-field-answer.png` show the `/health` read and feature skips; `models-folder.png` uses the structural kinds of `structure.md` |
 
 Unchanged: the requirements REQ-01 to REQ-07, the cases L-pre to L6 and what each expects,
 `GLOSSARY.md` and ADR 0001.
 
 ## 7. Still open after 2.4.0
 
-None of these blocks agreeing to 2.4.0. `docs/tickets/contract-contradictions.md` tracks
+None of these blocks agreeing to 2.4.0. `docs/decisions/contract-contradictions.md` tracks
 each with a fix and a check.
 
 - **Model goldens.** `model-golden-outputs.json` and the fixture SHAs are pending (contract

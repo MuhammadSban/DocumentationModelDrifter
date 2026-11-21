@@ -12,7 +12,7 @@ classDiagram
     class scope["scope.json"] {
         picks generator input
         include: every .py file
-        exclude: everything under tests/
+        exclude: the top-level tests/ only, tests/**
         defaults written by init
         patterns: mapping-v1.1.yaml glob
     }

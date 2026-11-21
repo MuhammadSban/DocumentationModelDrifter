@@ -13,12 +13,12 @@ Names. Documentation Tracker is the pod's shared product. DocumentationModelDrif
 implementation of it. Its command line tool is called drifter.
 
 Which document wins. This file is Team 15's top-level specification: requirements and acceptance
-criteria. Specs for one piece live as GitHub issues and cite the REQ and AC ids they serve.
-When the two disagree, this file is corrected first and the issue follows. For anything another
+criteria. Specs for one piece live as Epics under docs/epics/ and cite the REQ and AC ids they
+serve. When the two disagree, this file is corrected first and the Epic follows. For anything another
 team's tester or system sees (routes, JSON, tests), the pod contract in docs/contract/ wins over
 this file (Section 5). The course's docs/base/student-facing-spec.docx.pdf wins over both.
 
-Diagrams are in docs/models/, each as Mermaid in a Markdown file; docs/README.md maps them.
+Diagrams are in docs/diagrams/, each as Mermaid in a Markdown file; docs/README.md maps them.
 
 ## Q1 Common problem selection
 
@@ -70,7 +70,7 @@ paths, methods, inputs, responses, and behavior must match the shared specificat
 their internal implementations." [6] Staff may pair either team's tester with either team's system,
 so both teams build to one contract.
 
-That contract is docs/contract/ (version 2.4.0, pending Team 16's agreement; no version is agreed yet). It builds
+That contract is docs/contract/ (version 2.4.0, agreed by Team 16, recorded 2026-11-05). It builds
 on Team 16's v1.1 package [7], in which Team 16 checks prose documentation. Team 15 checks models
 instead, which the contract allows through two deviations (5.1). Team 16 builds no models.
 
@@ -227,7 +227,7 @@ PARSE_FAILED, so generators may assume every file parses.
   - Question: What may happen, and in what order?
   - Contents: states and the transitions between them. The format, kinds, id scheme and mining
     rules are in docs/base/behavioral.md; where it disagrees with this file, this file wins. Its
-    JSON Schema is open (see [Q11](#q11-open-decisions)).
+    JSON Schema is Source/models/behavioral.schema.json.
   - Comparison: regenerate at the commit, then set difference by element id.
 - **Ownership**
   - Question: Who may change what?
@@ -291,7 +291,7 @@ describes anything at all is visible in /models itself, not in the answer.
 
 #### The system model
 
-The lifecycle of a repository under the tool, drawn in docs/models/behavioral-model.md: the tool
+The lifecycle of a repository under the tool, drawn in docs/diagrams/behavioral-model.md: the tool
 proposes the models once, a person commits them as the baseline, and every push then ends
 Aligned, Drifted or Failed.
 
@@ -359,7 +359,7 @@ is this system's own and counts as AC-02.
 
 ### 4.2 Test data and expected outputs
 
-Team 15 builds one small, controlled Git repository, MuhammadSban/doc-tracker-model-fixtures, with
+Team 15 builds one small, controlled Git repository, kaan-kanadasi/doc-tracker-model-fixtures, with
 labelled commits and a manually defined expected verdict per model. Its expected answers are
 published in docs/contract/model-golden-outputs.json in two groups (contract section 3): L-pre's
 once the repository exists, L0 to L7's once the formats of all four model files are settled,
@@ -402,8 +402,8 @@ inspected for criteria that cannot be decided from responses alone (AC-04, AC-09
 
 ### 5.1 The pod contract
 
-The cross-team interface is the pod contract in docs/contract/, version 2.4.0, pending Team 16's
-agreement (no version is agreed yet). It builds on Team 16's v1.1 package [7] and wins over this file for anything
+The cross-team interface is the pod contract in docs/contract/, version 2.4.0, agreed by
+Team 16 (recorded 2026-11-05). It builds on Team 16's v1.1 package [7] and wins over this file for anything
 another team's tester or system sees.
 
 | File | Holds |
@@ -623,9 +623,11 @@ Postmortems use precision and recall on planted changes.
   pull request, and runs the check on its own checkout. Standard runners are free for public
   repositories.
 - Distribution: reuse pip and GitHub release tags. No PyPI or Marketplace publishing.
-- Team process: reuse GitHub Issues for the team's own specs and tickets, one issue per
-  roadmap item (docs/base/phase4.md, D7). Each issue's checks are agreed before coding, and each
-  check becomes one test. Issues hold documents only, so they are not part of the product.
+- Team process: build nothing. The team's queue is docs/state/WORK-ITEMS.md, and the spec for a
+  planned change is an Epic under docs/epics/ whose Steps are its tickets
+  (docs/agents/issue-tracker.md; docs/base/phase4.md, D7). Each Step's check is agreed before
+  coding. A GitHub issue is optional and links to its queue row. These files hold documents
+  only, so they are not part of the product.
 
 ### 8.2 GenAI use
 
@@ -671,7 +673,7 @@ demonstration.
 ### 9.2 Risks requiring pod agreement
 
 Team 16's agreement to the pod contract in docs/contract/, which settles the interface, the
-testing contract and the fixtures; it is pending. Later changes follow its section 10.
+testing contract and the fixtures; agreed, recorded 2026-11-05. Later changes follow its section 10.
 
 ## Q10 References
 
@@ -687,7 +689,8 @@ code-review entry. https://github.com/mattpocock/skills/tree/main. Accessed: 202
 Software Engineering." arXiv:2608.25174, 2026. https://arxiv.org/pdf/2608.25174. Accessed:
 2026-10-30.
 
-[4] Removed 2026-11-01: OpenSpec, replaced by GitHub Issues (8.1).
+[4] Removed 2026-11-01: OpenSpec, replaced by GitHub Issues, and since 2026-11-20 by Epics in
+this repository (8.1).
 
 [5] European Commission, AI Act Service Desk. "Annex XI: Technical documentation referred to in
 Article 53(1), point (a)." https://ai-act-service-desk.ec.europa.eu/en/ai-act/annex-11. Accessed:
@@ -700,23 +703,27 @@ repository.
 openapi-system-v1.1.yaml, mapping-v1.1.yaml, golden-outputs.json). Proposed 2026-10-30.
 
 [8] Teams 15 and 16. "Pod 15/16 contract", version 2.4.0. docs/contract/ in this repository.
-Proposed 2026-10-31, pending Team 16's agreement.
+Proposed 2026-10-31, agreed by Team 16 (recorded 2026-11-05).
 
 ## Q11 Open decisions
 
-#### Proposed in the pod contract (pending Team 16's agreement)
+#### Agreed in the pod contract (recorded 2026-11-05)
 
-- Team 16's agreement to the interface and the testing contract: pending; docs/contract/ 2.4.0 is proposed.
+- Team 16's agreement to the interface and the testing contract: agreed; docs/contract/ 2.4.0 is the agreed version.
 - The shared fixture: Team 16's fixture serves the shared tests; Team 15 builds the model fixture.
 - Saving answers by id: every /analyze result is saved durably and returned by GET
   /system/analysis/{analysis_id}.
 - Prose documentation: out of scope; issues is always [] in this system's results.
 
+#### Settled in Team 15
+
+- The JSON Schemas of structural, behavioral and ownership: all three exist as
+  Source/models/<name>.schema.json, and every check validates the committed models against them
+  before comparing, so a model of the wrong shape gives INVALID_MODELS. The formats are in
+  docs/base/behavioral.md and docs/base/structure.md.
+
 #### To settle in Team 15
 
-- The JSON Schemas of structural, behavioral and ownership. Behavioral contents are closed:
-  docs/base/behavioral.md freezes the format as generate_behavioral writes it. Structural is
-  settled in docs/base/structure.md.
 - Whether scope.json names source roots besides src/ (structure.md drops only src/ from module
   ids). The pattern syntax itself is settled in 3.2.
 - The Annex XI claim (1.1): whether to keep the specific Annex XI items or only the general
