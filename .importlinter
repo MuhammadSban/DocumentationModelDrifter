@@ -57,3 +57,14 @@ forbidden_modules =
     GitHub_Connector
     Frontend
     Tester
+
+# fails when a connector module is on neither line, so a new one cannot sit outside the map
+[importlinter:contract:connector]
+name = Every connector module has a layer
+type = layers
+containers =
+    GitHub_Connector
+layers =
+    api
+    analysis : course : fetch : rules : runs : schemas : settings
+exhaustive = true

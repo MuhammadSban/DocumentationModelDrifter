@@ -96,7 +96,7 @@ What a module in another package may use. `import-linter` checks modules, not na
 
 ### The contracts
 
-One file, `.importlinter`, with `root_packages` naming the five packages and four contracts. `unmatched_ignore_imports_alerting` is not set, so it keeps its default, `error`: an ignore line that matches no import fails the run.
+One file, `.importlinter`, with `root_packages` naming the five packages and five contracts. `unmatched_ignore_imports_alerting` is not set, so it keeps its default, `error`: an ignore line that matches no import fails the run.
 
 | Contract id | Type | What it lists |
 |---|---|---|
@@ -104,8 +104,9 @@ One file, `.importlinter`, with `root_packages` naming the five packages and fou
 | `tester` | forbidden | source `Tester`; forbidden `GitHub_Connector`, `Frontend`, `drifter` |
 | `frontend` | forbidden | source `Frontend`; forbidden `GitHub_Connector`, `Tester`, `drifter.check` |
 | `core` | forbidden | sources `drifter`, `models`; forbidden `GitHub_Connector`, `Frontend`, `Tester` |
+| `connector` | layers, with `containers = GitHub_Connector` and `exhaustive = true` | line 1: `api`; line 2: the seven service modules, joined by `:`. No ignore line. |
 
-In a layers line, `|` means the modules must not import each other and `:` means they may.
+In a layers line, `|` means the modules must not import each other and `:` means they may. With `exhaustive = true`, every module directly inside the container must be on one of the contract's lines, or the contract breaks.
 
 ### Baseline: the imports that break the map today
 
@@ -118,7 +119,7 @@ Each is one ignore line in `.importlinter`, with a comment above it that names w
 
 ### Left out, on purpose
 
-- **A new `GitHub_Connector` module is not in the `layers` contract until someone adds it to line 2.** A layers line cannot hold a wildcard. Until then only the `tester`, `frontend` and `core` contracts see it.
+- **A new `GitHub_Connector` module has to be listed twice, and only one of the two is checked.** The `connector` contract breaks until the module is on one of its lines, so CI catches a module nobody listed. Line 2 of the `layers` contract takes no wildcard and has no such check: someone adds the module there by hand, and the two lists can disagree. The four other packages need no such contract: `layers` names `Frontend`, `Tester` and `models` whole, and `drifter` holds only `check` and `cli`, both listed.
 - **Names are not checked.** A caller can import a name the Public names table does not list.
 - **An import the tool cannot see is not checked:** one built from a string at run time. None exists today.
 
@@ -130,7 +131,9 @@ Every fact the structure rests on, checked on 2026-11-21 with `import-linter` 2.
 |---|---|---|
 | The five packages can be analysed, `Frontend` included although it has no `__init__.py`. | `lint-imports` printed `Analyzed 27 files, 47 dependencies.` | yes |
 | With no ignore line, exactly two imports break the map: the two in the Baseline table. | `lint-imports` printed `Contracts: 2 kept, 2 broken.` and named `GitHub_Connector.api -> Tester.api` and `Frontend.model_drift -> drifter.check` | yes |
-| With the two ignore lines the contracts pass. | `lint-imports` printed `Contracts: 4 kept, 0 broken.`, exit 0 | yes |
+| With the two ignore lines the first four contracts pass. | `lint-imports` printed `Contracts: 4 kept, 0 broken.`, exit 0 | yes |
+| With the `connector` contract added, and no ignore line in it, all five pass. | `lint-imports` printed `Every connector module has a layer KEPT` and `Contracts: 5 kept, 0 broken.`, exit 0 | yes |
+| A new `GitHub_Connector` module that nobody listed fails the run. | On a copy of `Source/` with an added `GitHub_Connector/eighth.py`: `Every connector module has a layer BROKEN`, `Contracts: 4 kept, 1 broken.`, exit 1, and the output names `GitHub_Connector.eighth` | yes |
 | A planted forbidden import fails the run. | On a copy of `Source/` with `from GitHub_Connector import settings` added to `drifter/check.py`: `Contracts: 2 kept, 2 broken.`, exit 1 | yes |
 | An ignore line that matches no import fails the run, at the default setting. | With one ignore line pointed at `drifter.cli`: `No matches for ignored import Frontend.model_drift -> drifter.cli.` | yes |
 | No module under `Source/` builds an import from a string. | `git grep -n -E "importlib\|__import__\|import_module" -- Source` finds only `from importlib import resources` in `Source/drifter/check.py` | yes |
@@ -140,5 +143,6 @@ Every fact the structure rests on, checked on 2026-11-21 with `import-linter` 2.
 
 | ID | What must stay true | Check |
 |---|---|---|
-| INV-3 | Imports under `Source/` follow this map: rules A1 to A6, less the ignore lines listed in `.importlinter`. | `PYTHONPATH=Source lint-imports` ends with `Contracts: 4 kept, 0 broken.`; a step of `.github/workflows/ci.yml` |
-| The baseline only shrinks | `.importlinter` holds two ignored imports, one in each of two contracts; a third needs the human's approval of the file. | `PYTHONPATH=Source lint-imports --no-cache \| grep -c "KEPT (1 ignored import)"` prints `2` |
+| INV-3 | Imports under `Source/` follow this map: rules A1 to A6, less the ignore lines listed in `.importlinter`. | `PYTHONPATH=Source lint-imports` ends with `Contracts: 5 kept, 0 broken.`; a step of `.github/workflows/ci.yml` |
+| Every connector module has a layer | A module directly inside `GitHub_Connector` is on a line of the `connector` contract. | `PYTHONPATH=Source lint-imports --no-cache \| grep -c "Every connector module has a layer KEPT"` prints `1` |
+| The baseline only shrinks | `.importlinter` holds two ignored imports, one in each of two contracts; a third needs the human's approval of the file. | `PYTHONPATH=Source lint-imports --no-cache \| grep -c "KEPT (1 ignored import)"` prints `2`, and the same run ends with `Contracts: 5 kept, 0 broken.`, so the other three contracts ignore nothing |
