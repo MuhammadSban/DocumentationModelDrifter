@@ -1,12 +1,12 @@
 # E01: The module map and its import check
 
-Status: ratified · Owner: Kaan
+Status: draft · Owner: Kaan
 
 W-row: W1-5 (build order step 0.6a) in `docs/state/WORK-ITEMS.md` · Branch: `E01-module-map`
 
 ## Goal
 
-`docs/diagrams/who-talks-to-what.md` is renamed `docs/diagrams/dependency.md` and carries the module map: four layers, the allowed calls, and each package's public names. A new `.importlinter` states the same map as four contracts, and `lint-imports` runs as a blocking step of `.github/workflows/ci.yml`, so a PR that adds an import against the map turns red. The two imports that break the map today are listed as baseline ignore lines. Agents and the team need it: rule R5 stops being guidance and becomes a check. No file under `Source/` changes. The design is `DESIGN.md`, beside this file.
+`docs/diagrams/who-talks-to-what.md` is renamed `docs/diagrams/dependency.md` and carries the module map: four layers, the allowed calls, and each package's public names. A new `.importlinter` states the same map as five contracts, and `lint-imports` runs as a blocking step of `.github/workflows/ci.yml`, so a PR that adds an import against the map turns red. The two imports that break the map today are listed as baseline ignore lines. Agents and the team need it: rule R5 stops being guidance and becomes a check. No file under `Source/` changes. The design is `DESIGN.md`, beside this file.
 
 **A departure from the W1-5 row and the build order, by the human's decision on 2026-11-21.** Both ask for an owner label on each box of the map, taken from seam decision D9. This Epic adds none: the map names no owners, for any file, folder or layer. Owner labels are hard to keep true, and the import check does not use them. The current Epic outranks the queue in the authority order of `CLAUDE.md`, so step 2 notes the departure in the W1-5 row.
 
@@ -22,49 +22,59 @@ Everything this Epic reads or changes, found by looking before the steps are wri
 
 One commit per step, made after the step's check passes.
 
-### Step 1/7: Rename the model and fix every reference to the old name
+**Revised on 2026-11-21, after steps 1 to 4 were committed.** The human asked that CI catch a new `GitHub_Connector` module nobody listed. That adds one step, now step 5, and one contract, so the Epic went back to draft for a fourth review. The commits of steps 1 to 4 (`90ce5bd`, `6af05eb`, `0120a9b`, `6c69c2e`) carry the trailers `Step: 1/7` to `Step: 4/7`, from when there were seven steps. Steps 5 to 8 carry the new numbers.
+
+### Step 1/8: Rename the model and fix every reference to the old name
 
 - Files: `docs/diagrams/who-talks-to-what.md` to `docs/diagrams/dependency.md` with `git mv`, its content untouched; `CLAUDE.md` (the level 6 line and R5, the file name only); `docs/README.md` (the path only)
 - Check: `git grep -n "who-talks-to-what" -- . ":!docs/state/WORK-ITEMS.md" ":!docs/epics/E01-module-map"` → prints nothing
-- Trailer: `Step: 1/7`
+- Trailer: `Step: 1/7`, as committed before the revision
 
 The file's own content does not change in this commit, so git records a pure rename. Two rows of `docs/state/WORK-ITEMS.md` keep the old name on purpose: W1-5 describes this rename, and W2-1 records what R5 said on 2026-11-21.
 
-### Step 2/7: Extend the model with the module map
+### Step 2/8: Extend the model with the module map
 
 - Files: `docs/diagrams/dependency.md` (three new sections, named as in `docs/templates/DESIGN.md`: "Intended structure", "Premises, verified" and "Must stay true", filled from `DESIGN.md`); `docs/README.md` (the line that describes the file); `docs/state/WORK-ITEMS.md` (the W1-5 row notes that the map names no owners, by the human's decision on 2026-11-21)
 - Check: `git grep -c -E "^## (Intended structure|Premises, verified|Must stay true)" -- docs/diagrams/dependency.md` → `docs/diagrams/dependency.md:3`
-- Trailer: `Step: 2/7`
+- Trailer: `Step: 2/7`, as committed before the revision
 
 The existing diagram stays the file's one Mermaid block. The map is tables: the layers, the allowed calls, the public names, the contracts and the baseline. It names no owners. The opening sentence of `DESIGN.md`, "Intended structure", names the old file and is not copied: in the model that sentence says only that the diagram above is unchanged and the module map follows it, so Done line 5 still prints nothing.
 
-### Step 3/7: Write the contracts
+### Step 3/8: Write the contracts
 
 - Files: `.importlinter` (new)
-- Check: `PYTHONPATH=Source lint-imports` → ends with `Contracts: 4 kept, 0 broken.`
-- Trailer: `Step: 3/7`
+- Check: `PYTHONPATH=Source lint-imports` → ends with `Contracts: 4 kept, 0 broken.` at this step's commit; 5 kept from step 5 on
+- Trailer: `Step: 3/7`, as committed before the revision
 
-The file is the four contracts of `DESIGN.md`, "The contracts", with the two ignore lines of its Baseline table and one comment above each. `unmatched_ignore_imports_alerting` is not set. For this step's check, `import-linter==2.17` is installed by hand; step 4 adds it to the requirements.
+The file is the first four contracts of `DESIGN.md`, "The contracts", with the two ignore lines of its Baseline table and one comment above each. `unmatched_ignore_imports_alerting` is not set. For this step's check, `import-linter==2.17` is installed by hand; step 4 adds it to the requirements.
 
-### Step 4/7: Install the linter and run it in CI
+### Step 4/8: Install the linter and run it in CI
 
 - Files: `requirements-dev.txt` (`import-linter==2.17`); `.github/workflows/ci.yml` (one step after `ruff check`: `run: lint-imports` with `env: PYTHONPATH: Source`; its header comment on line 1, which says "runs pytest then ruff", is reworded to name the import check too); `CLAUDE.md` (the Commands line "The lint CI runs" gains `lint-imports` with `PYTHONPATH=Source`); `.gitignore` (`.import_linter_cache/`, which a local run creates)
-- Check: `pip install -q -r requirements-dev.txt && PYTHONPATH=Source lint-imports` → ends with `Contracts: 4 kept, 0 broken.`
-- Trailer: `Step: 4/7`
+- Check: `pip install -q -r requirements-dev.txt && PYTHONPATH=Source lint-imports` → ends with `Contracts: 4 kept, 0 broken.` at this step's commit; 5 kept from step 5 on
+- Trailer: `Step: 4/7`, as committed before the revision
 
-### Step 5/7: Prove it red on a throwaway PR
+### Step 5/8: Make CI catch a connector module nobody listed
+
+- Files: `.importlinter` (a fifth contract, `connector`: type layers, `containers` naming `GitHub_Connector`, line 1 `api`, line 2 the seven service modules joined by `:`, `exhaustive = true`, no ignore line, one comment above it); `docs/diagrams/dependency.md` (the contracts table gains the `connector` row and says five contracts; the first bullet of "Left out, on purpose" says what `DESIGN.md` now says; two new premise rows; "Must stay true" says 5 kept and gains the connector row)
+- Check: `PYTHONPATH=Source lint-imports` → ends with `Contracts: 5 kept, 0 broken.`
+- Trailer: `Step: 5/8`
+
+The human accepts this step only if it adds no ignore line, the run prints 5 kept and 0 broken, and a scratch run with a new unlisted `GitHub_Connector` module fails. `DESIGN.md`, "Premises, verified", holds both runs. If any of the three fails, the step is dropped and the gap stays written down in `dependency.md`, as it is today.
+
+### Step 6/8: Prove it red on a throwaway PR
 
 - Files: `docs/state/WORK-ITEMS.md` (the W1-5 row records the PR number and the run id)
 - Check: `gh run view $(gh run list --branch proof/lint-imports-red --limit 1 --json databaseId --jq ".[0].databaseId") --json jobs --jq ".jobs[0].steps[] | select(.conclusion==\"failure\") | .name"` → `Run lint-imports`, and no other line
-- Trailer: `Step: 5/7`
+- Trailer: `Step: 6/8`
 
-A branch `proof/lint-imports-red`, cut from this one, adds one line to `Source/drifter/check.py`: `from GitHub_Connector import settings  # noqa: F401`, among the imports at the top. The `noqa` keeps `ruff` green, so the only failing step is `lint-imports`. A PR from that branch to `main` runs CI, turns red, is closed without merging, and its branch is deleted. The push, the PR and the close are remote writes: each waits for the human's OK. Nothing from that branch reaches this one.
+A branch `proof/lint-imports-red`, cut from this one, adds one line to `Source/drifter/check.py`: `from GitHub_Connector import settings  # noqa: F401`, among the imports at the top. The `noqa` keeps `ruff` green, so the only failing step is `lint-imports`. A draft PR from that branch to `main`, titled as a throwaway that must not be merged, runs CI, turns red, is closed without merging, and its branch is deleted. The human sees the failing step's name and output before the close. The push, the PR and the close are remote writes: each waits for the human's OK. Nothing from that branch reaches this one.
 
-### Step 6/7: Grade the rule
+### Step 7/8: Grade the rule
 
-- Files: `docs/invariants/INVARIANTS.md` (a new row, INV-3, at ENFORCED-PROVEN, citing step 5's run); `CLAUDE.md` (R5, reworded as below); `docs/state/WORK-ITEMS.md` (the Done when column of the W3-3 row gains "drops the `Frontend.model_drift -> drifter.check` ignore line")
+- Files: `docs/invariants/INVARIANTS.md` (a new row, INV-3, at ENFORCED-PROVEN, citing step 6's run); `CLAUDE.md` (R5, reworded as below); `docs/state/WORK-ITEMS.md` (the Done when column of the W3-3 row gains "drops the `Frontend.model_drift -> drifter.check` ignore line")
 - Check: `git grep -c "INV-3.*ENFORCED-PROVEN" -- docs/invariants/INVARIANTS.md` → `docs/invariants/INVARIANTS.md:1`
-- Trailer: `Step: 6/7`
+- Trailer: `Step: 7/8`
 
 R5's new row, which the human sees beside the old one before the edit:
 
@@ -72,13 +82,13 @@ R5's new row, which the human sees beside the old one before the edit:
 - Principle: own abstractions, unchanged.
 - Check: `lint-imports` in CI (`.github/workflows/ci.yml`).
 
-If the human holds step 5's push, this step waits with it: the row is not written at ENFORCED-PROVEN before the red run has been seen.
+If the human holds step 6's push, this step waits with it: the row is not written at ENFORCED-PROVEN before the red run has been seen.
 
-### Step 7/7: Drop the finished line from the strategy
+### Step 8/8: Drop the finished line from the strategy
 
 - Files: `STRATEGY.md` (delete near-term line 1, W1-6, and renumber the rest)
 - Check: `git grep -c "W1-6" -- STRATEGY.md` → prints nothing
-- Trailer: `Step: 7/7`
+- Trailer: `Step: 8/8`
 
 The W1-5 line of `STRATEGY.md` goes with the closing commit, when this item closes.
 
@@ -98,24 +108,29 @@ This Epic's own:
 5. Nothing cites the old name: the check of step 1 → prints nothing
 6. The renamed file keeps its history: `git log --follow --format=%h -- docs/diagrams/dependency.md` → the list reaches `7f1ac0a`, the commit that first drew the diagram
 7. The map has its three sections: the check of step 2 → `docs/diagrams/dependency.md:3`
-8. The contracts pass with the baseline: `PYTHONPATH=Source lint-imports` → ends with `Contracts: 4 kept, 0 broken.`
+8. The contracts pass with the baseline: `PYTHONPATH=Source lint-imports` → ends with `Contracts: 5 kept, 0 broken.`
 9. The baseline is two ignored imports, one in each of two contracts: `PYTHONPATH=Source lint-imports --no-cache | grep -c "KEPT (1 ignored import)"` → `2`
 10. The linter is pinned: `git grep -n "import-linter" -- requirements-dev.txt` → `requirements-dev.txt:2:import-linter==2.17`
 11. CI runs the linter and it passes: `gh run view $(gh run list --commit $(git rev-parse HEAD) --limit 1 --json databaseId --jq ".[0].databaseId") --json jobs --jq ".jobs[0].steps[] | select(.name==\"Run lint-imports\") | .conclusion"` → `success`
-12. A planted import turned CI red at the right step: the check of step 5 → `Run lint-imports`
+12. A planted import turned CI red at the right step: the check of step 6 → `Run lint-imports`
 13. The throwaway PR was closed, not merged: `gh pr list --state all --head proof/lint-imports-red --json state,mergedAt --jq ".[0]"` → `{"mergedAt":null,"state":"CLOSED"}`
-14. The rule is graded: the check of step 6 → `docs/invariants/INVARIANTS.md:1`
+14. The rule is graded: the check of step 7 → `docs/invariants/INVARIANTS.md:1`
 15. No source or test file changed: `git diff --stat main...HEAD -- Source tests` → prints nothing
-16. The strategy no longer lists W1-6: the check of step 7 → prints nothing
+16. The strategy no longer lists W1-6: the check of step 8 → prints nothing
 17. W3-3 promises to drop its ignore line: `git grep -c "drops the .Frontend.model_drift -> drifter.check. ignore line" -- docs/state/WORK-ITEMS.md` → `docs/state/WORK-ITEMS.md:1`
+18. Every connector module is listed, and the check for it is on: `PYTHONPATH=Source lint-imports --no-cache | grep -c "Every connector module has a layer KEPT"` → `1`, and `git grep -c "exhaustive = true" -- .importlinter` → `.importlinter:1`
 
 ## Open questions
 
 - Who owns `Frontend`? Withdrawn: the map names no owners. The human's decision on 2026-11-21 (see Goal). No row in `docs/decisions/OPEN-DECISIONS.md` and no ruling. Third review: holds on disk. The owner label is asked only by the W1-5 row (`docs/state/WORK-ITEMS.md:136`), at level 8, below this Epic. Its Done when column does not ask for owners, and nothing at levels 1 to 6 asks the module map for them. `docs/diagrams/model-seam.md:9-14` keeps its own owner table, which this Epic leaves unchanged.
-- R5 or the W1-5 row? `CLAUDE.md:42` says `Tester` and `Frontend` may import `drifter`. The W1-5 row says `Tester` must not import `drifter` and `Frontend` must not import `drifter.check`. The draft follows the row (A4 and A5 of `DESIGN.md`) and rewords R5 in step 6. Answer: the row stands. The human's answer on 2026-11-21; step 6 holds R5's new wording, and the human sees the old and new wording before the edit. Second review: settled on disk. R5's own Check column defers to this step ("`lint-imports` in CI (step 0.6a)", `CLAUDE.md:42`), and W2-1 defines R5 as "imports follow `docs/diagrams/dependency.md` and `.importlinter`; W1-5" (`docs/state/WORK-ITEMS.md:165`), so the W1-5 row's contracts (`docs/state/WORK-ITEMS.md:136`) are R5's content.
+- R5 or the W1-5 row? `CLAUDE.md:42` says `Tester` and `Frontend` may import `drifter`. The W1-5 row says `Tester` must not import `drifter` and `Frontend` must not import `drifter.check`. The draft follows the row (A4 and A5 of `DESIGN.md`) and rewords R5 in step 7. Answer: the row stands. The human's answer on 2026-11-21; step 7 holds R5's new wording, and the human sees the old and new wording before the edit. Second review: settled on disk. R5's own Check column defers to this step ("`lint-imports` in CI (step 0.6a)", `CLAUDE.md:42`), and W2-1 defines R5 as "imports follow `docs/diagrams/dependency.md` and `.importlinter`; W1-5" (`docs/state/WORK-ITEMS.md:165`), so the W1-5 row's contracts (`docs/state/WORK-ITEMS.md:136`) are R5's content.
 - Does the `layers` contract list modules or packages? The draft lists modules, so that `drifter.cli` is an entry point above `drifter.check` and no service imports `GitHub_Connector.api`. The cost is in `DESIGN.md`, "Left out, on purpose": a new `GitHub_Connector` module must be added to the contract by hand. Answer: modules. The row's four layers (entry → service → core → generators, `docs/state/WORK-ITEMS.md:136`) split two packages across layers: `GitHub_Connector.api` is an entry point and the other `GitHub_Connector` modules are services, `drifter.cli` is an entry point and `drifter.check` the core (`Source/drifter/cli.py:15` imports `drifter.check`). A package-level line would put each pair in one layer, so the four layers can only be listed by module; the module-level draft runs `Contracts: 4 kept, 0 broken.` with the baseline (import-linter 2.17, re-run at `1714866`, and again at `685c160` by the second review).
 
 ## Review
+
+Fourth review: not written yet. It covers the revision that adds step 5 and the `connector` contract, and its verdict goes here.
+
+Earlier reviews follow. They use the step numbers of their time: seven steps, with the proof as step 5, the grading as step 6 and the strategy line as step 7.
 
 RATIFY · design-reviewer at e6d800a · 2026-11-21
 
