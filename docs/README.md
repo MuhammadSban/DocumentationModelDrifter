@@ -94,6 +94,8 @@ Blank forms. Copy one into place and fill only the copy.
 Live Epics, one folder each. Finished ones move to `closed/`; never build from one.
 
 - `epics/README.md` — how an Epic is named, how it and its W-row name each other, its branch, its lifecycle from draft to closed, and when a change needs no Epic. Read it before drafting, reviewing, building or closing an Epic.
+- `epics/E02-system-models/EPIC.md` — the live Epic for build order step 0.6b: add `diagrams/data-flow.md`, rename and extend `diagrams/behavior.md`, write the folder's README, review the kept models and delete the other diagram files. Read it before changing a file in `diagrams/`.
+- `epics/E02-system-models/DESIGN.md` — that Epic's design: what each model holds, where the content of each deleted file goes, and where the code and the build order disagree.
 
 ## closed/
 
