@@ -19,11 +19,10 @@ Ship the Phase 5 release: a repository gets a drift check on every push and pull
 In priority order. A line is deleted when its item closes.
 
 1. Decide where the ownership and scope rules come from, to close the self-grant hole (W0-7).
-2. Draw the module map and have CI enforce it (W1-5).
-3. Show drift on a pull request as annotations and a job summary (W4-3).
-4. Offer the check as a reusable workflow that another repository calls in one line (W4-2).
-5. Tag the release (W4-1).
-6. Run the demo end to end on a public repository (W4-6).
+2. Show drift on a pull request as annotations and a job summary (W4-3).
+3. Offer the check as a reusable workflow that another repository calls in one line (W4-2).
+4. Tag the release (W4-1).
+5. Run the demo end to end on a public repository (W4-6).
 
 ## Long-term
 

@@ -42,7 +42,7 @@ flowchart LR
     style Action stroke-dasharray: 6 4
 ```
 
-Epic: none. This is a standing model. `docs/epics/E01-module-map/` added the module map below.
+Epic: none. This is a standing model. `docs/closed/E01-module-map/` added the module map below.
 
 ## Intended structure
 

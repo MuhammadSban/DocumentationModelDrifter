@@ -1,6 +1,6 @@
 # E01: The module map and its import check
 
-Status: ratified · Owner: Kaan
+Status: closed · Owner: Kaan
 
 W-row: W1-5 (build order step 0.6a) in `docs/state/WORK-ITEMS.md` · Branch: `E01-module-map`
 
