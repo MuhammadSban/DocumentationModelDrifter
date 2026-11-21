@@ -12,20 +12,20 @@ The map is the target. Where today's code breaks it, `.importlinter` carries a b
 
 An import points down: a module imports from its own layer or a lower one, never from a higher one. Skipping a layer is allowed.
 
-| Layer | Modules | Owner | What it is |
-|---|---|---|---|
-| 1. Entry points | `GitHub_Connector.api` | Kaan | the hosted app: the `/system` routes, the console and the pages |
-| | `drifter.cli` | Kaan | the `drifter` command |
-| | `Tester` (the whole package) | Enrique | the tester: its routes, its HTTP client and its tests |
-| 2. Services | `GitHub_Connector.analysis`, `.course`, `.fetch`, `.rules`, `.runs`, `.schemas`, `.settings` | Kaan | what the hosted app adds around one check: the clone, change detection, the result store, sessions, settings |
-| | `Frontend` | Enrique | the pages: loading, comparing and drawing models |
-| 3. Core | `drifter.check` | Kaan; Muhammad may edit it | one check, the readers, scope, the diff and the ownership checker |
-| 4. Generators | `models.common` | Kaan | `parse_files`, `write_model`, the glob |
-| | `models.structural_model` | Enrique | the structural generator and its schema |
-| | `models.behavioral_model` | Barshan | the behavioral generator and its schema |
-| | `models.ownership_model` | Muhammad | the ownership proposal, `CommitRecord` and its schema |
+| Layer | Modules | What it is |
+|---|---|---|
+| 1. Entry points | `GitHub_Connector.api` | the hosted app: the `/system` routes, the console and the pages |
+| | `drifter.cli` | the `drifter` command |
+| | `Tester` (the whole package) | the tester: its routes, its HTTP client and its tests |
+| 2. Services | `GitHub_Connector.analysis`, `.course`, `.fetch`, `.rules`, `.runs`, `.schemas`, `.settings` | what the hosted app adds around one check: the clone, change detection, the result store, sessions, settings |
+| | `Frontend` | the pages: loading, comparing and drawing models |
+| 3. Core | `drifter.check` | one check, the readers, scope, the diff and the ownership checker |
+| 4. Generators | `models.common` | `parse_files`, `write_model`, the glob |
+| | `models.structural_model` | the structural generator and its schema |
+| | `models.behavioral_model` | the behavioral generator and its schema |
+| | `models.ownership_model` | the ownership proposal, `CommitRecord` and its schema |
 
-Owners come from seam decision D9: `docs/diagrams/model-seam.md:11-14` and `docs/base/phase4.md:58-61`. D9 names no owner for `Frontend`: the human named Enrique on 2026-11-21, and this map is where that is recorded. The GitHub Action (Phase 5, not built) calls `drifter.cli` and adds no Python package.
+The map names no owners, for any file, folder or layer: the import check does not use them, and a label nobody checks goes stale. The GitHub Action (Phase 5, not built) calls `drifter.cli` and adds no Python package.
 
 `Source/Frontend/ui.py` can also be started on its own for local work (`python Source/Frontend/ui.py`, `Source/Frontend/README.md:32`). It imports none of the five packages, so it stays under `Frontend` in the services layer and is not a fourth entry point of the map.
 
@@ -99,10 +99,9 @@ Every fact the structure rests on, checked against the disk before it is written
 | `Tester` imports no other package of the five today. | `git grep -n -E "^(from\|import) (drifter\|models\|GitHub_Connector\|Frontend)" -- Source/Tester` prints nothing | yes |
 | Editing `.importlinter` and `docs/diagrams/dependency.md` already prompts the human. | `.claude/settings.json:12-13` | yes |
 | CI is one job that installs both requirements files, then runs `pytest` and `ruff check`. | `.github/workflows/ci.yml:22-24` | yes |
-| Every box has an owner in D9. | `docs/base/phase4.md:58-61` names no owner for `Source/Frontend/` | no; answered by the human on 2026-11-21: Enrique |
 | Rule R5 in `CLAUDE.md` agrees with the allowed calls. | `CLAUDE.md:42` says `Tester` and `Frontend` may import `drifter`; A4 and A5, taken from the W1-5 row, say otherwise | no; answered by the human on 2026-11-21: the row stands, and step 6 rewords R5 |
 
-The two premises that do not hold are lines in the Epic's Open questions, each with the human's answer.
+The one premise that does not hold is a line in the Epic's Open questions, with the human's answer.
 
 ## Must stay true
 
@@ -110,4 +109,4 @@ The two premises that do not hold are lines in the Epic's Open questions, each w
 |---|---|---|
 | INV-3 (new) | Imports under `Source/` follow the module map in `docs/diagrams/dependency.md`: rules A1 to A6, less the ignore lines listed in `.importlinter`. | `PYTHONPATH=Source lint-imports` prints `Contracts: 4 kept, 0 broken.`; a CI step from step 4, proven red by step 5 |
 | INV-1 | Determinism: the same input gives byte-identical models and answer. | Not touched: `git diff --stat main...HEAD -- Source tests` prints nothing |
-| The baseline only shrinks | `.importlinter` holds two ignore lines; a third needs the human's approval of the file. | `git grep -c -e "->" -- .importlinter` prints `.importlinter:2`; the edit prompt on `.importlinter` (`.claude/settings.json:12`) |
+| The baseline only shrinks | `.importlinter` holds two ignore lines; a third needs the human's approval of the file. | `PYTHONPATH=Source lint-imports --no-cache | grep -c "KEPT (1 ignored import)"` prints `2`, and the same run ends with `Contracts: 4 kept, 0 broken.`, so the other two contracts ignore nothing; the edit prompt on `.importlinter` (`.claude/settings.json:12`) |

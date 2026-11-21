@@ -6,13 +6,15 @@ W-row: W1-5 (build order step 0.6a) in `docs/state/WORK-ITEMS.md` · Branch: `E0
 
 ## Goal
 
-`docs/diagrams/who-talks-to-what.md` is renamed `docs/diagrams/dependency.md` and carries the module map: four layers, the allowed calls, each package's public names and an owner on each box. A new `.importlinter` states the same map as four contracts, and `lint-imports` runs as a blocking step of `.github/workflows/ci.yml`, so a PR that adds an import against the map turns red. The two imports that break the map today are listed as baseline ignore lines. Agents and the team need it: rule R5 stops being guidance and becomes a check. No file under `Source/` changes. The design is `DESIGN.md`, beside this file.
+`docs/diagrams/who-talks-to-what.md` is renamed `docs/diagrams/dependency.md` and carries the module map: four layers, the allowed calls, and each package's public names. A new `.importlinter` states the same map as four contracts, and `lint-imports` runs as a blocking step of `.github/workflows/ci.yml`, so a PR that adds an import against the map turns red. The two imports that break the map today are listed as baseline ignore lines. Agents and the team need it: rule R5 stops being guidance and becomes a check. No file under `Source/` changes. The design is `DESIGN.md`, beside this file.
+
+**A departure from the W1-5 row and the build order, by the human's decision on 2026-11-21.** Both ask for an owner label on each box of the map, taken from seam decision D9. This Epic adds none: the map names no owners, for any file, folder or layer. Owner labels are hard to keep true, and the import check does not use them. The current Epic outranks the queue in the authority order of `CLAUDE.md`, so step 2 notes the departure in the W1-5 row.
 
 ## Relies on
 
 Everything this Epic reads or changes, found by looking before the steps are written.
 
-- Models: `docs/diagrams/who-talks-to-what.md`, changes (renamed `dependency.md`, then extended). `docs/diagrams/model-seam.md`, reads (the owners of D9).
+- Models: `docs/diagrams/who-talks-to-what.md`, changes (renamed `dependency.md`, then extended).
 - Rulings: none. `docs/decisions/RULED/` holds only its README.
 - Invariants: INV-3, changes (new: imports follow the module map). INV-1, reads (no source file changes, so the answers cannot).
 
@@ -30,11 +32,11 @@ The file's own content does not change in this commit, so git records a pure ren
 
 ### Step 2/7: Extend the model with the module map
 
-- Files: `docs/diagrams/dependency.md` (three new sections, named as in `docs/templates/DESIGN.md`: "Intended structure", "Premises, verified" and "Must stay true", filled from `DESIGN.md`); `docs/README.md` (the line that describes the file)
+- Files: `docs/diagrams/dependency.md` (three new sections, named as in `docs/templates/DESIGN.md`: "Intended structure", "Premises, verified" and "Must stay true", filled from `DESIGN.md`); `docs/README.md` (the line that describes the file); `docs/state/WORK-ITEMS.md` (the W1-5 row notes that the map names no owners, by the human's decision on 2026-11-21)
 - Check: `git grep -c -E "^## (Intended structure|Premises, verified|Must stay true)" -- docs/diagrams/dependency.md` → `docs/diagrams/dependency.md:3`
 - Trailer: `Step: 2/7`
 
-The existing diagram stays the file's one Mermaid block. The map is tables.
+The existing diagram stays the file's one Mermaid block. The map is tables: the layers, the allowed calls, the public names, the contracts and the baseline. It names no owners. The opening sentence of `DESIGN.md`, "Intended structure", names the old file and is not copied: in the model that sentence says only that the diagram above is unchanged and the module map follows it, so Done line 5 still prints nothing.
 
 ### Step 3/7: Write the contracts
 
@@ -97,7 +99,7 @@ This Epic's own:
 6. The renamed file keeps its history: `git log --follow --format=%h -- docs/diagrams/dependency.md` → the list reaches `7f1ac0a`, the commit that first drew the diagram
 7. The map has its three sections: the check of step 2 → `docs/diagrams/dependency.md:3`
 8. The contracts pass with the baseline: `PYTHONPATH=Source lint-imports` → ends with `Contracts: 4 kept, 0 broken.`
-9. The baseline is two lines: `git grep -c -e "->" -- .importlinter` → `.importlinter:2`
+9. The baseline is two ignored imports, one in each of two contracts: `PYTHONPATH=Source lint-imports --no-cache | grep -c "KEPT (1 ignored import)"` → `2`
 10. The linter is pinned: `git grep -n "import-linter" -- requirements-dev.txt` → `requirements-dev.txt:2:import-linter==2.17`
 11. CI runs the linter and it passes: `gh run view $(gh run list --commit $(git rev-parse HEAD) --limit 1 --json databaseId --jq ".[0].databaseId") --json jobs --jq ".jobs[0].steps[] | select(.name==\"Run lint-imports\") | .conclusion"` → `success`
 12. A planted import turned CI red at the right step: the check of step 5 → `Run lint-imports`
@@ -109,13 +111,37 @@ This Epic's own:
 
 ## Open questions
 
-- Who owns `Frontend`? D9 names an owner for the core, the hosted service, the CLI, the tester and each model, and none for `Source/Frontend/` (`docs/base/phase4.md:58-61`). The map needs a label on that box. Answer: Enrique. The human's answer on 2026-11-21, recorded in the map (`DESIGN.md`, "The four layers"); the human asked for no row in `docs/decisions/OPEN-DECISIONS.md`.
-- R5 or the W1-5 row? `CLAUDE.md:42` says `Tester` and `Frontend` may import `drifter`. The W1-5 row says `Tester` must not import `drifter` and `Frontend` must not import `drifter.check`. The draft follows the row (A4 and A5 of `DESIGN.md`) and rewords R5 in step 6. Answer: the row stands. The human's answer on 2026-11-21; step 6 holds R5's new wording, and the human sees the old and new wording before the edit.
-- Does the `layers` contract list modules or packages? The draft lists modules, so that `drifter.cli` is an entry point above `drifter.check` and no service imports `GitHub_Connector.api`. The cost is in `DESIGN.md`, "Left out, on purpose": a new `GitHub_Connector` module must be added to the contract by hand. Answer: modules. The row's four layers (entry → service → core → generators, `docs/state/WORK-ITEMS.md:136`) split two packages across layers: `GitHub_Connector.api` is an entry point and the other `GitHub_Connector` modules are services, `drifter.cli` is an entry point and `drifter.check` the core (`Source/drifter/cli.py:15` imports `drifter.check`). A package-level line would put each pair in one layer, so the four layers can only be listed by module; the module-level draft runs `Contracts: 4 kept, 0 broken.` with the baseline (import-linter 2.17, re-run at `1714866`).
+- Who owns `Frontend`? Withdrawn: the map names no owners. The human's decision on 2026-11-21 (see Goal). No row in `docs/decisions/OPEN-DECISIONS.md` and no ruling.
+- R5 or the W1-5 row? `CLAUDE.md:42` says `Tester` and `Frontend` may import `drifter`. The W1-5 row says `Tester` must not import `drifter` and `Frontend` must not import `drifter.check`. The draft follows the row (A4 and A5 of `DESIGN.md`) and rewords R5 in step 6. Answer: the row stands. The human's answer on 2026-11-21; step 6 holds R5's new wording, and the human sees the old and new wording before the edit. Second review: settled on disk. R5's own Check column defers to this step ("`lint-imports` in CI (step 0.6a)", `CLAUDE.md:42`), and W2-1 defines R5 as "imports follow `docs/diagrams/dependency.md` and `.importlinter`; W1-5" (`docs/state/WORK-ITEMS.md:165`), so the W1-5 row's contracts (`docs/state/WORK-ITEMS.md:136`) are R5's content.
+- Does the `layers` contract list modules or packages? The draft lists modules, so that `drifter.cli` is an entry point above `drifter.check` and no service imports `GitHub_Connector.api`. The cost is in `DESIGN.md`, "Left out, on purpose": a new `GitHub_Connector` module must be added to the contract by hand. Answer: modules. The row's four layers (entry → service → core → generators, `docs/state/WORK-ITEMS.md:136`) split two packages across layers: `GitHub_Connector.api` is an entry point and the other `GitHub_Connector` modules are services, `drifter.cli` is an entry point and `drifter.check` the core (`Source/drifter/cli.py:15` imports `drifter.check`). A package-level line would put each pair in one layer, so the four layers can only be listed by module; the module-level draft runs `Contracts: 4 kept, 0 broken.` with the baseline (import-linter 2.17, re-run at `1714866`, and again at `685c160` by the second review).
 
 ## Review
 
-Second review: not written yet. It covers the draft as revised after the first review, and its verdict goes here.
+Third review: not written yet. It covers the draft as revised after the second review, and its verdict goes here.
+
+Earlier reviews, kept as the record of what each revision answers. Where they discuss an owner for `Frontend`, the question has since been withdrawn.
+
+REVISE · design-reviewer at 685c160 · 2026-11-21
+
+- Blocking, the only one: the owner of `Frontend` has no sourced answer and no row. No code, model or ruling names one. D9 does not (`docs/base/phase4.md:58-61`, `docs/diagrams/model-seam.md:9-14`). "The human's answer on 2026-11-21" appears on disk only in this Epic and `DESIGN.md:28`, and a reviewer cannot treat a relayed answer as a source. `docs/epics/README.md:21` says each question left gets a row. For RATIFY, the human files the answer as a row in `docs/decisions/OPEN-DECISIONS.md` (R1) or as a `RULED/` file, and the Open questions line cites it. Before confirming, the human should see the authorship: `git log --format=%an -- Source/Frontend` gives MuhammadSban 8, Kaan Kanadasi 2, Enrique 0.
+- Settled: R5 against the W1-5 row is answered on disk, so it needs no row. R5's Check column defers to step 0.6a (`CLAUDE.md:42`), and W2-1 defines R5 as following `dependency.md` and `.importlinter` from W1-5 (`docs/state/WORK-ITEMS.md:165`). The layers question was already sourced, and its run still holds.
+- All six of the first review's findings are addressed: `private_modules` is in the premise (`DESIGN.md:97`), which matches `importlinter/application/use_cases.py:650-655` in the 2.17 install. Step 6 adds the W3-3 promise, and Done 17 checks it. Done 11 checks the `Run lint-imports` step's conclusion, not a line count. Step 4 rewords `ci.yml:1` and lists `CLAUDE.md:52`. Step 2 now says "Premises, verified". The `ui.py` note is at `DESIGN.md:30`, and `Source/Frontend/ui.py:3-11` imports none of the five packages.
+- Holds: the filled-copy check prints nothing for both files. With import-linter 2.17 and `PYTHONPATH=Source`, the scratch contracts give `Analyzed 27 files, 47 dependencies.` Without ignore lines they give `Contracts: 2 kept, 2 broken.` (exit 1), naming `GitHub_Connector.api -> Tester.api (l.19)` and `Frontend.model_drift -> drifter.check (l.17)`. With the baseline they give `Contracts: 4 kept, 0 broken.` (exit 0). Also confirmed:
+  - Step 1's grep finds exactly `CLAUDE.md:14`, `CLAUDE.md:42` and `docs/README.md:37`.
+  - `git log --follow` reaches `7f1ac0a`.
+  - `STRATEGY.md:21` is the only line that names W1-6.
+  - `git grep E01` over `OPEN-DECISIONS.md` prints nothing.
+  - W3-3 is `docs/state/WORK-ITEMS.md:184`.
+  - `.claude/settings.json:12-13` makes `.importlinter` and `dependency.md` prompt.
+  - `ci.yml:22-24` holds the install, `pytest` and `ruff check` steps.
+  - `gh run list` has `--commit`.
+  - The cache directory is `.import_linter_cache` (`importlinter/configuration.py:17`).
+  - Ruff selects no isort rules (`pyproject.toml:26`), so the plant's `noqa: F401` keeps `ruff` green. `settings.py` needs only `pydantic_settings`.
+  - Nothing in `docs/base/structure.md` or `specifications.md` is made untrue.
+- Not blocking: `DESIGN.md:7`, the text step 2 fills the map from, names `who-talks-to-what.md`. Copied as it stands, it makes Done 5 fail. Step 2 should reword it, or its check should also run step 1's grep.
+- Not blocking: Done 9 counts lines that contain `->`, so no comment in `.importlinter` may contain `->`. The scratch comments do not.
+
+Second review above, at `685c160`.
 
 First review, kept as the record of what the revision answers:
 
