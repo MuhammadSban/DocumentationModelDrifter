@@ -1,1 +1,2 @@
 ruff==0.17.6
+import-linter==2.17

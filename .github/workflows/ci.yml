@@ -1,4 +1,4 @@
-# runs pytest then ruff on every pull request and every push to main, Railway's Wait for CI holds the deploy on it
+# runs pytest, ruff and the import check on every pull request and every push to main, Railway's Wait for CI holds the deploy on it
 
 name: CI
 
@@ -22,3 +22,7 @@ jobs:
       - run: pip install -r requirements.txt -r requirements-dev.txt
       - run: pytest
       - run: ruff check
+      # checks imports against .importlinter, the module map in docs/diagrams/dependency.md
+      - run: lint-imports
+        env:
+          PYTHONPATH: Source

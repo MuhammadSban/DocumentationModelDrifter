@@ -11,7 +11,7 @@ When two docs disagree, the higher one wins, and the lower one is fixed in the s
 3. The human's rulings, `docs/decisions/RULED/`.
 4. The invariants, `docs/invariants/INVARIANTS.md`.
 5. The spec, `docs/base/specifications.md`.
-6. The models in `docs/diagrams/`: `who-talks-to-what.md`, `behavioral-model.md`, `models-folder.md` and `model-seam.md`. Every other diagram ranks at level 8.
+6. The models in `docs/diagrams/`: `dependency.md`, `behavioral-model.md`, `models-folder.md` and `model-seam.md`. Every other diagram ranks at level 8.
 7. The current Epic, under `docs/epics/`.
 8. Everything else.
 
@@ -39,7 +39,7 @@ A rule gets a number only if all three hold: an agent working elsewhere could br
 | R2 | A change that makes a line of `docs/base/specifications.md` or `docs/base/structure.md` untrue updates that line in the same PR. | done is checked | guidance only |
 | R3 | Nothing deploys red: a commit reaches the live server only after CI is green on it. A red PR can still be merged, so fix it before the next deploy. | done is checked | Railway waits for CI and skips a red commit (step 0.5) |
 | R4 | A protected change goes through the permission prompt. Never route around a deny or ask rule (`python -c`, a script). | own abstractions | guidance only; the human's PR review |
-| R5 | Imports point inward, toward the core in the module map `docs/diagrams/who-talks-to-what.md`: `GitHub_Connector`, `Frontend` and `Tester` may import `drifter` and `models`, which import none of the three. | own abstractions | guidance only; `lint-imports` in CI (step 0.6a) |
+| R5 | Imports follow the module map `docs/diagrams/dependency.md`, which `.importlinter` states as contracts. They point down through its four layers: entry points, services, core, generators. `drifter` and `models` import none of `GitHub_Connector`, `Frontend` and `Tester`. `Tester` imports none of `GitHub_Connector`, `Frontend` and `drifter`. `Frontend` imports none of `GitHub_Connector`, `Tester` and `drifter.check`. | own abstractions | `lint-imports` in CI (`.github/workflows/ci.yml`) |
 | R6 | A change to a part, a flow or a run state updates its model in `docs/diagrams/` in the same PR. | done is checked | guidance only; the human's PR review |
 | R7 | Pick the lane before the first edit. A small change, as `docs/epics/README.md` defines it, goes straight to a PR. Anything else is Epic work on a branch `E<nn>-slug` and follows that file's lifecycle: code starts after RATIFY, only from a live Epic; each commit carries its `Step:` line; the Epic closes after the auditor re-runs Done and the human accepts. | done is checked | `.claude/hooks/step-trailer.py` blocks an agent commit without the `Step:` line; the rest is guidance only |
 
@@ -49,7 +49,7 @@ Both ran on a clean clone in a fresh virtualenv (Python 3.13, Windows).
 
 - **The CLI:** `pip install -e .` installs the `drifter` command: the core and the generators, without the web service.
 - **The service:** `pip install -r requirements.txt`, then the Dockerfile's line, `uvicorn --app-dir Source GitHub_Connector.api:app --host 0.0.0.0 --port 8000`. `GET /system/health` answers 200.
-- **The lint CI runs:** after the service's install, `pip install -r requirements-dev.txt`, then `ruff check`.
+- **The lint CI runs:** after the service's install, `pip install -r requirements-dev.txt`, then `ruff check` and `PYTHONPATH=Source lint-imports`.
 
 ## House rules
 

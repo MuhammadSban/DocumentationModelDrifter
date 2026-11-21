@@ -34,7 +34,7 @@ The pod contract with Team 16. Both teams' registry rows link it. It follows Tea
 Diagrams of the planned system. Each is a Markdown file whose Mermaid block is the source; GitHub draws it, and `python diagrams/render.py` renders a PNG on demand (not committed). `agents/modeling.md` has the rules for modeling and drawing.
 
 - `diagrams/render.py` — renders a diagram's Mermaid block to a PNG. Run it to see a diagram outside GitHub.
-- `diagrams/who-talks-to-what.md` — the developer, GitHub and a tester reach one drifter core (orchestrator, GitHub integration, three generators, comparison) through the CLI, the GitHub Action (Phase 5) and the hosted service, which serves the pod contract's routes and adds change detection and a result store; the repository is only read. Read it first to understand the system.
+- `diagrams/dependency.md` — the developer, GitHub and a tester reach one drifter core (orchestrator, GitHub integration, three generators, comparison) through the CLI, the GitHub Action (Phase 5) and the hosted service, which serves the pod contract's routes and adds change detection and a result store; the repository is only read. Below the diagram, the module map: the four layers (entry points, services, core, generators), the allowed calls, each package's public names, the five import contracts of `.importlinter` and the two imports that break the map today. Read it first to understand the system, and before adding an import between packages.
 - `diagrams/behavioral-model.md` — lifecycle of a repository under the tool: init proposes the models, a person commits them, and each push ends Aligned, Drifted or Failed. Only structural and behavioral are regenerated; ownership is checked against its rules (spec §3.2).
 - `diagrams/init.md` — `drifter init` step by step: the overwrite guard, structural and behavioral from the code with the default scope, ownership proposed from history, the four files written, then a person commits the baseline. Read it before changing `generate_models` or the init command.
 - `diagrams/one-check.md` — one check step by step, from request to four-field answer, with the HTTP error or no-verdict code each step can return, the 80 s deadline per check, and what the hosted service adds. Read it when working on the orchestrator or errors.
@@ -100,6 +100,8 @@ Live Epics, one folder each. Finished ones move to `closed/`; never build from o
 Finished Epics: history. Read one only when the task asks for it, and never build from it.
 
 - `closed/E00-docs-move/EPIC.md` — the example Epic: the docs move of W2-5 (step 0.2a), written after the fact. Read it to see a filled template.
+- `closed/E01-module-map/EPIC.md` — the closed Epic for W1-5 (step 0.6a): give the system's first diagram the name `diagrams/dependency.md`, extend it into the module map, and have CI check imports against it with `lint-imports`. Read it for how the module map and `.importlinter` came about; the standing model is `diagrams/dependency.md`.
+- `closed/E01-module-map/DESIGN.md` — that Epic's design: the four layers, the allowed calls, the public names, the five import contracts and the two imports that break the map today.
 
 ## proposals/
 
