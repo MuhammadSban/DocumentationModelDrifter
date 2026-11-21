@@ -4,14 +4,14 @@ Question: what does each model owner write, and what does the core do with it?
 
 Each owner decides everything inside their model: kinds, id scheme, attributes, mining rules and the rest of the schema. The core relies only on what this page says. Decided as D9 and D10 in `docs/base/phase4.md`.
 
-## Who writes what
+## What each part writes
 
-| Part | Owner | Writes |
-| --- | --- | --- |
-| Structural | Enrique | `generate_structural(files) -> dict` and `structural.schema.json`; element lists `nodes`, `edges` |
-| Behavioral | Barshan | `generate_behavioral(files) -> dict` and `behavioral.schema.json`; element lists of the owner's choice |
-| Ownership | Muhammad | `propose_ownership(head_sha, records) -> dict` and `ownership.schema.json`; rules, never diffed |
-| Core | Kaan | `parse_files`, `write_model`, `CommitRecord` (defined in `ownership_model.py`), scope, the diff and the ownership checker (both in `Source/drifter/check.py`), the CLI |
+| Part | Writes |
+| --- | --- |
+| Structural | `generate_structural(files) -> dict` and `structural.schema.json`; element lists `nodes`, `edges` |
+| Behavioral | `generate_behavioral(files) -> dict` and `behavioral.schema.json`; element lists of the owner's choice |
+| Ownership | `propose_ownership(head_sha, records) -> dict` and `ownership.schema.json`; rules, never diffed |
+| Core | `parse_files`, `write_model`, `CommitRecord` (defined in `ownership_model.py`), scope, the diff and the ownership checker (both in `Source/drifter/check.py`), the CLI |
 
 ## The element rule (structural and behavioral)
 
@@ -58,7 +58,7 @@ flowchart TB
     SB ~~~ OW
 ```
 
-`propose_ownership()` returns rules sorted by path, each one exact path with its owners as sorted lowercase emails: `{"rules": [{"owners": ["a@x.com"], "pattern": "src/app.py"}], "schema_version": 1}`. Inside it is Muhammad's: the window of 10, the 50-file limit and the vendored folders as constants in `ownership_model.py`, a bot being an email containing `[bot]`, and no `email:` prefix.
+`propose_ownership()` returns rules sorted by path, each one exact path with its owners as sorted lowercase emails: `{"rules": [{"owners": ["a@x.com"], "pattern": "src/app.py"}], "schema_version": 1}`. The rest is for the model's author to decide: the window of 10, the 50-file limit and the vendored folders as constants in `ownership_model.py`, a bot being an email containing `[bot]`, and no `email:` prefix.
 
 ## Done when (each owner, before plugging in at v1.2)
 
