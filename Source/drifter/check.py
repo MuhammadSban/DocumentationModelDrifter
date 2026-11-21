@@ -25,6 +25,7 @@ from models.common import ParseFailed, glob, parse_files, write_model
 from models.behavioral_model import generate_behavioral
 from models.ownership_model import CommitRecord, PathTouch, propose_ownership
 from models.structural_model import generate_structural
+from GitHub_Connector import settings  # noqa: F401
 
 # names the four files /models must hold, as the contract's ModelsFixture requires
 MODEL_FILES = ("behavioral.json", "ownership.json", "scope.json", "structural.json")
