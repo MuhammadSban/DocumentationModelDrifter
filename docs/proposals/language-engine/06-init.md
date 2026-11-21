@@ -1,6 +1,6 @@
 # drifter init, beyond Python
 
-Question: once drifter reads more than Python, how does `drifter init` change, and what stays exactly as `docs/diagrams/init.md` describes it?
+Question: once drifter reads more than Python, how does `drifter init` change, and what stays exactly as it works today (`docs/diagrams/data-flow.md`, "Who writes /models")?
 
 A proposal on branch `phase5-kk`, not built. It applies 01 to 05 to the one command that writes the first `/models`. Where this doc and 04 or `05-decisions-log.md` disagree, 04 and 05 win.
 
@@ -10,7 +10,7 @@ init is still the arrow **No models → Proposed**. It still runs once, writes a
 
 ## The picture
 
-Solid boxes stay as they are in `docs/diagrams/init.md`. Dashed boxes are new or changed.
+Solid boxes stay as `drifter init` works today. Dashed boxes are new or changed.
 
 ```mermaid
 flowchart TB

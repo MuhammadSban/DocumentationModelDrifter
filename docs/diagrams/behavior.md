@@ -101,7 +101,7 @@ Reading a run again: `GET /system/analysis/{analysis_id}` answers 200 with the s
 | No verdict | 2 | `drift` null and the `drift_error` |
 | git fails: an unknown commit, or a folder that is no checkout | 1 | a Python traceback, no JSON. The same exit code as drift; row CLI-1 of `docs/decisions/OPEN-DECISIONS.md` asks whether that is a defect |
 
-The CLI has no slot, no deadline, no change limit and no HTTP errors.
+The CLI has no slot, no deadline, no change limit and no HTTP errors. `drifter init` and `drifter update` end the same way on a no-verdict code: they print the `drift_error`, write nothing and exit 2 (`Source/drifter/cli.py:43-52`).
 
 ## The lifecycle's own transitions
 

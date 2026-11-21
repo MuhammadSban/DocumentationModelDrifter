@@ -304,7 +304,7 @@ The 21 extra elements become one engine rule for every language: **a definition 
 
 ### The pod contract allows it
 
-The pod contract (`pod-contract.md`, its OpenAPI file) names no parser: `PARSE_FAILED` is "an in-scope file cannot be parsed". The one line that says "parse Python with ast only" is in Team 16's `spec-v1.1.md` §6.3, for their Layer-2 prose fact check, not for model drift. Its REQ-06 says "parsing only (for example `ast.parse`), never import or exec", which tree-sitter keeps. What *is* binding is the output: `model-golden-outputs.json` must come out **byte-identical**. "Pinned CPython ast" in our own docs (`diagrams/one-check.md`, `diagrams/init.md`, `base/overview_phase4.html`) describes our internals, and is updated when the change is built.
+The pod contract (`pod-contract.md`, its OpenAPI file) names no parser: `PARSE_FAILED` is "an in-scope file cannot be parsed". The one line that says "parse Python with ast only" is in Team 16's `spec-v1.1.md` §6.3, for their Layer-2 prose fact check, not for model drift. Its REQ-06 says "parsing only (for example `ast.parse`), never import or exec", which tree-sitter keeps. What *is* binding is the output: `model-golden-outputs.json` must come out **byte-identical**. "Pinned CPython ast" in our own docs (`base/overview_phase4.html`, and two diagrams that E02 has since deleted) describes our internals, and is updated when the change is built.
 
 ### Steps a to d (agreed)
 
