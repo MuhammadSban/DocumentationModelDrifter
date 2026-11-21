@@ -56,11 +56,11 @@ The file is the first four contracts of `DESIGN.md`, "The contracts", with the t
 
 ### Step 5/8: Make CI catch a connector module nobody listed
 
-- Files: `.importlinter` (a fifth contract, `connector`: type layers, `containers` naming `GitHub_Connector`, line 1 `api`, line 2 the seven service modules joined by `:`, `exhaustive = true`, no ignore line, one comment above it); `docs/diagrams/dependency.md` (the contracts table gains the `connector` row and says five contracts; the first bullet of "Left out, on purpose" says what `DESIGN.md` now says; two new premise rows; "Must stay true" says 5 kept and gains the connector row)
+- Files: `.importlinter` (a fifth contract, `connector`: type layers, `containers` naming `GitHub_Connector`, line 1 `api`, line 2 the seven service modules joined by `:`, `exhaustive = true`, no ignore line, one comment above it); `docs/diagrams/dependency.md` (the contracts table gains the `connector` row and says five contracts; the sentence below it about `|` and `:` gains the sentence of `DESIGN.md` on what `exhaustive` does; the first bullet of "Left out, on purpose" says what `DESIGN.md` now says; the premise row with `4 kept` is reworded to "the first four contracts", and two new premise rows follow it; "Must stay true" says 5 kept and gains the connector row); `docs/README.md` (the line that describes `dependency.md` says five import contracts)
 - Check: `PYTHONPATH=Source lint-imports` → ends with `Contracts: 5 kept, 0 broken.`
 - Trailer: `Step: 5/8`
 
-The human accepts this step only if it adds no ignore line, the run prints 5 kept and 0 broken, and a scratch run with a new unlisted `GitHub_Connector` module fails. `DESIGN.md`, "Premises, verified", holds both runs. If any of the three fails, the step is dropped and the gap stays written down in `dependency.md`, as it is today.
+The comment above the `connector` contract does not quote the option's own text, so the second command of Done line 18 counts one line. The human accepts this step only if it adds no ignore line, the run prints 5 kept and 0 broken, and a scratch run with a new unlisted `GitHub_Connector` module fails. `DESIGN.md`, "Premises, verified", holds both runs. If any of the three fails, the step is dropped and the gap stays written down in `dependency.md`, as it is today.
 
 ### Step 6/8: Prove it red on a throwaway PR
 
@@ -118,17 +118,42 @@ This Epic's own:
 15. No source or test file changed: `git diff --stat main...HEAD -- Source tests` → prints nothing
 16. The strategy no longer lists W1-6: the check of step 8 → prints nothing
 17. W3-3 promises to drop its ignore line: `git grep -c "drops the .Frontend.model_drift -> drifter.check. ignore line" -- docs/state/WORK-ITEMS.md` → `docs/state/WORK-ITEMS.md:1`
-18. Every connector module is listed, and the check for it is on: `PYTHONPATH=Source lint-imports --no-cache | grep -c "Every connector module has a layer KEPT"` → `1`, and `git grep -c "exhaustive = true" -- .importlinter` → `.importlinter:1`
+18. Every connector module is listed, and the check for it is on: `PYTHONPATH=Source lint-imports --no-cache | grep -c "Every connector module has a layer KEPT"` → `1`, and `git grep -c "exhaustive = true" -- .importlinter` → `.importlinter:1`. That an unlisted module breaks the contract was shown on a scratch copy (`DESIGN.md`, "Premises, verified"); these two commands show at HEAD that the contract is kept and that the option is on
 
 ## Open questions
 
 - Who owns `Frontend`? Withdrawn: the map names no owners. The human's decision on 2026-11-21 (see Goal). No row in `docs/decisions/OPEN-DECISIONS.md` and no ruling. Third review: holds on disk. The owner label is asked only by the W1-5 row (`docs/state/WORK-ITEMS.md:136`), at level 8, below this Epic. Its Done when column does not ask for owners, and nothing at levels 1 to 6 asks the module map for them. `docs/diagrams/model-seam.md:9-14` keeps its own owner table, which this Epic leaves unchanged.
 - R5 or the W1-5 row? `CLAUDE.md:42` says `Tester` and `Frontend` may import `drifter`. The W1-5 row says `Tester` must not import `drifter` and `Frontend` must not import `drifter.check`. The draft follows the row (A4 and A5 of `DESIGN.md`) and rewords R5 in step 7. Answer: the row stands. The human's answer on 2026-11-21; step 7 holds R5's new wording, and the human sees the old and new wording before the edit. Second review: settled on disk. R5's own Check column defers to this step ("`lint-imports` in CI (step 0.6a)", `CLAUDE.md:42`), and W2-1 defines R5 as "imports follow `docs/diagrams/dependency.md` and `.importlinter`; W1-5" (`docs/state/WORK-ITEMS.md:165`), so the W1-5 row's contracts (`docs/state/WORK-ITEMS.md:136`) are R5's content.
-- Does the `layers` contract list modules or packages? The draft lists modules, so that `drifter.cli` is an entry point above `drifter.check` and no service imports `GitHub_Connector.api`. The cost is in `DESIGN.md`, "Left out, on purpose": a new `GitHub_Connector` module must be added to the contract by hand. Answer: modules. The row's four layers (entry → service → core → generators, `docs/state/WORK-ITEMS.md:136`) split two packages across layers: `GitHub_Connector.api` is an entry point and the other `GitHub_Connector` modules are services, `drifter.cli` is an entry point and `drifter.check` the core (`Source/drifter/cli.py:15` imports `drifter.check`). A package-level line would put each pair in one layer, so the four layers can only be listed by module; the module-level draft runs `Contracts: 4 kept, 0 broken.` with the baseline (import-linter 2.17, re-run at `1714866`, and again at `685c160` by the second review).
+- Does the `layers` contract list modules or packages? The draft lists modules, so that `drifter.cli` is an entry point above `drifter.check` and no service imports `GitHub_Connector.api`. The cost is in `DESIGN.md`, "Left out, on purpose": a new `GitHub_Connector` module must be added to the contract by hand. Answer: modules. The row's four layers (entry → service → core → generators, `docs/state/WORK-ITEMS.md:136`) split two packages across layers: `GitHub_Connector.api` is an entry point and the other `GitHub_Connector` modules are services, `drifter.cli` is an entry point and `drifter.check` the core (`Source/drifter/cli.py:15` imports `drifter.check`). A package-level line would put each pair in one layer, so the four layers can only be listed by module; the module-level draft runs `Contracts: 4 kept, 0 broken.` with the baseline (import-linter 2.17, re-run at `1714866`, and again at `685c160` by the second review). Fourth review: still modules. The cost has changed. With step 5's `connector` contract, CI now catches a new `GitHub_Connector` module that is missing from its lines; only line 2 of `layers` is still kept by hand (`DESIGN.md:82`). The exhaustive run and the planted `eighth.py` run were re-run at `812aaa0`.
 
 ## Review
 
-Fourth review: not written yet. It covers the revision that adds step 5 and the `connector` contract, and its verdict goes here.
+Fifth review: not written yet. It covers the revision made for the fourth review's findings, and its verdict goes here.
+
+REVISE · design-reviewer at 812aaa0 · 2026-11-21
+
+- Blocking, the only one: step 5 leaves `docs/README.md` saying four contracts. `docs/README.md:37`, which describes `dependency.md`, says "the four import contracts of `.importlinter`". Step 5 makes that untrue, and no step lists `docs/README.md`. `docs/README.md:98`, which describes this Epic's `DESIGN.md`, says "the four import contracts", which is already untrue at `812aaa0` (`DESIGN.md:59` says five). For RATIFY, step 5's Files line adds `docs/README.md` (lines 37 and 98: "four" becomes "five"). `git grep -n -E "four (import )?contracts" -- . ":!docs/epics/E01-module-map"` finds only these two lines and `docs/diagrams/dependency.md:99`, which step 5 already covers.
+- The renumbering holds. Every step number in the Steps, the Done criteria, the Open questions and `DESIGN.md` points at the right step: the proof is step 6 (step 7, Done 12, `DESIGN.md:113`), the grading is step 7 (Done 14, the W3-3 promise at `DESIGN.md:78`, R5 at `DESIGN.md:105`, Open questions line 2), and the strategy line is step 8 (Done 16). The committed trailers read `Step: 1/7` to `Step: 4/7` on `90ce5bd`, `6af05eb`, `0120a9b` and `6c69c2e`, as steps 1 to 4 say.
+- The new premises hold. I re-ran them at `812aaa0` with import-linter 2.17 and `--no-cache`:
+  - On the committed `.importlinter`: `Contracts: 4 kept, 0 broken.`, exit 0.
+  - On the scratch `exh.importlinter`, which is the committed file plus only the `connector` contract and no ignore line: `Every connector module has a layer KEPT`, `Contracts: 5 kept, 0 broken.`, exit 0. Done 9's grep counts `2`, and Done 18's first grep counts `1`.
+  - With `plant2` (`diff -r` shows only `GitHub_Connector/eighth.py` added): `Analyzed 28 files`, `Every connector module has a layer BROKEN`, `Contracts: 4 kept, 1 broken.`, exit 1, and the output names `GitHub_Connector.eighth`.
+  - With the step 6 plant and the five contracts: `Contracts: 3 kept, 2 broken.` (`layers` and `core`), exit 1, and the connector contract is unaffected.
+  - In 2.17, `exhaustive` requires `containers` (`importlinter/contracts/layers.py:186-190` in the install). `git ls-files Source/GitHub_Connector` lists `api` and exactly the seven service modules.
+- Steps 1 to 4 as committed match the revised Epic, and nothing in them contradicts it:
+  - `.importlinter` holds four contracts with one comment above each ignore line.
+  - `ci.yml:1` and `ci.yml:25-28` run `lint-imports` with `PYTHONPATH: Source`, so the step's name is `Run lint-imports` as Done 11 and 12 expect.
+  - `requirements-dev.txt:2` reads `import-linter==2.17`.
+  - `.gitignore` names `.import_linter_cache/`, and `CLAUDE.md:52` names `lint-imports`.
+  - `CLAUDE.md:42` R5 is still the old wording, which step 7 changes.
+  - Step 1's grep prints nothing, `--follow` reaches `7f1ac0a`, and step 2's check prints `docs/diagrams/dependency.md:3`.
+  - `git diff --stat main...HEAD -- Source tests docs/base/specifications.md docs/base/structure.md` prints nothing.
+  - `OPEN-DECISIONS.md` has no `E01` row.
+  - `ci.yml:5-6` triggers on `pull_request` with no type filter, so a draft PR runs CI, as step 6 now asks.
+- The filled-copy check prints nothing for `EPIC.md` or `DESIGN.md`. Every step names its files, one check with its output and its trailer. Every Done line apart from 4 is a command with an expected output. Nothing contradicts levels 1 to 6. All three open questions have sourced answers, and none needs a row.
+- Not blocking: step 5's list of `dependency.md` edits leaves out two things. The first is the sentence that `DESIGN.md:69` adds about `exhaustive = true` (beside `dependency.md:108`). The second is the premise row at `dependency.md:133`, "the contracts pass" with `4 kept`. `DESIGN.md:94` words it "the first four contracts", and the model should say the same.
+- Not blocking: Done 18's `git grep -c "exhaustive = true"` also counts a comment that contains the phrase. The comment above the `connector` contract should not quote it.
+- Not blocking: the human's third condition, that a new unlisted module fails, is shown only by the scratch run in `DESIGN.md:96`, and the auditor cannot re-run it from the repository. Done 18's `exhaustive = true` line is the on-disk stand-in for it.
 
 Earlier reviews follow. They use the step numbers of their time: seven steps, with the proof as step 5, the grading as step 6 and the strategy line as step 7.
 
