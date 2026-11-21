@@ -147,4 +147,4 @@ What it changes in `04-one-template.md`:
 12. Helix, adding languages (`languages.toml`, `runtime/queries/<lang>/`): https://docs.helix-editor.com/guides/adding_languages.html
 13. difftastic, adding a parser: https://difftastic.wilfred.me.uk/adding_a_parser.html
 14. difftastic parse errors: README "What about parse errors?" https://github.com/Wilfred/difftastic and `src/options.rs` (`DEFAULT_PARSE_ERROR_LIMIT = 0`): https://github.com/Wilfred/difftastic/blob/master/src/options.rs
-15. `docs/deviations/research-multi-language.md`, section 2 (determinism across OSes)
+15. `docs/proposals/language-engine/research-multi-language.md`, section 2 (determinism across OSes)

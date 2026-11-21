@@ -2,7 +2,7 @@
 
 Question: how does one check get every file it needs from GitHub within the 80 s deadline?
 
-One fresh clone per check, files downloaded in batches rather than one by one, nothing kept afterwards. Decided as D11 in `docs/base/phase4.md`, from measurements on real repositories. Today a check makes two batched downloads: `/models` first, because `scope.json` decides which code files are in scope, then the in-scope files (`docs/tickets/tracker-gaps.md` row 3). The times below were measured with one batch.
+One fresh clone per check, files downloaded in batches rather than one by one, nothing kept afterwards. Decided as D11 in `docs/base/phase4.md`, from measurements on real repositories. Today a check makes two batched downloads: `/models` first, because `scope.json` decides which code files are in scope, then the in-scope files (`docs/state/tracker-gaps.md` row 3). The times below were measured with one batch.
 
 ```mermaid
 flowchart TB

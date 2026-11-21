@@ -258,7 +258,7 @@ Unchanged: the requirements REQ-01 to REQ-07, the cases L-pre to L6 and what eac
 
 ## 7. Still open after 2.4.0
 
-None of these blocks agreeing to 2.4.0. `docs/tickets/contract-contradictions.md` tracks
+None of these blocks agreeing to 2.4.0. `docs/decisions/contract-contradictions.md` tracks
 each with a fix and a check.
 
 - **Model goldens.** `model-golden-outputs.json` and the fixture SHAs are pending (contract

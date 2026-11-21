@@ -51,4 +51,4 @@ The team picks one of two ways to do this.
 
 Start with **Option 1**: it costs nothing and gives the real-world flow today. Move to **Option 2** only if teams find the leftover violations noisy after owners have approved.
 
-Either way, fix the self-grant hole first (`docs/deviations/init/init.md`, Problem 1). With Option 2 it matters more: the approving owner must be checked against the **old** ownership.json, or a non-owner could add themselves as an owner and then approve their own change.
+Either way, fix the self-grant hole first (`docs/proposals/init/init.md`, Problem 1). With Option 2 it matters more: the approving owner must be checked against the **old** ownership.json, or a non-owner could add themselves as an owner and then approve their own change.

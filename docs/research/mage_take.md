@@ -61,7 +61,7 @@ Four passages bear directly on a drift tool:
   - A malformed `ownership.json` used to read as drift. It now returns `INVALID_MODELS`.
   - Bot authors used to be mined as owners. There is now a `BOTS` constant with a test.
   - Diagram rules are now checked by `tests/docs/test_diagrams.py`.
-  - Every row in `tickets/tracker-gaps.md` names "a check that closes it".
+  - Every row in `state/tracker-gaps.md` names "a check that closes it".
 - **Decisions are recorded with evidence.** D1–D12 in `docs/base/phase4.md`. For example, D11 chose a blobless clone after measuring 9–13 s against 163–221 s for reading blob by blob. There is also an ADR with its rejected option.
 - **It suits agentic workflows.** The check is deterministic and runs no LLM, so agents may produce the code but are not trusted to grade it. The four-field JSON answer turns an agent's silent import-graph change into a short list of differences a reviewer can act on. The agent-facing docs (`AGENTS.md`, `docs/agents/`, a "which doc wins" order in `docs/README.md`) are what the book means by skills and project instructions.
 
@@ -92,7 +92,7 @@ Four passages bear directly on a drift tool:
 
 5. **The one real obligation can be bypassed.**
    - Ownership rules are read at the commit being checked. So a non-owner can add themselves as an owner and change the file in the same push, and the check passes.
-   - The team found this itself (`docs/deviations/init/init.md`, "Problem 1"). It is designed but not fixed.
+   - The team found this itself (`docs/proposals/init/init.md`, "Problem 1"). It is designed but not fixed.
    - The evidence is the git author email, which anyone can set.
    - The book: a checker that reads an obligation the work can rewrite "may only confirm that the system agrees with itself".
 
@@ -114,7 +114,7 @@ Four passages bear directly on a drift tool:
 9. **Some framing over-reaches.**
    - **Audit → Drain → Promote does not fit a derived baseline.** `drifter init` makes the model equal the code by construction, so there is no backlog of violations to drain. The pattern fits authored rules, which this project does not have yet for structure.
    - **The EU AI Act claim.** The skeptic reports that Annex XI items 1(d) and 2(b) concern a general-purpose AI model's architecture and its design rationale, and that a Python import graph provides neither. The spec already marks this framing as open (Q11).
-   - **Planned spend may be in the wrong place.** About 1,200 lines in `docs/deviations/language-engine/` plan support for 14 languages before the Python check has shown a return. The book's advice is "invest where it pays".
+   - **Planned spend may be in the wrong place.** About 1,200 lines in `docs/proposals/language-engine/` plan support for 14 languages before the Python check has shown a return. The book's advice is "invest where it pays".
 
 ## Where the reviewers disagreed
 
@@ -296,7 +296,7 @@ This is the project's one real *ought* (§3.2). It must block merges, so its tes
 
 - **Must implement:**
   - Name one **owner** in this file.
-  - Keep a short table in `docs/tickets/` with one row per red `drifter check`: the PR, and whether it was *true drift*, a *false alert* or an *accepted change*.
+  - Keep a short table in `docs/state/` with one row per red `drifter check`: the PR, and whether it was *true drift*, a *false alert* or an *accepted change*.
 - **Exit condition:** fewer than 10 false alerts in 100 red checks (spec Risk 1). When it is met, delete `continue-on-error` from C1. The drift check then blocks merges too.
 - **Lecture match:** this is the promotion the lecture describes at Cloudflare, policies moving "from advisory guidance to enforced requirements", which it calls "an Alignment decision". Promote on measured evidence, not on a schedule.
 

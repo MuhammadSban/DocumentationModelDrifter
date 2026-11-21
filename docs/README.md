@@ -4,9 +4,9 @@ Purpose: keep a repository's architecture documentation (the three models in `/m
 
 `GLOSSARY.md` at the repository root is the glossary: the terms the spec and code use, such as drift, accepting drift and acceptance criterion.
 
-`adr/` holds architecture decision records: why a hard-to-reverse choice was made. Read them before reversing one.
+Every file under `docs/` is listed below, with when to read it. Paths are relative to `docs/`. Keep this map current when a file is added, moved or removed.
 
-When a diagram and the spec disagree, the spec wins. For anything another team's tester or system sees (routes, JSON, tests), `contract/` wins over the spec. The course's `base/student-facing-spec.docx.pdf` wins over all of them.
+**Which doc wins.** The authority order belongs in `CLAUDE.md` at the repository root. That file does not exist yet (W2-1 writes it); until it does, this paragraph is the order. The course's `base/student-facing-spec.docx.pdf` wins over everything. For anything another team's tester or system sees (routes, JSON, tests), `contract/` wins over the spec. The spec wins over a diagram. `state/WORK-ITEMS.md` is a plan: the spec and the contract win over it. `proposals/` are not agreed. `research/` and `history/` are background: never build from them. When a lower doc disagrees with a higher one, fix the lower one in the same change.
 
 ## base/
 
@@ -15,6 +15,7 @@ When a diagram and the spec disagree, the spec wins. For anything another team's
 - `base/structure.md` — the structural model's format: the generator's input, node and edge kinds, the id scheme and an example. Read it before changing the structural generator. The spec wins where they disagree.
 - `base/behavioral.md` — the behavioral model's format, frozen as `generate_behavioral` writes it: state and transition kinds, the id scheme, the mining rules, what the miner leaves out, and an example. Read it before changing the behavioral generator. The spec wins where they disagree.
 - `base/student-facing-spec.docx.pdf` — the course's cross-team testing rules. Read it when writing or changing tests or the tester.
+- `base/overview_phase4.html` — a visual tour of the architecture as Phase 4 built it. Read it for orientation; the spec wins where they disagree.
 
 ## contract/
 
@@ -32,6 +33,7 @@ The pod contract with Team 16. Both teams' registry rows link it. It follows Tea
 
 Diagrams of the planned system. Each is a Markdown file whose Mermaid block is the source; GitHub draws it, and `python diagrams/render.py` renders a PNG on demand (not committed). `agents/modeling.md` has the rules for modeling and drawing.
 
+- `diagrams/render.py` — renders a diagram's Mermaid block to a PNG. Run it to see a diagram outside GitHub.
 - `diagrams/who-talks-to-what.md` — the developer, GitHub and a tester reach one drifter core (orchestrator, GitHub integration, three generators, comparison) through the CLI, the GitHub Action (Phase 5) and the hosted service, which serves the pod contract's routes and adds change detection and a result store; the repository is only read. Read it first to understand the system.
 - `diagrams/behavioral-model.md` — lifecycle of a repository under the tool: init proposes the models, a person commits them, and each push ends Aligned, Drifted or Failed. Only structural and behavioral are regenerated; ownership is checked against its rules (spec §3.2).
 - `diagrams/init.md` — `drifter init` step by step: the overwrite guard, structural and behavioral from the code with the default scope, ownership proposed from history, the four files written, then a person commits the baseline. Read it before changing `generate_models` or the init command.
@@ -44,12 +46,67 @@ Diagrams of the planned system. Each is a Markdown file whose Mermaid block is t
 - `diagrams/cross-team-test.md` — one cross-team test session as `contract/pod-contract.md` defines it: tester and system routes, the T-01 to T-33 loop over both fixtures, and the report. The tester reads `/health` once first and skips each test whose feature the target does not list. It also shows the one-session 409 and the stop at 570 s of the 600 s run.
 - `diagrams/research-evidence.md` — Team 15's tool research, as a table: what runs at runtime, what only serves tests, what is rejected. Team 15's choices, not the pod contract.
 
-## tickets/
+## adr/
 
-- `tickets/tracker-gaps.md` — open work: what the wired drift check still owes, and what one check still needs to become a tracker that watches a repository on its own. Each row has a fix and a check that closes it. `base/phase4.md` owns the schedule; this file owns the detail.
-- `tickets/contract-contradictions.md` — open work: each place where the contract, the spec, the diagrams, the course PDF or Team 16's v1.1 package disagree, with a fix, a check that closes it, and an owner. A ticket whose check passes moves to the file's closed table.
+Architecture decision records: why a hard-to-reverse choice was made. Read them before reversing one. The folder stays here because `contract/mapping-v1.1.yaml` classifies `docs/adr/**` as DESIGN.
+
+- `adr/0001-one-acceptance-criteria-list.md` — why AC-01 to AC-10 always carry the pod's meaning. Read it before renumbering or redefining an acceptance criterion.
+
+## agents/
+
+How agents work in this repository. `AGENTS.md` at the repository root points here.
+
+- `agents/modeling.md` — the rules for designing a model format and drawing a diagram. Read it before either.
+- `agents/domain.md` — where the glossary and the ADRs are and how to use them. Read it before exploring the codebase.
+- `agents/issue-tracker.md` — how issues are created and read with the `gh` CLI. Read it before touching an issue.
+- `agents/triage-labels.md` — the five triage labels and what each means. Read it before labelling an issue.
+
+## state/
+
+Where the work stands.
+
+- `state/WORK-ITEMS.md` — the one queue: every Phase 5 item (W0 to W5, N1 to N6) with its tier, what it depends on, what it touches and when it is done. Read it before starting work, and trust it over memory. A plan: the spec and the contract win over it.
+- `state/tracker-gaps.md` — open work: what the wired drift check still owes, and what one check still needs to become a tracker that watches a repository on its own. Each row has a fix and a check that closes it. `base/phase4.md` owns the schedule; this file owns the detail.
+
+## decisions/
+
+Calls that are not an agent's to make.
+
+- `decisions/OPEN-DECISIONS.md` — the index of decisions awaiting the human. Read it before choosing between options; if the question has a row, stop and cite it instead of guessing.
+- `decisions/contract-contradictions.md` — each place where the contract, the spec, the diagrams, the course PDF or Team 16's v1.1 package disagree, with a fix, a check that closes it, and an owner. A ticket whose check passes moves to the file's closed table.
+
+## proposals/
+
+Phase 5 proposals. Not agreed and not built: nothing here changes the code, the contract or the spec until the team accepts it. Read one when its work item starts.
+
+- `proposals/docker/docker.md` — a `.dockerignore`, a Dockerfile ordered for layer caching, and when to split the containers (W1-2, W1-3, W3-6).
+- `proposals/init/init.md` — which `/models` files a person may edit after `drifter init`, the self-grant hole, and `drifter validate` (W0-6, W0-7, W3-8).
+- `proposals/ownership/owner-approval.md` — whether an edit by a non-owner is still a violation when an owner approved it (W0-7, W4-7).
+- `proposals/language-engine/README.md` — the multi-language engine in short, and the order to read the folder in (W5-1 to W5-3). Start here.
+- `proposals/language-engine/01-what-changes.md` — which parts of one check change for more languages, and which stay.
+- `proposals/language-engine/02-language-adapters.md` — per-language adapters. Superseded in part by 04.
+- `proposals/language-engine/03-language-mapping.md` — what each language becomes in `structural.json`.
+- `proposals/language-engine/04-one-template.md` — the design: one engine, and one table row plus one query file per language.
+- `proposals/language-engine/05-decisions-log.md` — the decisions D1 to D11 (D6 is still open), the open questions O1 to O5 and what was only suggested.
+- `proposals/language-engine/06-init.md` — how `drifter init` changes beyond Python.
+- `proposals/language-engine/final_templates.md` — the end state after steps a to d, and its seams.
+- `proposals/language-engine/research-multi-language.md` — the options for reading more languages, measured.
+- `proposals/language-engine/research-template-engine.md` — how to build the engine, ranked by CPU time, memory and effort.
+- `proposals/language-engine/guide.html` — a visual guide to the folder.
+
+## research/
+
+Background: outside evidence and reviews. Read it for the reasoning behind a work item; never build from it. `state/WORK-ITEMS.md` replaces the to-do lists inside these files.
+
+- `research/mage-engineering-env.md` — lecture notes on how MAGE sets up an engineering environment for agents.
+- `research/mage-research.md` — the source map behind those notes.
+- `research/mage_take.md` — a review of this project against MAGE.
+- `research/mage-alignment.html` — a visual explainer of MAGE's alignment checks.
+- `research/industry-architecture-research.md` — how other drift tools are built, and what that means here.
+- `research/architecture-review.html` — a review of the model and drifter code, findings A to F (the Wave 3 refactors).
 
 ## history/
 
 - `history/phase2-changes.md` — history, not instructions: what changed from Phase 2 and v1. Read it only for course reports; never build from it.
+- `history/deviations-review-2026-11-05.md` — the review of the former `docs/deviations/` folder, document by document: verdicts, repeats and contradictions. It was the queue's appendix; read it for why an item in `state/WORK-ITEMS.md` exists.
 - `history/contract-2.4.0-changes.md` — what changed from contract 2.3.0 to 2.4.0, what it means for each team's system and tester, and the matching spec changes. Send it to Team 16 with the contract; the contract wins where they differ.

@@ -288,7 +288,7 @@ Each item says what the evidence shows and what is recommended. Items 1–3 are 
 - https://herbsleb.org/web-pubs/pdfs/cataldo-socio-2008.pdf — socio-technical congruence; logical dependencies matter most.
 
 **This repository (read, not modified)**
-- `docs/deviations/perspectives/mage_take.md` — MAGE review: no gate, baseline not ought, ownership self-grant.
+- `docs/research/mage_take.md` — MAGE review: no gate, baseline not ought, ownership self-grant.
 - `docs/base/specifications.md` — exit codes, change kinds, architecture table.
 - `docs/base/structure.md` — structural model ids and canonical layout.
 
