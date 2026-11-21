@@ -1,6 +1,6 @@
 # E00: Move the docs by purpose
 
-Status: draft · Owner: Kaan
+Status: closed · Owner: Kaan
 
 W-row: W2-5 (build order step 0.2a) in `docs/state/WORK-ITEMS.md` · Branch: `docs/mage-env-prep`
 
@@ -67,4 +67,4 @@ This Epic's own:
 
 ## Review
 
-No verdict. The steps were committed before this file and before the design reviewer role (W2-6, step 0.4b) existed, so nobody wrote RATIFY ahead of the work. That is the one way this example differs from a live Epic, where RATIFY stands here before step 1. The Status stays `draft` until the human accepts; the closing commit then moves this folder to `docs/closed/E00-docs-move/`.
+No verdict. The steps were committed before this file and before the design reviewer role (W2-6, step 0.4b) existed, so nobody wrote RATIFY ahead of the work. That is the one way this example differs from a live Epic, where RATIFY stands here before step 1. The Status stayed `draft` until the human accepted, on 2026-11-20; the closing commit then moved this folder to `docs/closed/E00-docs-move/`.

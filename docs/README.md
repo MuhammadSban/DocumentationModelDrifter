@@ -87,10 +87,15 @@ Blank forms. Copy one into place and fill only the copy.
 
 ## epics/
 
-Live Epics, one folder each. Finished ones move to `closed/`, which does not exist until the first Epic closes; never build from one.
+Live Epics, one folder each. Finished ones move to `closed/`; never build from one.
 
 - `epics/README.md` — how an Epic is named, how it and its W-row name each other, its branch, its lifecycle from draft to closed, and when a change needs no Epic. Read it before drafting, reviewing, building or closing an Epic.
-- `epics/E00-docs-move/EPIC.md` — the example Epic: the docs move of W2-5 (step 0.2a), written after the fact. Read it to see a filled template.
+
+## closed/
+
+Finished Epics: history. Read one only when the task asks for it, and never build from it.
+
+- `closed/E00-docs-move/EPIC.md` — the example Epic: the docs move of W2-5 (step 0.2a), written after the fact. Read it to see a filled template.
 
 ## proposals/
 
