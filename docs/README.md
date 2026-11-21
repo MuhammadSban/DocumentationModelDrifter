@@ -89,8 +89,6 @@ Blank forms. Copy one into place and fill only the copy.
 Live Epics, one folder each. Finished ones move to `closed/`; never build from one.
 
 - `epics/README.md` — how an Epic is named, how it and its W-row name each other, its branch, its lifecycle from draft to closed, and when a change needs no Epic. Read it before drafting, reviewing, building or closing an Epic.
-- `epics/E02-system-models/EPIC.md` — the live Epic for build order step 0.6b: add `diagrams/data-flow.md`, rename and extend `diagrams/behavior.md`, write the folder's README, review the kept models and delete the other diagram files. Read it before changing a file in `diagrams/`.
-- `epics/E02-system-models/DESIGN.md` — that Epic's design: what each model holds, where the content of each deleted file goes, and where the code and the build order disagree.
 
 ## closed/
 
@@ -99,6 +97,8 @@ Finished Epics: history. Read one only when the task asks for it, and never buil
 - `closed/E00-docs-move/EPIC.md` — the example Epic: the docs move of W2-5 (step 0.2a), written after the fact. Read it to see a filled template.
 - `closed/E01-module-map/EPIC.md` — the closed Epic for W1-5 (step 0.6a): give the system's first diagram the name `diagrams/dependency.md`, extend it into the module map, and have CI check imports against it with `lint-imports`. Read it for how the module map and `.importlinter` came about; the standing model is `diagrams/dependency.md`.
 - `closed/E01-module-map/DESIGN.md` — that Epic's design: the four layers, the allowed calls, the public names, the five import contracts and the two imports that break the map today.
+- `closed/E02-system-models/EPIC.md` — the closed Epic for build order step 0.6b: add `diagrams/data-flow.md`, rename and extend `diagrams/behavior.md`, write the folder's README, review the kept models and delete the other diagram files. Read it for how the two models came about; the standing models are in `diagrams/`.
+- `closed/E02-system-models/DESIGN.md` — that Epic's design: what each model holds, where the content of each deleted file went, and where the code and the build order disagreed.
 
 ## proposals/
 

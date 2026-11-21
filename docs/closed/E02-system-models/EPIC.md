@@ -1,6 +1,6 @@
 # E02: The data-flow and behavior models
 
-Status: ratified · Owner: Kaan
+Status: closed · Owner: Kaan
 
 W-row: none. Build order step 0.6b has no W-row; `docs/state/WORK-ITEMS.md` names it by its step number under Next action · Branch: `E02-system-models`
 
