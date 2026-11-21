@@ -86,7 +86,7 @@ Each line is a command and the output that means done. The auditor re-runs every
 Baseline, the same for every Epic:
 
 1. CI green: `gh run list --commit $(git rev-parse HEAD) --limit 1 --json conclusion --jq ".[0].conclusion"` → `success`. The branch is pushed only on the human's word, so this line can pass only after that.
-2. Spec lines updated: `git grep -n "diagrams/behavior.md" -- docs/base/specifications.md` → one line, `docs/base/specifications.md:294`, and `git diff --stat main...HEAD -- docs/base/specifications.md` lists the file
+2. Spec lines updated: `git grep -n "diagrams/behavior.md" -- docs/base/specifications.md` → two lines, `docs/base/specifications.md:294` and `docs/base/specifications.md:297`, and `git diff --stat main...HEAD -- docs/base/specifications.md` lists the file. Amended 2026-11-21 by the human's decision: the spec sentence approved at step 3 names the file twice.
 3. No open row for this Epic: `git grep -n "E02" -- docs/decisions/OPEN-DECISIONS.md` → prints nothing
 4. The human accepts. The one line that is the human's word and not a command: it comes after lines 1 to 3 and the Epic's own lines pass. It includes the human's approval of `data-flow.md`, `behavior.md` and `README.md`.
 
