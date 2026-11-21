@@ -1,6 +1,6 @@
 # E01: The module map and its import check
 
-Status: draft · Owner: Kaan
+Status: ratified · Owner: Kaan
 
 W-row: W1-5 (build order step 0.6a) in `docs/state/WORK-ITEMS.md` · Branch: `E01-module-map`
 
@@ -128,7 +128,28 @@ This Epic's own:
 
 ## Review
 
-Fifth review: not written yet. It covers the revision made for the fourth review's findings, and its verdict goes here.
+RATIFY · design-reviewer at 0fef9ba · 2026-11-21
+
+- The fourth review's blocking finding is fixed. Step 5's Files line now lists `docs/README.md`, so `docs/README.md:37` can say five import contracts. `docs/README.md:98` already says "the five import contracts" at `0fef9ba`. `git grep -n -E "(four|five) (import )?contracts"` outside this Epic finds only `docs/README.md:37` and `docs/diagrams/dependency.md:99`, and step 5 edits both. No other line in the repository says `4 kept` or that a new `GitHub_Connector` module goes unseen, except `dependency.md:121`, `:133` and `:143`, and step 5 lists all three.
+- The three non-blocking findings are addressed. Step 5 adds the `exhaustive` sentence (`DESIGN.md:69`) and rewords the premise row at `dependency.md:133` to "the first four contracts" (`DESIGN.md:94`). Step 5's note keeps the option's text out of the comment, so Done 18 counts one line. Done 18 now says that the unlisted-module case is proven by the scratch run and that the two commands stand in for it at HEAD.
+- The premises hold. I re-ran them at `0fef9ba` with import-linter 2.17 and `--no-cache`:
+  - The committed `.importlinter` gives `Contracts: 4 kept, 0 broken.`, exit 0.
+  - The scratch `exh.importlinter` is the committed file plus only the `connector` contract, with no ignore line (checked with `diff`). It gives `Contracts: 5 kept, 0 broken.`, exit 0. Done 9's grep counts `2`, and Done 18's first grep counts `1`.
+  - `plant2` adds only `GitHub_Connector/eighth.py` (checked with `diff -rq`). It gives `Analyzed 28 files`, `Every connector module has a layer BROKEN`, `Contracts: 4 kept, 1 broken.`, exit 1, and the output names `GitHub_Connector.eighth`.
+  - `git ls-files Source/GitHub_Connector` lists `api` and exactly the seven service modules.
+- The other checks still hold at `0fef9ba`:
+  - Since `812aaa0`, only `EPIC.md` and `docs/README.md:98` changed.
+  - Step 1's grep prints nothing, `--follow` reaches `7f1ac0a`, and step 2's check prints `docs/diagrams/dependency.md:3`.
+  - `requirements-dev.txt:2` reads `import-linter==2.17`.
+  - `ci.yml:1` and `ci.yml:26-29` run `lint-imports` with `PYTHONPATH: Source`.
+  - `CLAUDE.md:42` R5 still has the old wording, which step 7 changes. `CLAUDE.md:52` names `lint-imports`.
+  - `git diff --stat main...HEAD -- Source tests docs/base/specifications.md docs/base/structure.md` prints nothing.
+  - `OPEN-DECISIONS.md` has no `E01` row. `STRATEGY.md:21` is the only line that names W1-6.
+  - The open questions' sources read as cited: `docs/state/WORK-ITEMS.md:136` and `:165`, `docs/state/WORK-ITEMS.md:184` (W3-3), `Source/drifter/cli.py:15` and `DESIGN.md:82`.
+- The filled-copy check prints nothing for `EPIC.md` or `DESIGN.md`. Every step names its files, one check with its output, and its trailer. Every Done line apart from 4 is a command with an expected output. Nothing contradicts levels 1 to 6. `DESIGN.md` exists. All three open questions have sourced answers, and none needs a row.
+- Not blocking: step 5's list of `dependency.md` edits names two edits only loosely. The first is the sentence above the contracts table (`dependency.md:99`, "four contracts"), which "says five contracts" covers. The second is the clause `DESIGN.md:116` adds to the "baseline only shrinks" row, "the same run ends with `Contracts: 5 kept, 0 broken.`", which "says 5 kept" covers. The builder should copy both from `DESIGN.md`.
+
+Fourth review below, at `812aaa0`.
 
 REVISE · design-reviewer at 812aaa0 · 2026-11-21
 
