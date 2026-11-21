@@ -11,7 +11,7 @@ An Epic is one planned change: a goal, steps that each carry a check, and Done c
 - **Folder:** `docs/epics/E<nn>-slug/`. `<nn>` is two digits, one above the highest number in `docs/epics/` and `docs/closed/` together, so a number is used once. The slug is lowercase words joined by hyphens.
 - **Files:** `EPIC.md`, copied from `docs/templates/EPIC.md`. `DESIGN.md` sits beside it only when the Epic changes a boundary, an invariant or a model in `docs/diagrams/`.
 - **Branch:** `E<nn>-slug`, the folder's name. All work on the Epic happens on it.
-- **W-row:** the Epic and its row in `docs/state/WORK-ITEMS.md` name each other. The Epic's header carries the W-id. The row carries the path to `EPIC.md`: in its Epic column once W2-3 adds that column, in its Item text until then.
+- **W-row:** the Epic and its row in `docs/state/WORK-ITEMS.md` name each other. The Epic's header carries the W-id. The row carries the path to `EPIC.md` in its Epic column.
 
 ## Lifecycle
 

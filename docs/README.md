@@ -58,7 +58,7 @@ How agents work in this repository. `CLAUDE.md` at the repository root points he
 
 - `agents/modeling.md` — the rules for designing a model format and drawing a diagram. Read it before either.
 - `agents/domain.md` — where the glossary and the ADRs are and how to use them. Read it before exploring the codebase.
-- `agents/issue-tracker.md` — how issues are created and read with the `gh` CLI. Read it before touching an issue.
+- `agents/issue-tracker.md` — where specs and tickets live: an Epic under `epics/` and its Steps, with `state/WORK-ITEMS.md` as the queue. Read it before a skill publishes a spec or fetches a ticket.
 - `agents/triage-labels.md` — the five triage labels and what each means. Read it before labelling an issue.
 
 ## state/

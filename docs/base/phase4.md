@@ -125,7 +125,7 @@ Spec: issue #12. Status as of 2026-11-01, after #13 closed and Muhammad's push o
 | D4 | Work continues on `durable-store`, rebased onto `contract-alignment`. Since then contract-alignment is merged into `main` and `durable-store` was never created, so v1 branches from `main`. |
 | D5 | Q1 to Q8 below are decided as recommended, except: generators take `{path: text}` as spec §3.2 says (not parsed trees); models live in `Source/models/`, the core in `Source/drifter/`. |
 | D6 | Results on a Railway volume behind `runs.py`, failing loudly without one. Not horizontally scalable, deliberately: the spec caps checks at 2 at once. |
-| D7 | This roadmap lives here; one GitHub issue per item, labelled `ready-for-human`. |
+| D7 | This roadmap lives here. Since 2026-11-20 the queue is `docs/state/WORK-ITEMS.md`, and the spec for a planned change is an Epic under `docs/epics/` (`docs/agents/issue-tracker.md`). A GitHub issue is optional and links to its queue row. Before that: one GitHub issue per item, labelled `ready-for-human`. |
 | D8 | Model owners start now; behavioral first. |
 | D9 | The seam in `docs/diagrams/model-seam.md`. |
 | D10 | Kaan writes the ownership checker and the commit log; `CommitRecord` is the shared type. |

@@ -53,6 +53,6 @@ Unnumbered.
 
 ### Agent skills
 
-- **Issue tracker.** Issues live in this repo's GitHub Issues, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+- **Issue tracker.** Specs and tickets live in this repo: a spec is an Epic under `docs/epics/`, a ticket is one Step in it, and `docs/state/WORK-ITEMS.md` is the queue. GitHub Issues are optional. See `docs/agents/issue-tracker.md`.
 - **Triage labels.** The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 - **Domain docs.** Single-context: `GLOSSARY.md` is the glossary, `docs/adr/` holds the ADRs. See `docs/agents/domain.md`.

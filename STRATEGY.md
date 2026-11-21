@@ -1,32 +1,31 @@
-STRATEGY.md - A to do list that answers near term, deploy gate, and long term goals. 
+# Strategy
 
+Direction only. Status: see Next action in `docs/state/WORK-ITEMS.md`.
 
+## Now
 
-plan section - epic.template.md 
+Ship the Phase 5 release: a repository gets a drift check on every push and pull request by adding one line to its workflow. The check says "aligned" only when it really checked, and says why when it could not.
 
-can pahses be implemented independently, write the classes and make the tests explicty relate to that, how hard is the steps going to be
+## Deploy gates
 
-DO the planning by fable. planning step 
+- Nothing deploys red: Railway deploys a commit only after CI is green on it.
+- The release is tagged only when our tester and Team 16's tester both pass against both systems.
+- Nothing other teams or the graders rely on changes without an agreed contract version.
+- Agents cannot change the rules that govern them: rule files change only with the human's approval.
 
-open-questions.md - open questions inside tempaltes 
+## Near-term
 
+In priority order. A line is deleted when its item closes.
 
-review of the plan froma - different agent session that are left by the open questipns. 
+1. Run `pytest` and `ruff` on every push, and make Railway wait for them (W1-6).
+2. Decide where the ownership and scope rules come from, to close the self-grant hole (W0-7).
+3. Draw the module map and have CI enforce it (W1-5).
+4. Show drift on a pull request as annotations and a job summary (W4-3).
+5. Offer the check as a reusable workflow that another repository calls in one line (W4-2).
+6. Tag the release (W4-1).
+7. Run the demo end to end on a public repository (W4-6).
 
+## Long-term
 
-phase 1 plan - phase1 review 
-phase 2 plan  - phase2 reivew
-
-EOF - at the end make a whole review that everyhting is there and no issues are there. 
-
-
-procsess - dcoumented, automated (use hooks) 
-git hooks - when we type git <verb>  -    .git/hooks/prepush.sh
-
-commit message - less than 50 lines fixes@17 rational descp. for ex recect of more than 50 char or dont have desc 
-
-
-
-refine target files for the agnet that you give the phase to finish so,, have that in the commit messgae, the agent shoudl name the file names that it changes as first commit - do it in k stesp, step 3/k 4/5 ... k/k 
-
-
+- Support languages beyond Python through one parsing engine (W5-3).
+- Rule on the behavioral model, which finds no states on this repository today (N2).
