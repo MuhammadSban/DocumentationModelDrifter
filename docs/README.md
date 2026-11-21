@@ -75,6 +75,22 @@ Calls that are not an agent's to make.
 - `decisions/OPEN-DECISIONS.md` — the index of decisions awaiting the human. Read it before choosing between options; if the question has a row, stop and cite it instead of guessing.
 - `decisions/contract-contradictions.md` — each place where the contract, the spec, the diagrams, the course PDF or Team 16's v1.1 package disagree, with a fix, a check that closes it, and an owner. A ticket whose check passes moves to the file's closed table.
 
+## templates/
+
+Blank forms. Copy one into place and fill only the copy.
+
+- `templates/README.md` — which template to copy where, who fills it, and the check that a copy is filled. Read it before starting an Epic or a design doc.
+- `templates/EPIC.md` — the form for an Epic: what must change. Goal, Relies on, Steps, Done criteria, Open questions, Review.
+- `templates/DESIGN.md` — the form for a design doc: the intended structure, the premises and how each was verified, and what must stay true.
+- `templates/RULED.md` — the form for a ruling, word for word, with the readings it forecloses. Only the human fills it.
+
+## epics/
+
+Live Epics, one folder each. Finished ones move to `closed/`, which does not exist until the first Epic closes; never build from one.
+
+- `epics/README.md` — how an Epic is named, how it and its W-row name each other, its branch, its lifecycle from draft to closed, and when a change needs no Epic. Read it before drafting, reviewing, building or closing an Epic.
+- `epics/E00-docs-move/EPIC.md` — the example Epic: the docs move of W2-5 (step 0.2a), written after the fact. Read it to see a filled template.
+
 ## proposals/
 
 Phase 5 proposals. Not agreed and not built: nothing here changes the code, the contract or the spec until the team accepts it. Read one when its work item starts.
