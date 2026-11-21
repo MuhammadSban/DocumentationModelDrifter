@@ -94,6 +94,8 @@ Blank forms. Copy one into place and fill only the copy.
 Live Epics, one folder each. Finished ones move to `closed/`; never build from one.
 
 - `epics/README.md` — how an Epic is named, how it and its W-row name each other, its branch, its lifecycle from draft to closed, and when a change needs no Epic. Read it before drafting, reviewing, building or closing an Epic.
+- `epics/E01-module-map/EPIC.md` — the Epic for W1-5 (step 0.6a): give the system's first diagram the name `diagrams/dependency.md`, extend it into the module map, and have CI check imports against it with `lint-imports`. Read it before working on the module map or `.importlinter`.
+- `epics/E01-module-map/DESIGN.md` — that Epic's design: the four layers, the allowed calls, the public names, the four import contracts and the two imports that break the map today.
 
 ## closed/
 
