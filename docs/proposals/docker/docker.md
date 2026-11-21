@@ -111,7 +111,7 @@ A frontend or database container does none of these.
 
 Compose describes several containers in one `compose.yaml` and starts them together with `docker compose up`. It is the usual companion to a split, but it plays a narrower role here:
 
-- **It is for running locally, not for deploying.** Railway deploys each service from its own settings (`railway.toml`, the dashboard), not from a Compose file. So Compose would not replace any Railway setup; it would sit beside it.
+- **It is for running locally, not for deploying.** Railway deploys each service from its own settings (the dashboard), not from a Compose file. So Compose would not replace any Railway setup; it would sit beside it.
 - **With one container it adds nothing.** `docker build` and `docker run` already do the whole job.
 - **It earns its place at the first split.** Once the tester is a second service, a Compose file would start both locally with one command, share one network so the tester can call the system by name, mount a local folder as the runs volume, and set each service's env vars. That makes "point our tester at our system" reproducible on any laptop and in CI.
 
