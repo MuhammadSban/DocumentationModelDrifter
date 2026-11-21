@@ -20,4 +20,18 @@
     "Bash(gh pr create*)", "Bash(gh pr merge*)", "Bash(gh api*)",
     "PowerShell(gh pr create*)", "PowerShell(gh pr merge*)", "PowerShell(gh api*)",
     "Edit(/.claude/agents/**)", "Edit(/.claude/hooks/**)"
-  ] } }
+  ] },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/step-trailer.py"]
+          }
+        ]
+      }
+    ]
+  } }
