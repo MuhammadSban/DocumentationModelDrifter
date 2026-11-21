@@ -11,7 +11,7 @@ When two docs disagree, the higher one wins, and the lower one is fixed in the s
 3. The human's rulings, `docs/decisions/RULED/`.
 4. The invariants, `docs/invariants/INVARIANTS.md`.
 5. The spec, `docs/base/specifications.md`.
-6. The models in `docs/diagrams/`: `dependency.md`, `behavioral-model.md`, `models-folder.md` and `model-seam.md`. Every other diagram ranks at level 8.
+6. The models in `docs/diagrams/`: `dependency.md`, `data-flow.md`, `behavior.md`, `models-folder.md` and `model-seam.md`. Every other diagram ranks at level 8.
 7. The current Epic, under `docs/epics/`.
 8. Everything else.
 

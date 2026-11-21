@@ -31,20 +31,15 @@ The pod contract with Team 16. Both teams' registry rows link it. It follows Tea
 
 ## diagrams/
 
-Diagrams of the planned system. Each is a Markdown file whose Mermaid block is the source; GitHub draws it, and `python diagrams/render.py` renders a PNG on demand (not committed). `agents/modeling.md` has the rules for modeling and drawing.
+The models of the system; `diagrams/README.md` is their index. Each is a Markdown file whose Mermaid block is the source; GitHub draws it, and `python diagrams/render.py` renders a PNG on demand (not committed). `agents/modeling.md` has the rules for modeling and drawing.
 
+- `diagrams/README.md` — the index of the folder: the question each model answers, how to read it, that every model there is level 6 of the authority order, and what is not there. Read it to find the model that answers your question.
 - `diagrams/render.py` — renders a diagram's Mermaid block to a PNG. Run it to see a diagram outside GitHub.
 - `diagrams/dependency.md` — the developer, GitHub and a tester reach one drifter core (orchestrator, GitHub integration, three generators, comparison) through the CLI, the GitHub Action (Phase 5) and the hosted service, which serves the pod contract's routes and adds change detection and a result store; the repository is only read. Below the diagram, the module map: the four layers (entry points, services, core, generators), the allowed calls, each package's public names, the five import contracts of `.importlinter` and the two imports that break the map today. Read it first to understand the system, and before adding an import between packages.
-- `diagrams/behavioral-model.md` — lifecycle of a repository under the tool: init proposes the models, a person commits them, and each push ends Aligned, Drifted or Failed. Only structural and behavioral are regenerated; ownership is checked against its rules (spec §3.2).
-- `diagrams/init.md` — `drifter init` step by step: the overwrite guard, structural and behavioral from the code with the default scope, ownership proposed from history, the four files written, then a person commits the baseline. Read it before changing `generate_models` or the init command.
-- `diagrams/one-check.md` — one check step by step, from request to four-field answer, with the HTTP error or no-verdict code each step can return, the 80 s deadline per check, and what the hosted service adds. Read it when working on the orchestrator or errors.
+- `diagrams/data-flow.md` — the data flow of one check: the two ways in (the hosted `/system/analyze` on a fresh clone, the CLI on a local checkout) that meet at `drifter.check`, what is regenerated and what is only read, who writes `/models`, and what only the hosted way adds (change detection, the result store). Its table says, for each step, what sees a change to it. Read it before changing a step of a check.
+- `diagrams/behavior.md` — what can happen to a request: the lifecycle of a repository under the tool (init proposes the models, a person commits them, each push is checked) with the states of one `POST /system/analyze` run inside it, and a table of every ending (aligned, drift, no verdict, the change limit, and the 400, 404 and 500 cases) with what the caller sees and whether a run file is saved. Also the same endings as the CLI's exit codes. Read it before changing an error, a status code, a limit or what is saved.
 - `diagrams/models-folder.md` — the four files in `/models` and what each holds. Structural follows `base/structure.md` (imports and inherits edges, no calls); behavioral follows `base/behavioral.md` (states and transitions); init proposes one exact-path ownership rule per file.
-- `diagrams/model-seam.md` — the seam between the core and the three model owners: who writes which file, the element rule every structural and behavioral model follows, what the core does with each model in one check, how ownership is proposed and checked, and when an owner's model is ready to plug in. Read it before writing or changing a generator.
-- `diagrams/file-fetch.md` — how one check gets the repository's files: a fresh clone without file contents, batched downloads instead of one per file (two today: `/models`, then the in-scope files), reading with lazy fetching off so a failed download stops the check at once; with the measured times that decided it and what it leaves out. Read it before changing how the GitHub integration reads files.
-- `diagrams/comparison.md` — how differences are decided: set difference by id for structural and behavioral (ADDED, REMOVED, MODIFIED), a rule check per commit for ownership (VIOLATION).
-- `diagrams/four-field-answer.md` — test T-26: the four-field answer as the `drift` key of `POST /system/analyze`, how a tester compares it with `contract/model-golden-outputs.json`, and when the test passes, fails or is skipped. A test is skipped when the target's `/health` does not list `model_drift`, and is `error` when `/health` gives no 200 within 90 s.
-- `diagrams/cross-team-test.md` — one cross-team test session as `contract/pod-contract.md` defines it: tester and system routes, the T-01 to T-33 loop over both fixtures, and the report. The tester reads `/health` once first and skips each test whose feature the target does not list. It also shows the one-session 409 and the stop at 570 s of the 600 s run.
-- `diagrams/research-evidence.md` — Team 15's tool research, as a table: what runs at runtime, what only serves tests, what is rejected. Team 15's choices, not the pod contract.
+- `diagrams/model-seam.md` — the seam between the core and the three models' generators: what each generator and schema writes, the element rule every structural and behavioral model follows, what the core does with each model in one check, how ownership is proposed and checked, and when a generator is ready to plug in. Read it before writing or changing a generator.
 
 ## adr/
 
@@ -102,6 +97,8 @@ Finished Epics: history. Read one only when the task asks for it, and never buil
 - `closed/E00-docs-move/EPIC.md` — the example Epic: the docs move of W2-5 (step 0.2a), written after the fact. Read it to see a filled template.
 - `closed/E01-module-map/EPIC.md` — the closed Epic for W1-5 (step 0.6a): give the system's first diagram the name `diagrams/dependency.md`, extend it into the module map, and have CI check imports against it with `lint-imports`. Read it for how the module map and `.importlinter` came about; the standing model is `diagrams/dependency.md`.
 - `closed/E01-module-map/DESIGN.md` — that Epic's design: the four layers, the allowed calls, the public names, the five import contracts and the two imports that break the map today.
+- `closed/E02-system-models/EPIC.md` — the closed Epic for build order step 0.6b: add `diagrams/data-flow.md`, rename and extend `diagrams/behavior.md`, write the folder's README, review the kept models and delete the other diagram files. Read it for how the two models came about; the standing models are in `diagrams/`.
+- `closed/E02-system-models/DESIGN.md` — that Epic's design: what each model holds, where the content of each deleted file went, and where the code and the build order disagreed.
 
 ## proposals/
 
@@ -126,6 +123,7 @@ Phase 5 proposals. Not agreed and not built: nothing here changes the code, the 
 
 Background: outside evidence and reviews. Read it for the reasoning behind a work item; never build from it. `state/WORK-ITEMS.md` replaces the to-do lists inside these files.
 
+- `research/research-evidence.md` — Team 15's tool research, as a table: what runs at runtime, what only serves tests, what is rejected. Team 15's choices, not the pod contract.
 - `research/mage-engineering-env.md` — lecture notes on how MAGE sets up an engineering environment for agents.
 - `research/mage-research.md` — the source map behind those notes.
 - `research/mage_take.md` — a review of this project against MAGE.

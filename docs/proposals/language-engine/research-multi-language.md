@@ -2,7 +2,7 @@
 
 Question: how can the structural (and later behavioral) extractor cover JavaScript, TypeScript, JSX/React, HTML, CSS and later Java or Go with the simplest design that stays deterministic, static and byte-stable (docs/diagrams/model-seam.md)?
 
-Builds on `docs/diagrams/research-evidence.md`, which rejected tree-sitter and ast-grep because of "a second grammar; output order varies". This file re-checks that claim. Measurements: Windows 11, Python 3.13.13, and WSL Ubuntu, Python 3.12, 2026-11-02. Scripts were kept in the session scratchpad, not in the repo.
+Builds on `docs/research/research-evidence.md`, which rejected tree-sitter and ast-grep because of "a second grammar; output order varies". This file re-checks that claim. Measurements: Windows 11, Python 3.13.13, and WSL Ubuntu, Python 3.12, 2026-11-02. Scripts were kept in the session scratchpad, not in the repo.
 
 ## 1. Options compared
 

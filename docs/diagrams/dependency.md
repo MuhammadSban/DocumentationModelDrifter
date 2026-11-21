@@ -17,7 +17,7 @@ flowchart LR
     Action[GitHub Action<br/>drifter check on push<br/>Phase 5, not built yet]
     Hosted[Hosted /system<br/>analyze, analysis/id,<br/>generate, health]
 
-    subgraph Core[drifter core: one codebase, three callers]
+    subgraph Core[The system behind the entry points]
         Orch[Orchestrator]
         Git[Git readers<br/>GitHub clone for hosted,<br/>local checkout for the CLI<br/>the only parts that run git]
         Gen[Structural and behavioral generators]
