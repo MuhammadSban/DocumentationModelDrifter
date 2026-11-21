@@ -76,6 +76,10 @@ Calls that are not an agent's to make.
 - `decisions/RULED/README.md` — what the rulings folder holds and who may write to it: only the human. Read it before citing or looking for a ruling.
 - `decisions/contract-contradictions.md` — each place where the contract, the spec, the diagrams, the course PDF or Team 16's v1.1 package disagree, with a fix, a check that closes it, and an owner. A ticket whose check passes moves to the file's closed table.
 
+## invariants/
+
+- `invariants/INVARIANTS.md` — what must hold, written apart from the code: each entry has an ID, its source, a grade (DEFERRED or ENFORCED-PROVEN) and its check. Read it before changing the check's answer or the ownership rules, and when an Epic lists what it relies on.
+
 ## templates/
 
 Blank forms. Copy one into place and fill only the copy.

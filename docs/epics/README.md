@@ -4,7 +4,7 @@ An Epic is one planned change: a goal, steps that each carry a check, and Done c
 
 **Build only from a live, ratified Epic.** A closed Epic is history: its steps describe the repository as it was. To change something a closed Epic built, open a new Epic and name the closed one under Relies on.
 
-**A small change needs no Epic.** A change that touches no boundary, no invariant and no model in `docs/diagrams/` goes straight to a PR.
+**A small change needs no Epic.** A change that touches no boundary, no invariant and no model in `docs/diagrams/`, and only a handful of files, goes straight to a PR from a branch with any other name. RATIFY, the audit and the `Step:` trailer apply only to Epic work.
 
 ## Naming
 
@@ -18,6 +18,6 @@ An Epic is one planned change: a goal, steps that each carry a check, and Done c
 The Status line of `EPIC.md` says where the Epic is.
 
 1. **draft.** Copy the template and fill every section. Drafting commits carry the trailer `Step: plan`. Done when the filled-copy check in `docs/templates/README.md` prints nothing and every step has one check command.
-2. **Review.** The design reviewer runs as a fresh subagent, never in the session that drafted the Epic. It first settles each open question that the code, the models or a ruling can answer, and cites the source. Each question that is left gets a row in `docs/decisions/OPEN-DECISIONS.md`. Then it writes RATIFY or REVISE with its findings in the Epic's Review section. With RATIFY it sets `Status: ratified`.
+2. **Review.** The design reviewer (`.claude/agents/design-reviewer.md`) runs as a fresh subagent, never in the session that drafted the Epic. It first settles each open question that the code, the models or a ruling can answer, and cites the source. Each question that is left gets a row in `docs/decisions/OPEN-DECISIONS.md`. Then it writes RATIFY or REVISE with its findings in the Epic's Review section. With RATIFY it sets `Status: ratified`.
 3. **ratified.** Code starts here, after RATIFY. Build one step at a time: run the step's check, then commit with the step's trailer, `Step: i/N`.
-4. **closed.** The auditor re-runs every Done criterion and reports. When the human accepts, one closing commit, with the trailer `Step: close`, does three things: `git mv docs/epics/E<nn>-slug docs/closed/E<nn>-slug`, sets `Status: closed`, and marks the W-row done with the new path. Everything the Epic wrote is kept, and a later edit under `docs/closed/` needs the human's approval.
+4. **closed.** The auditor (`.claude/agents/auditor.md`) re-runs every Done criterion and reports. When the human accepts, one closing commit, with the trailer `Step: close`, does three things: `git mv docs/epics/E<nn>-slug docs/closed/E<nn>-slug`, sets `Status: closed`, and marks the W-row done with the new path. Everything the Epic wrote is kept, and a later edit under `docs/closed/` needs the human's approval.
