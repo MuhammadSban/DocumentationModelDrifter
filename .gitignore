@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .mypy_cache/
+.import_linter_cache/
 *.egg-info/
 
 # ignores diagrams rendered on demand, the Mermaid in docs/diagrams/*.md is the only copy

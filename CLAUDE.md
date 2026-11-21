@@ -49,7 +49,7 @@ Both ran on a clean clone in a fresh virtualenv (Python 3.13, Windows).
 
 - **The CLI:** `pip install -e .` installs the `drifter` command: the core and the generators, without the web service.
 - **The service:** `pip install -r requirements.txt`, then the Dockerfile's line, `uvicorn --app-dir Source GitHub_Connector.api:app --host 0.0.0.0 --port 8000`. `GET /system/health` answers 200.
-- **The lint CI runs:** after the service's install, `pip install -r requirements-dev.txt`, then `ruff check`.
+- **The lint CI runs:** after the service's install, `pip install -r requirements-dev.txt`, then `ruff check` and `PYTHONPATH=Source lint-imports`.
 
 ## House rules
 
