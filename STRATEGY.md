@@ -1,6 +1,7 @@
 # Strategy
 
-Direction only. Status: see Next action in `docs/state/WORK-ITEMS.md`.
+Only the team changes direction. An agent may propose an edit, and the human approves it.
+Status: see Next action in `docs/state/WORK-ITEMS.md`.
 
 ## Now
 
@@ -8,7 +9,7 @@ Ship the Phase 5 release: a repository gets a drift check on every push and pull
 
 ## Deploy gates
 
-- Nothing deploys red: Railway deploys a commit only after CI is green on it.
+- Nothing deploys red: a commit reaches Railway only after CI is green on it.
 - The release is tagged only when our tester and Team 16's tester both pass against both systems.
 - Nothing other teams or the graders rely on changes without an agreed contract version.
 - Agents cannot change the rules that govern them: rule files change only with the human's approval.

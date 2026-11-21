@@ -73,6 +73,7 @@ Where the work stands.
 Calls that are not an agent's to make.
 
 - `decisions/OPEN-DECISIONS.md` — the index of decisions awaiting the human. Read it before choosing between options; if the question has a row, stop and cite it instead of guessing.
+- `decisions/RULED/README.md` — what the rulings folder holds and who may write to it: only the human. Read it before citing or looking for a ruling.
 - `decisions/contract-contradictions.md` — each place where the contract, the spec, the diagrams, the course PDF or Team 16's v1.1 package disagree, with a fix, a check that closes it, and an owner. A ticket whose check passes moves to the file's closed table.
 
 ## templates/
