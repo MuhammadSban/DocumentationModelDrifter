@@ -1,15 +1,15 @@
 # The model seam
 
-Question: what does each model owner write, and what does the core do with it?
+Question: what does each generator write, and what does the core do with it?
 
-Each owner decides everything inside their model: kinds, id scheme, attributes, mining rules and the rest of the schema. The core relies only on what this page says. Decided as D9 and D10 in `docs/base/phase4.md`.
+Each model's generator and schema decide everything inside that model: kinds, id scheme, attributes, mining rules and the rest of the schema. The core relies only on what this page says. Decided as D9 and D10 in `docs/base/phase4.md`.
 
 ## What each part writes
 
 | Part | Writes |
 | --- | --- |
 | Structural | `generate_structural(files) -> dict` and `structural.schema.json`; element lists `nodes`, `edges` |
-| Behavioral | `generate_behavioral(files) -> dict` and `behavioral.schema.json`; element lists of the owner's choice |
+| Behavioral | `generate_behavioral(files) -> dict` and `behavioral.schema.json`; element lists of the generator's choice |
 | Ownership | `propose_ownership(head_sha, records) -> dict` and `ownership.schema.json`; rules, never diffed |
 | Core | `parse_files`, `write_model`, `CommitRecord` (defined in `ownership_model.py`), scope, the diff and the ownership checker (both in `Source/drifter/check.py`), the CLI |
 
@@ -31,37 +31,37 @@ A generator must be pure (no git, network, clock, randomness or environment), ne
 
 ## One check
 
-Steps the owners write are marked **(owner)**; every other step is the core's. A step that can end the check names its no-verdict code.
+Steps a model's own code does are marked **(generator)**; every other step is the core's. A step that can end the check names its no-verdict code.
 
 ```mermaid
 flowchart TB
     accTitle: The model seam in one check
-    accDescr: For structural and behavioral, the core parses the in-scope files, calls the owner's generator, validates the committed model against the owner's schema, flattens both to a map from id to element and diffs them by id. For ownership, the core builds commit records, the owner's propose function turns them into ownership.json at init, and the core's checker judges each commit against those rules.
+    accDescr: For structural and behavioral, the core parses the in-scope files, calls the model's generator, validates the committed model against the model's schema, flattens both to a map from id to element and diffs them by id. For ownership, the core builds commit records, propose_ownership turns them into ownership.json at init, and the core's checker judges each commit against those rules.
 
     subgraph SB[Structural and behavioral]
         Files[in-scope files, path to text<br/>chosen by scope.json] --> Parse[parse_files, every file once<br/>no verdict: PARSE_FAILED, FILE_TOO_LARGE]
-        Parse --> Gen["generate_name<br/>(owner)"]
+        Parse --> Gen["generate_name<br/>(generator)"]
         Gen --> Fresh[fresh model<br/>flattened to id: element]
-        Committed["/models/name.json, committed"] --> Valid["validate against the schema (owner)<br/>and unique ids<br/>no verdict: MODELS_NOT_FOUND, INVALID_MODELS"]
+        Committed["/models/name.json, committed"] --> Valid["validate against the model's schema<br/>and unique ids<br/>no verdict: MODELS_NOT_FOUND, INVALID_MODELS"]
         Valid --> Old[committed model<br/>flattened to id: element]
         Fresh & Old --> Diff[diff by id, sorted by id<br/>ADDED, REMOVED, MODIFIED<br/>each: change, file, id, kind]
     end
 
     subgraph OW[Ownership]
         Log[git integration: every commit up to head,<br/>newest first, as CommitRecord<br/>sha, author_email, parents, paths]
-        Log -- init and /generate --> Prop["propose_ownership<br/>(owner)"] --> Write[write_model: ownership.json]
+        Log -- init and /generate --> Prop["propose_ownership<br/>(generator)"] --> Write[write_model: ownership.json]
         Log -- non-merge commits base..head --> Check[checker: first matching rule wins,<br/>no rule means anyone,<br/>a rename is judged on its old path]
-        Rules["ownership.json, validated<br/>against the schema (owner)"] --> Check
+        Rules["ownership.json, validated<br/>against the model's schema"] --> Check
         Check --> Viol[VIOLATION<br/>author, commit, owners, path]
     end
 
     SB ~~~ OW
 ```
 
-`propose_ownership()` returns rules sorted by path, each one exact path with its owners as sorted lowercase emails: `{"rules": [{"owners": ["a@x.com"], "pattern": "src/app.py"}], "schema_version": 1}`. The rest is for the model's author to decide: the window of 10, the 50-file limit and the vendored folders as constants in `ownership_model.py`, a bot being an email containing `[bot]`, and no `email:` prefix.
+`propose_ownership()` returns rules sorted by path, each one exact path with its owners as sorted lowercase emails: `{"rules": [{"owners": ["a@x.com"], "pattern": "src/app.py"}], "schema_version": 1}`. The rest is the generator's own: the window of 10, the 50-file limit and the vendored folders as constants in `ownership_model.py`, a bot being an email containing `[bot]` or one of the addresses in `BOTS`, and no `email:` prefix.
 
-## Done when (each owner, before plugging in at v1.2)
+## A generator is ready to plug in when
 
-- Their own snippet goldens pass: small code, exact expected JSON.
+- Its own snippet goldens pass: small code, exact expected JSON.
 - Output is byte-identical on Linux and Windows (REQ-07).
-- The shared seam test passes (written by the core in v1.1): element rule, unique ids, sorted lists, valid against the schema, `write_model` round trip.
+- The shared seam test passes (`tests/common/test_seam.py`): element rule, unique ids, sorted lists, valid against the schema, `write_model` round trip.

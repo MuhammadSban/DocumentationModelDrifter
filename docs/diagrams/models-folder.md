@@ -7,7 +7,7 @@ Every model file shares one layout: a `schema_version`, sorted keys, 2-space ind
 ```mermaid
 classDiagram
     accTitle: The four files in /models
-    accDescr: scope.json picks which files feed the structural and behavioral generators. structural.json holds nodes and edges, behavioral.json states and transitions, ownership.json an ordered list of rules. Open items are named in each box.
+    accDescr: scope.json picks which files feed the structural and behavioral generators. structural.json holds nodes and edges, behavioral.json states and transitions, ownership.json an ordered list of rules.
 
     class scope["scope.json"] {
         picks generator input
@@ -15,6 +15,7 @@ classDiagram
         exclude: the top-level tests/ only, tests/**
         defaults written by init
         patterns: mapping-v1.1.yaml glob
+        no JSON Schema yet, W3-1 adds it
     }
     class structural["structural.json"] {
         what exists, how parts relate
@@ -24,7 +25,7 @@ classDiagram
         edges: id, kind, source, target, file
         edge kinds: imports, inherits
         settled in structure.md
-        open: JSON Schema
+        schema: structural.schema.json
     }
     class behavioral["behavioral.json"] {
         what may happen, in what order
@@ -32,7 +33,7 @@ classDiagram
         transitions: id, kind, file, source, target, trigger, guard
         string values of a local or self attribute
         settled in behavioral.md
-        open: JSON Schema
+        schema: behavioral.schema.json
     }
     class ownership["ownership.json"] {
         who may change what
@@ -42,6 +43,7 @@ classDiagram
         every path, scope ignored
         rename judged at its old path
         patterns: mapping-v1.1.yaml glob
+        schema: ownership.schema.json
     }
 
     scope ..> structural : picks the files for
