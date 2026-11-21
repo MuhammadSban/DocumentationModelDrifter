@@ -14,6 +14,14 @@ An index only: the detail stays in the file each row names. Paths are relative t
 |---|---|---|---|---|---|
 | W0-7 | How is the ownership and scope self-grant hole closed, including gaps G1 to G4? | S1 rules from the base, S2 rules from each commit's parent, S3 flag every rules change, S4 GitHub enforces it. Recommended, not decided: S1 + S4. Detail: `state/WORK-ITEMS.md`, "W0-7 in detail". | none yet | W3-5, W4-1, W4-7 | 2026-11-05 |
 
+## The CLI's exit codes
+
+Found while planning build order step 0.6b. Detail: the design doc of the system-models Epic, "Where the code and the build order disagree", last row. The row is not that Epic's to settle, so it does not carry its number.
+
+| ID | Question | Options + recommendation | Epic | Blocks | Since |
+|---|---|---|---|---|---|
+| CLI-1 | Is it a defect that `drifter check`, `init` and `update` end with a traceback and exit 1 on a git failure, such as an unknown commit or a folder that is no checkout? Exit 1 is also the code for drift, and spec AC-08 gives exit 2 to a check with no verdict. | 1: leave it. 2: catch the git failure, print a one-line message and exit 2. Recommended: 2, as a small change with a failing test first. | none yet | nothing yet | 2026-11-21 |
+
 ## Not yet in a wave
 
 Detail for each: `state/WORK-ITEMS.md`, "Not yet discussed".
