@@ -127,8 +127,7 @@ Phase 5 proposals. Not agreed and not built: nothing here changes the code, the 
 Background: outside evidence and reviews. Read it for the reasoning behind a work item; never build from it. `state/WORK-ITEMS.md` replaces the to-do lists inside these files.
 
 - `research/research-evidence.md` — Team 15's tool research, as a table: what runs at runtime, what only serves tests, what is rejected. Team 15's choices, not the pod contract.
-- `research/mage-engineering-env.md` — lecture notes on how MAGE sets up an engineering environment for agents.
-- `research/mage-research.md` — the source map behind those notes.
+- `research/mage-engineering-env.md` — lecture notes on how MAGE sets up an engineering environment for agents; §14 is the research behind them, with its sources.
 - `research/mage_take.md` — a review of this project against MAGE.
 - `research/mage-alignment.html` — a visual explainer of MAGE's alignment checks.
 - `research/industry-architecture-research.md` — how other drift tools are built, and what that means here.
