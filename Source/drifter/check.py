@@ -281,13 +281,19 @@ class HistoryReader(Reader, Protocol):
         ...
 
 
-def generate_models(reader: HistoryReader) -> dict[str, str]:
+def generate_models(reader: HistoryReader, verbosity: int = FULL) -> dict[str, str]:
     # returns the four /models files' text at the commit, as drifter init writes them: the
-    # default scope, the regenerated models and ownership proposed from all history (spec 3.2)
+    # default scope, the regenerated models and ownership proposed from all history (spec 3.2).
+    # The level is set here, before the first model exists, so the first baseline is already at it.
+    # It is written into scope.json only when it is not FULL, which keeps init's bytes what they
+    # were for a repository that asks for no level. The parameter is keyword with a default because
+    # POST /system/generate calls this with the reader alone (GitHub_Connector/analysis.py).
     files = _read_files(reader, in_scope(sorted(reader.tree()), DEFAULT_SCOPE))
-    models = _regenerate(files)
+    models = _regenerate(files, verbosity)
     models["ownership.json"] = proposed_ownership(reader)
-    models["scope.json"] = DEFAULT_SCOPE
+    models["scope.json"] = (
+        DEFAULT_SCOPE if verbosity == FULL else {**DEFAULT_SCOPE, "verbosity": verbosity}
+    )
     return {name: write_model(models[name]) for name in MODEL_FILES}
 
 

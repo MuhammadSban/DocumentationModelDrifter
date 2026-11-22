@@ -743,6 +743,51 @@ def test_a_level_outside_the_ladder_gives_no_verdict(tmp_path, monkeypatch, caps
     assert code == 2
 
 
+@pytest.mark.parametrize("level", [1, 2, 3])
+def test_init_sets_the_level_before_the_first_model_and_checks_aligned(
+    tmp_path, monkeypatch, capsysbinary, level
+):
+    # the human's semantic of 2026-11-22: the level is chosen before the initial model is
+    # generated, so the first baseline is already at it and needs no lowering afterwards
+    repo = _code_repo(tmp_path / str(level), LADDER_CODE)
+
+    written, _ = _run(repo, monkeypatch, capsysbinary, "init", "--verbosity", str(level))
+    _commit(repo, "commit the models")
+    checked, out = _check(repo, monkeypatch, capsysbinary)
+
+    scope = json.loads((repo / "models" / "scope.json").read_bytes())
+    assert (written, checked) == (0, 0)
+    assert scope["verbosity"] == level
+    assert json.loads(out)["aligned"] is True
+
+
+def test_init_at_the_default_level_writes_the_bytes_it_always_wrote(
+    tmp_path, monkeypatch, capsysbinary
+):
+    # the Epic's own promise: a repository that asks for no level sees no change at all, scope.json
+    # included, so no verbosity key is written and nothing a golden holds moves
+    plain = _code_repo(tmp_path / "plain", CODE)
+    asked = _code_repo(tmp_path / "asked", CODE)
+
+    _run(plain, monkeypatch, capsysbinary, "init")
+    _run(asked, monkeypatch, capsysbinary, "init", "--verbosity", "4")
+
+    for name in check.MODEL_FILES:
+        assert (plain / "models" / name).read_bytes() == (asked / "models" / name).read_bytes()
+    assert json.loads((plain / "models" / "scope.json").read_bytes()) == SCOPE
+
+
+def test_init_refuses_a_level_outside_the_ladder(tmp_path, monkeypatch, capsysbinary):
+    # argparse refuses it before any model is generated, so the folder is left untouched
+    repo = _code_repo(tmp_path, CODE)
+
+    with pytest.raises(SystemExit) as exit_code:
+        _run(repo, monkeypatch, capsysbinary, "init", "--verbosity", "5")
+
+    assert exit_code.value.code == 2
+    assert not (repo / "models").exists()
+
+
 def test_update_at_a_changed_level_redefines_the_baseline(tmp_path, monkeypatch, capsysbinary):
     # the human's semantic of 2026-11-22: a person edits the level and runs update, and what update
     # writes is the new baseline, so the check straight after it reports nothing
