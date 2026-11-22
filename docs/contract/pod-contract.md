@@ -1,6 +1,6 @@
 # Pod 15/16 contract: testing rules
 
-Version 2.5.0, proposed 2026-11-22, pending Team 16's agreement (section 10). Both teams' registry rows link this file as the intra-pod
+Version 2.5.0, proposed 2026-11-22 and agreed by Team 16 (recorded 2026-11-22, section 10). Both teams' registry rows link this file as the intra-pod
 specification. The course's `docs/base/student-facing-spec.docx.pdf` wins over every
 file here.
 
@@ -336,9 +336,13 @@ Team 15's "Access / run notes" cell:
 
 ## 10. Agreement and changes
 
-Version 2.5.0 is proposed (2026-11-22) and applies once Team 16 agrees to it. The version
-before it was the first one both teams agreed to; Team 16's agreement to it was recorded
-on 2026-11-05. Every later change to any file in this folder
+Version 2.5.0 is agreed by both teams (recorded 2026-11-22). Team 16's agreement covers
+the coverage rules of section 5 and the rules that make T-21, T-22 and T-23 run instead
+of skip (build order steps 5.6 and 5.7). Section 4 does not hold those three rules yet: it
+still lists T-21, T-22 and T-23 as `skip`. Their text is added to this contract, in this
+same version, by steps 5.6 and 5.7 on the same branch, before this version is merged.
+The version before it was the first one both teams agreed to; Team 16's agreement to it
+was recorded on 2026-11-05. Every later change to any file in this folder
 bumps the version and applies once
 both teams agree to it. `spec-v1.1.md`, `mapping-v1.1.yaml` and `golden-outputs.json`
 change only when Team 16 publishes a new version of them.
