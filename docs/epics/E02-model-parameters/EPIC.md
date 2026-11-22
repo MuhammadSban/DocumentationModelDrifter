@@ -51,6 +51,13 @@ Everything this Epic reads or changes, found by looking before the steps are wri
 
 One commit per step, made after the step's check passes. No step starts before RATIFY.
 
+**Revised on 2026-11-22, a third time, after steps 1 to 7 were committed and the system was driven
+by hand.** Three steps are added, 8 to 10, and the count goes from seven to ten. Steps 8 and 9
+close what driving it found: changing the level took two commits, and the hosted path had no test
+below level 4. Step 10 is the human's ask of the same day, to separate the reusable parameter seam
+from verbosity's own part of it. The commits of steps 1 to 7 carry the trailers `Step: 1/7` to
+`Step: 7/7`, from when there were seven.
+
 **Revised on 2026-11-22, after the first review returned REVISE.** Its three blocking findings
 were each checked against the disk and each held. The second generation site,
 `Source/Frontend/model_drift.py:40-52`, is now named in step 3 and covered by step 6, which also
@@ -198,7 +205,7 @@ with no JavaScript; only the memory needs the page's first script, which `DESIGN
 property knowingly spent. The route stays out of the OpenAPI document, so this is not a contract
 change and Team 16 agrees to nothing.
 
-### Step 7/7: Update the models, the spec and the docs map
+### Step 7/10: Update the models, the spec and the docs map
 
 - Files: `docs/diagrams/model-seam.md` (the generator contract line, and one sentence that a
   parameter is committed in `/models` and never passed from a request); `docs/diagrams/models-folder.md`
@@ -212,6 +219,58 @@ change and Team 16 agrees to nothing.
 - Check: `git grep -c "verbosity" -- docs/diagrams/model-seam.md docs/diagrams/models-folder.md docs/base/structure.md docs/base/specifications.md`
   → each of the four files prints 1 or more
 - Trailer: `Step: 7/7`
+
+### Step 8/10: Give `drifter update` the level, so changing it takes one commit
+
+- Files: `Source/drifter/cli.py` (`update` gains `--verbosity`, the same choices as `init`'s and no
+  default, so the flag alone decides whether the level changes; its module comment says `update`
+  writes `scope.json` when and only when the flag is given); `Source/drifter/check.py`
+  (`regenerate_models(reader, verbosity=None)` returns the rewritten `scope.json` beside the two
+  models when a level is given, and only the two models otherwise); `tests/drifter/test_cli.py`
+  (`update --verbosity 1` on a level-4 repository writes the key and regenerates at it, and a
+  `check` on the single commit that carries both is aligned; `update` with no flag still leaves
+  `scope.json` byte-identical)
+- Check: `pytest tests/drifter -q` → passes
+- Trailer: `Step: 8/10`
+
+Found by driving the installed command on 2026-11-22, not by a test: `update` reads the scope
+committed at the commit, so a level edited only in the working tree makes it regenerate at the
+**old** level and leaves the repository in drift. Without this step the level can only be changed
+in two commits, the first of them deliberately red. This step removes that trap rather than only
+documenting it, and `docs/diagrams/models-folder.md` loses the paragraph that described it.
+
+### Step 9/10: Cover the hosted path at a lowered level
+
+- Files: `tests/connector/test_analyze_drift.py` (a repository committing level 1 answers
+  `aligned: true` through `POST /system/analyze`, and one whose committed level and committed model
+  disagree answers with the differences)
+- Check: `pytest tests/connector -q` → passes, the pre-existing `test_fetch` failure of a machine
+  with Apple Git aside
+- Trailer: `Step: 9/10`
+
+The level reaches three generation sites and only two of them had a test at a level below 4: the
+CLI's and the console page's. `POST /system/analyze` is the one other teams and the graders call,
+and it was covered by hand only.
+
+### Step 10/10: Strip the plumbing down to a seam the next parameter plugs into
+
+- Files: `Source/drifter/check.py` (one declaration of the generation parameters `scope.json` may
+  hold, each with its default and the levels or values it allows, which `_scope_rule` validates by
+  looping over instead of naming `verbosity`; `parameters_of(scope)` returns them all with their
+  defaults applied, and `verbosity_of` becomes one line over it); `Source/models/structural_model.py`
+  (unchanged: a generator still takes its own parameter by name, not a bag);
+  `docs/diagrams/model-seam.md` (what a second parameter has to add, in four lines, without naming
+  one); `tests/drifter/test_cli.py` (the declaration and the validator stay in step, so a parameter
+  cannot be half-added)
+- Check: `pytest tests/drifter tests/structural tests/frontend tests/connector -q` → passes
+- Trailer: `Step: 10/10`
+
+Asked for on 2026-11-22: verbosity is the first parameter, not the only one there will ever be, so
+what is reusable is separated from what is verbosity's own. Deliberately small, and it names no
+future parameter: the ones to come are undecided, and designing for an example nobody has chosen
+would be worse than this seam. A generator keeps a named argument rather than a parameter bag,
+because the seam's rule that an owner decides everything inside their model includes their
+signature.
 
 ## Done criteria
 

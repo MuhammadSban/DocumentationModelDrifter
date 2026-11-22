@@ -3,10 +3,10 @@
 # init writes the four /models files from a commit and refuses (exit 1) to overwrite one unless
 # --force; --verbosity sets how much of the code the structural model describes, before the first
 # model is generated, and is written into scope.json where it is not the default. update rewrites
-# only structural.json and behavioral.json, from the scope committed at the commit, leaving
-# ownership.json and scope.json as the person left them, so editing the level and running update
-# regenerates at the new level and makes it the baseline. A no-verdict code prints its drift_error
-# and exits 2 for every command.
+# structural.json and behavioral.json from the scope committed at the commit, leaving
+# ownership.json alone; it writes scope.json only when its own --verbosity gives a new level, which
+# regenerates at that level and makes it the baseline in one commit. A no-verdict code prints its
+# drift_error and exits 2 for every command.
 
 from __future__ import annotations
 
@@ -48,12 +48,18 @@ def main(argv: list[str] | None = None) -> int:
     update_cmd = commands.add_parser("update", help="regenerate structural.json and behavioral.json, accepting drift")
     update_cmd.add_argument("commit", nargs="?", default="HEAD")
     update_cmd.add_argument("--repo", default=".", help="the checkout to write into; defaults to the current folder")
+    update_cmd.add_argument(
+        "--verbosity", type=int, choices=sorted(KEPT_KINDS), default=None,
+        help="change the level and regenerate at it in one step, writing it into scope.json; "
+             "without this flag the committed level decides and scope.json is left alone",
+    )
     args = parser.parse_args(argv)
     try:
         if args.command == "init":
             return _init(Path(args.repo), args.commit, args.force, args.verbosity)
         if args.command == "update":
-            _write(_models_folder(Path(args.repo)), regenerate_models(LocalReader(Path(args.repo), args.commit)))
+            reader = LocalReader(Path(args.repo), args.commit)
+            _write(_models_folder(Path(args.repo)), regenerate_models(reader, args.verbosity))
             return 0
         verdict = answer(local_sources(Path(args.repo), args.commit, args.base))
     except DriftError as exc:

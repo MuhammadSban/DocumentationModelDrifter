@@ -307,17 +307,25 @@ def proposed_ownership(reader: HistoryReader) -> dict:
     return propose_ownership(reader.head, _parse_history(reader.history()))
 
 
-def regenerate_models(reader: Reader) -> dict[str, str]:
+def regenerate_models(reader: Reader, verbosity: int | None = None) -> dict[str, str]:
     # returns structural.json and behavioral.json's text at the commit, as drifter update writes
-    # them. Only the committed scope.json is read, so a broken model being replaced cannot block it.
+    # them, and scope.json too where verbosity sets a new level. Only the committed scope.json is
+    # read, so a broken model being replaced cannot block it.
     if "models/scope.json" not in reader.tree():
         raise DriftError("MODELS_NOT_FOUND", f"models/scope.json is missing at {reader.head}")
     scope = _model("models/scope.json", reader.read(["models/scope.json"])["models/scope.json"])
     _scope_rule(scope)
     files = _read_files(reader, in_scope(sorted(reader.tree()), scope))
-    # the level the person left in scope.json, so update writes the baseline they asked for
+    # a level given here overrides the committed one and is written back beside the models, so
+    # changing the level is one commit; without it the committed level decides, and scope.json is
+    # left exactly as the person left it
+    if verbosity is not None:
+        scope = {**scope, "verbosity": verbosity}
     regenerated = _regenerate(files, verbosity_of(scope))
-    return {name: write_model(model) for name, model in regenerated.items()}
+    written = {name: write_model(model) for name, model in regenerated.items()}
+    if verbosity is not None:
+        written["scope.json"] = write_model(scope)
+    return written
 
 
 def _regenerate(files: dict[str, str], verbosity: int = FULL) -> dict[str, dict]:

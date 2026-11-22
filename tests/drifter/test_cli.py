@@ -788,6 +788,38 @@ def test_init_refuses_a_level_outside_the_ladder(tmp_path, monkeypatch, capsysbi
     assert not (repo / "models").exists()
 
 
+def test_update_with_a_level_changes_it_and_rebaselines_in_one_commit(
+    tmp_path, monkeypatch, capsysbinary
+):
+    # update reads the scope committed at the commit, so a level edited only in the working tree
+    # would regenerate at the old one. The flag changes the level and the models together, which is
+    # one commit instead of two, the first of them deliberately red.
+    repo = _level_repo(tmp_path, 4)
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "update", "--verbosity", "1")
+    _commit(repo, "down to level 1")
+    checked, out = _check(repo, monkeypatch, capsysbinary)
+
+    scope = json.loads((repo / "models" / "scope.json").read_bytes())
+    kinds = {n["kind"] for n in json.loads((repo / "models" / "structural.json").read_bytes())["nodes"]}
+    assert (code, checked) == (0, 0)
+    assert scope["verbosity"] == 1
+    assert kinds == {"module"}
+    assert json.loads(out)["aligned"] is True
+
+
+def test_update_without_a_level_leaves_the_scope_alone(tmp_path, monkeypatch, capsysbinary):
+    # the flag alone decides whether the level changes: without it update writes the two models and
+    # nothing else, as it always has
+    repo = _level_repo(tmp_path, 2)
+    before = (repo / "models" / "scope.json").read_bytes()
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "update")
+
+    assert code == 0
+    assert (repo / "models" / "scope.json").read_bytes() == before
+
+
 def test_update_at_a_changed_level_redefines_the_baseline(tmp_path, monkeypatch, capsysbinary):
     # the human's semantic of 2026-11-22: a person edits the level and runs update, and what update
     # writes is the new baseline, so the check straight after it reports nothing

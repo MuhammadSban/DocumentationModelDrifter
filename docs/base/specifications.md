@@ -262,7 +262,7 @@ Scope. scope.json holds include and exclude path patterns, and the generation pa
 decides which files feed the structural and behavioral generators, and how much of them the
 structural model describes: the verbosity key is a level from 1 to 4, absent meaning 4, which is
 every node kind with its signatures. drifter init --verbosity sets it before the first model is
-generated and writes it where it is not 4; editing it and running drifter update regenerates at
+generated and writes it where it is not 4; drifter update --verbosity changes it afterwards, regenerating at
 the new level, which becomes the baseline. The ladder is in docs/diagrams/models-folder.md.
 drifter init writes the defaults, include `**/*.py` and exclude
 `tests/**`. Ownership rules apply to every path, whatever the scope says. Editing the scope without
