@@ -54,15 +54,17 @@ def _repo(tmp_path, *commits):
 
 @pytest.fixture
 def view(tmp_path, monkeypatch):
-    # asks the route for one commit's models, against a bare repository on disk
-    def ask(*commits):
+    # asks the route for one commit's models, against a bare repository on disk. verbosity previews
+    # the models at one level of the ladder, as the parameters panel's form asks for them.
+    def ask(*commits, verbosity=None):
         repo, head, remotes = _repo(tmp_path, *commits)
         monkeypatch.setenv("DRIFTER_REMOTE_BASE_URL", remotes.as_uri() + "/")
         get_settings.cache_clear()
+        params = {"repository": repo, "commit_id": head}
+        if verbosity is not None:
+            params["verbosity"] = verbosity
         try:
-            response = TestClient(app).get(
-                "/models/view", params={"repository": repo, "commit_id": head}
-            )
+            response = TestClient(app).get("/models/view", params=params)
         finally:
             get_settings.cache_clear()
         return response
@@ -201,3 +203,96 @@ def test_a_malformed_repository_name_is_rejected(view, tmp_path, monkeypatch):
     client = TestClient(app)
     assert client.get("/models/view", params={"repository": "nope", "commit_id": "a" * 40}).status_code == 400
     assert client.get("/models/view", params={"repository": "owner/name", "commit_id": "zz"}).status_code == 400
+
+
+# ------------------------------------------------- the parameters panel and its verbosity level
+
+# a class with a method, so a level below MEMBERS has something to drop from the page
+LADDER = {
+    "src/shop/models.py": "class Base:\n    def save(self):\n        pass\n",
+    "src/shop/orders.py": "from shop.models import Base\n\n\nclass Order(Base):\n    pass\n",
+}
+
+
+def test_the_panel_is_on_the_page_with_one_stop_per_level(view):
+    response = view({**LADDER, "models/scope.json": write_model(SCOPE)})
+
+    assert "Parameters" in response.text
+    assert response.text.count('name="verbosity"') == 4
+    # a GET form, so changing the level needs no script
+    assert 'method="get"' in response.text
+    assert 'action="/models/view"' in response.text
+
+
+@pytest.mark.parametrize("level, drawn", [(1, False), (2, True), (3, True), (4, True)])
+def test_a_preview_draws_the_classes_only_from_the_level_that_holds_them(view, level, drawn):
+    # one repository per call: the fixture builds its work tree once, so a test asks once
+    response = view({**LADDER, "models/scope.json": write_model(SCOPE)}, verbosity=level)
+
+    assert ("Order" in response.text) is drawn
+
+
+def test_no_level_draws_the_level_the_repository_commits(view):
+    # the committed level is the page's default, not level 4, so a repository that has chosen one
+    # is shown as it has chosen
+    response = view({**LADDER, "models/scope.json": write_model({**SCOPE, "verbosity": 1})})
+
+    assert "Order" not in response.text
+    assert "which is the level this repository commits" in response.text
+
+
+def test_a_preview_says_it_is_a_preview_and_names_both_levels(view):
+    response = view({**LADDER, "models/scope.json": write_model(SCOPE)}, verbosity=2)
+
+    assert "as a preview" in response.text
+    assert "This repository commits level 4" in response.text
+    assert "drifter check" in response.text
+
+
+def test_no_preview_note_where_the_two_levels_agree(view):
+    response = view({**LADDER, "models/scope.json": write_model(SCOPE)}, verbosity=4)
+
+    assert "as a preview" not in response.text
+    assert "which is the level this repository commits" in response.text
+
+
+@pytest.mark.parametrize("bad", [0, 5, 99, "high"])
+def test_a_level_outside_the_ladder_is_refused_before_any_clone(view, bad):
+    # 400, not 422: this app answers every one of FastAPI's own validation failures in the error
+    # shape of the route's family (GitHub_Connector/api.py:88), as the malformed-name case does
+    response = TestClient(app).get(
+        "/models/view",
+        params={"repository": "owner/repo", "commit_id": "a" * 40, "verbosity": bad},
+    )
+
+    assert response.status_code == 400
+
+
+def test_a_preview_compares_the_drawn_level_with_itself(view):
+    # both snapshots take the same level, so a change the previewed level does not describe is not
+    # reported as drift. Without that the head would be drawn at level 1 and the base at level 4,
+    # and every class and method would read as having disappeared.
+    base = {**LADDER, "models/scope.json": write_model(SCOPE)}
+    head = {"src/shop/models.py": "class Base:\n    def save(self, force=False):\n        pass\n"}
+
+    response = view(base, head, verbosity=1)
+
+    assert chips(response.text)["Structural"] == "same as previous commit"
+
+
+def test_the_standalone_render_shows_the_panel_read_only():
+    # rendered to a file there is no server to ask for another level, so the stops are disabled and
+    # the page says how to change it, rather than offering a control that would do nothing
+    from Frontend.model_loader import models_from_dicts
+    from Frontend.model_viewer import render
+
+    models = models_from_dicts({"scope.json": SCOPE}, "a folder")
+    page = render(models, drawn_level=3, committed_level=3)
+
+    assert "Parameters" in page
+    assert "<form" not in page
+    # every one of the four stops is shown and none is offered
+    assert page.count('name="verbosity"') == 4
+    assert page.count(" disabled>") == 4
+    assert "drifter update" in page
+    assert "localStorage" not in page

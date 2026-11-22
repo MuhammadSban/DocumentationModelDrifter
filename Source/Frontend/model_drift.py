@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from drifter.check import DEFAULT_SCOPE, GENERATORS, MODEL_FILES, in_scope
+from drifter.check import DEFAULT_SCOPE, GENERATORS, MODEL_FILES, generate_one, in_scope, verbosity_of
 from models.common import ParseFailed
 
 # names the committed model a snapshot reads for its scope; absent, DEFAULT_SCOPE applies
@@ -37,17 +37,21 @@ class Verdict:
     note: str | None = None
 
 
-def snapshot(reader, commit: str) -> dict[str, dict]:
+def snapshot(reader, commit: str, verbosity: int | None = None) -> dict[str, dict]:
     # regenerates every model that has a generator from the in-scope files at one commit, keyed by
-    # file name, as the generators would have written them into /models at that commit
+    # file name, as the generators would have written them into /models at that commit.
+    # verbosity None takes the level the commit's own scope.json declares, which is what the commit
+    # would have written; a level given instead is the page's preview and overrides it.
     tree = reader.tree_at(commit)
-    paths = in_scope(sorted(tree), _scope(reader, tree, commit))
+    scope = _scope(reader, tree, commit)
+    paths = in_scope(sorted(tree), scope)
     if not paths:
         raise SnapshotFailed(f"{commit[:7]} has no files in scope")
+    level = verbosity_of(scope) if verbosity is None else verbosity
     raw = reader.read(paths, commit)
     try:
         files = {path: raw[path].decode("utf-8") for path in paths}
-        return {f"{name}.json": generate(files) for name, generate in GENERATORS.items()}
+        return {f"{name}.json": generate_one(name, files, level) for name in GENERATORS}
     except (ParseFailed, UnicodeDecodeError) as exc:
         raise SnapshotFailed(f"{commit[:7]} could not be parsed: {exc}") from None
 

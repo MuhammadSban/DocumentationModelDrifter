@@ -120,10 +120,14 @@ def generate_one(name: str, files: dict[str, str], verbosity: int = FULL) -> dic
 
 
 def verbosity_of(scope: dict) -> int:
-    # reads the level a committed scope.json declares, FULL where it declares none. _scope_rule has
-    # already refused anything else, so a caller that validated its scope gets a level in the ladder.
+    # reads the level a committed scope.json declares, FULL where it declares none or declares one
+    # this ladder does not hold. Total on purpose: the check validates with _scope_rule and never
+    # reaches the fallback, while the console's page reads a scope nothing has validated and must
+    # draw something rather than fail on a level of 7.
     level = scope.get("verbosity", FULL)
-    return level if isinstance(level, int) and not isinstance(level, bool) else FULL
+    if isinstance(level, bool) or not isinstance(level, int) or level not in KEPT_KINDS:
+        return FULL
+    return level
 
 
 def model_differences(name: str, sources: Sources) -> list[dict]:
