@@ -67,7 +67,8 @@ def test_each_result_is_handed_over_as_it_is_decided(fake):
 def test_missing_feature_is_skipped_not_failed(fake):
     fake.features = ["model_drift"]
     got = outcomes(run_suite(fake.url, "s"))
-    assert {got[t]["message"] for t in ids("T-18", "T-21")} == {"target does not implement prose_detector"}
+    assert {got[t]["message"] for t in ids("T-18", "T-20")} == {"target does not implement prose_detector"}
+    assert got["T-21"]["outcome"] == "pass"  # runs its model version instead
     assert {got[t]["outcome"] for t in ids("T-01", "T-17")} == {"pass"}
 
 
@@ -206,6 +207,40 @@ def test_t33_fails_naming_the_case_and_file_when_a_text_differs(fake):
                            "outcome": "fail", "test_id": "T-33"}
 
 
+def test_t21_run_uses_the_model_version_with_only_model_drift(fake):
+    fake.features = ["model_drift"]
+    got = outcomes(run_suite(fake.url, "s"))
+    assert got["T-21"] == {"message": "L2: two answers match the expected answer", "outcome": "pass",
+                           "test_id": "T-21"}
+
+
+def test_t21_run_fails_when_the_second_answer_differs(fake):
+    # flips only the second answer for L2, so a check of the first answer alone would pass
+    fake.features = ["model_drift"]
+    fake.flip_aligned_case, fake.flip_aligned_from = "L2", 2
+    got = outcomes(run_suite(fake.url, "s"))
+    assert got["T-21"] == {"message": "L2: drift differs from the expected answer", "outcome": "fail",
+                           "test_id": "T-21"}
+
+
+def test_t21_run_keeps_the_prose_version_with_prose_detector(fake):
+    got = outcomes(run_suite(fake.url, "s"))
+    assert got["T-21"] == {"message": "all 3 findings start PENDING_REVIEW", "outcome": "pass", "test_id": "T-21"}
+
+
+def test_t21_run_keeps_the_prose_version_with_both_features(fake):
+    fake.features = ["prose_detector", "model_drift"]
+    got = outcomes(run_suite(fake.url, "s"))
+    assert got["T-21"] == {"message": "all 3 findings start PENDING_REVIEW", "outcome": "pass", "test_id": "T-21"}
+
+
+def test_t21_run_skips_with_neither_feature(fake):
+    fake.features = []
+    got = outcomes(run_suite(fake.url, "s"))
+    assert got["T-21"] == {"message": "target does not implement prose_detector", "outcome": "skip",
+                           "test_id": "T-21"}
+
+
 def model_of(report):
     return report["coverage"]["model"]
 
@@ -223,9 +258,10 @@ def test_model_counts_a_requirement_with_no_evaluated_test_in_total(fake):
 
 
 def test_model_does_not_cover_a_requirement_whose_tests_ended_skip_or_error(fake):
-    # drops REQ-03 when T-18 to T-21 skip without prose_detector; T-24 to T-33 run, so REQ-02 stays
-    fake.features = ["model_drift"]
-    assert model_of(run_suite(fake.url, "s1", own=True))["covered"] == 5
+    # drops REQ-02, REQ-03 and REQ-06 when T-18 to T-33 skip with neither feature; REQ-01, REQ-04, REQ-05
+    # and REQ-07 stay, from T-01 to T-17
+    fake.features = []
+    assert model_of(run_suite(fake.url, "s1", own=True))["covered"] == 4
     # leaves out a 5xx, error with source system, as system coverage does; with every /analyze
     # answering 500 only T-15 passes, and its AC-06 and AC-08 cover REQ-04 and REQ-05 (spec §4.1)
     fake.features = None

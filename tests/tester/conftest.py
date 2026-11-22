@@ -27,6 +27,9 @@ class FakeTarget:
         self.break_case = None  # a case whose changes come back empty
         self.break_generate = None  # a /models file whose text /generate returns changed
         self.break_drift_case = None  # a model fixture case whose drift_error code, or else drift order, is wrong
+        self.flip_aligned_case = None  # a model fixture case whose drift.aligned comes back flipped
+        self.flip_aligned_from = 1  # the first answer of that case, counted from 1, that is flipped
+        self.model_answers = {}  # how many answers each model fixture case has had
         self.setup_answer = (201, None)
         self.setup_calls = 0  # how many system setups reached the target
         self.saved = {}
@@ -69,6 +72,9 @@ class FakeTarget:
             expected["drift_error"] = {"code": "INVALID_MODELS", "message": "broken"}
         elif case["case"] == self.break_drift_case:
             expected["drift"]["behavioral"].reverse()
+        self.model_answers[case["case"]] = self.model_answers.get(case["case"], 0) + 1
+        if case["case"] == self.flip_aligned_case and self.model_answers[case["case"]] >= self.flip_aligned_from:
+            expected["drift"]["aligned"] = not expected["drift"]["aligned"]
         return 200, {**expected, "analysis_id": uuid.uuid4().hex, "changes": [], "issues": [],
                      "repository": MODEL_REPOSITORY, "status": "SUCCESS"}
 

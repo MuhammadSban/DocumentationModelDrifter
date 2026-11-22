@@ -406,6 +406,7 @@ function setStatus(text, mode = "", ...extra) {
 function plannedLabel(test) {
   if (test.skip) return `skips: ${test.skip}`;
   if (test.pending) return "skips until the expected answers are published";
+  if (test.feature && test.fallback) return `runs only when /health lists ${test.feature} or ${test.fallback}`;
   if (test.feature) return `runs only when /health lists ${test.feature}`;
   return "";
 }
