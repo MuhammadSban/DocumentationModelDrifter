@@ -122,6 +122,15 @@ def test_system_does_not_count_an_error_when_health_fails(fake):
     assert run_suite(fake.url, "s")["coverage"]["system"]["covered"] == 5
 
 
+def test_system_counts_a_criterion_listed_by_two_evaluated_tests_once(fake):
+    # counts AC-01 once though T-01 to T-07 pass, and AC-02 once though T-18, T-19, T-26 to T-28, T-30, T-31 pass
+    fake.features = ["prose_detector", "model_drift"]
+    report = run_suite(fake.url, "s")
+    assert {outcomes(report)[t]["outcome"] for t in ids("T-01", "T-21") + ids("T-24", "T-33")} == {"pass"}
+    system = report["coverage"]["system"]
+    assert (system["covered"], system["total"]) == (8, 10)
+
+
 def test_golden_mismatch_fails_and_names_the_field(fake):
     fake.break_case = "c1-impl-only"
     got = outcomes(run_suite(fake.url, "s"))
