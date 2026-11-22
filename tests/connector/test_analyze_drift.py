@@ -196,3 +196,66 @@ def test_over_the_change_limit_drift_still_equals_drifter_check(repo, monkeypatc
     assert (body["status"], body["error"]["code"]) == ("ERROR", "CHANGE_LIMIT_EXCEEDED")
     assert body["drift"] == json.loads(_cli_check(work, head, capsysbinary))
     assert body["drift"]["aligned"] is False
+
+
+# ------------------------------------- the hosted path at a level below the default (E02, step 9)
+
+# a class with a method, so a level below MEMBERS has something to drop
+LADDER = {
+    "src/shop/models.py": "class Base:\n    def save(self):\n        pass\n",
+    "src/shop/orders.py": "from shop.models import Base\n\n\nclass Order(Base):\n    pass\n",
+}
+LADDER_OWNED = {"rules": [{"owners": ["ana@x.com"], "pattern": "src/**"}], "schema_version": 1}
+
+
+def _ladder_models(level):
+    # four /models files at one verbosity level, with the level declared, as init or update writes
+    # them. The route must regenerate at the committed level and not at the default.
+    return {
+        "models/behavioral.json": write_model({"schema_version": 1, "states": [], "transitions": []}),
+        "models/ownership.json": write_model(LADDER_OWNED),
+        "models/scope.json": write_model({**SCOPE, "verbosity": level}),
+        "models/structural.json": write_model(generate_structural(LADDER, level)),
+    }
+
+
+@pytest.mark.parametrize("level", [1, 2, 3, 4])
+def test_a_repository_at_any_level_is_aligned_through_the_route(repo, level):
+    # the hosted path is the one other teams and the graders call, and it reaches the generators by
+    # a third route of its own: not _regenerate and not the page's snapshot, but model_differences
+    work, publish = repo
+    head = _commit(work, {**LADDER, **_ladder_models(level)})
+    publish()
+
+    body = _analyze(head).json()
+
+    assert (body["status"], body["drift_error"]) == ("SUCCESS", None)
+    assert body["drift"] == {"aligned": True, "behavioral": [], "ownership": [], "structural": []}
+
+
+def test_a_committed_level_the_models_do_not_match_is_drift_through_the_route(repo):
+    # the models are at level 1 while scope.json declares 4, which is the shape of editing the
+    # level without regenerating: the route reports what the level now describes and the models lack
+    work, publish = repo
+    mismatched = {**_ladder_models(4), "models/structural.json": write_model(generate_structural(LADDER, 1))}
+    head = _commit(work, {**LADDER, **mismatched})
+    publish()
+
+    body = _analyze(head).json()
+
+    assert (body["status"], body["drift_error"]) == ("SUCCESS", None)
+    assert body["drift"]["aligned"] is False
+    assert {d["change"] for d in body["drift"]["structural"]} == {"ADDED"}
+
+
+def test_the_route_at_a_lowered_level_agrees_with_drifter_check(repo, capsysbinary):
+    # the one answer two of the three generation sites must give alike, at a level below the default
+    work, publish = repo
+    mismatched = {**_ladder_models(1), "models/structural.json": write_model(generate_structural(LADDER, 4))}
+    head = _commit(work, {**LADDER, **mismatched})
+    publish()
+
+    body = _analyze(head).json()
+
+    assert body["drift"] == json.loads(_cli_check(work, head, capsysbinary))
+    assert body["drift"]["aligned"] is False
