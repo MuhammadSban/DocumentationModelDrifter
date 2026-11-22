@@ -180,14 +180,14 @@ def test_model_does_not_cover_a_requirement_whose_tests_ended_skip_or_error(fake
     # drops REQ-03 when T-18 to T-21 skip without prose_detector; T-24 to T-33 run, so REQ-02 stays
     fake.features = ["model_drift"]
     assert model_of(run_suite(fake.url, "s1", own=True))["covered"] == 5
-    # leaves out a 5xx, error with source system, which system coverage still counts
+    # leaves out a 5xx, error with source system, which system coverage still counts; with every /analyze
+    # answering 500 only T-15 passes, and its AC-06 and AC-08 cover REQ-04 and REQ-05 (spec §4.1)
     fake.features = None
     fake.analyze_status = 500
     report = run_suite(fake.url, "s2", own=True)
-    evaluated = {r["test_id"] for r in report["results"] if r["outcome"] in ("pass", "fail")}
-    _, requirements = pod_tests.read_requirements_map()
-    expected = sum(1 for tests in pod_tests.requirement_tests(requirements).values() if set(tests) & evaluated)
-    assert model_of(report)["covered"] == expected < report["coverage"]["system"]["covered"]
+    assert [r["test_id"] for r in report["results"] if r["outcome"] in ("pass", "fail")] == ["T-15"]
+    assert model_of(report)["covered"] == 2
+    assert report["coverage"]["system"]["covered"] == 8
 
 
 def test_model_counts_a_requirement_listed_by_two_evaluated_tests_once(fake):
