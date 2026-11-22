@@ -191,9 +191,9 @@ def _levels_note(drawn: int, committed: int, served: bool) -> str:
     if not served:
         return (
             f'<p class="note">Showing level {drawn} of {len(LEVEL_NAMES)}, {escape(drawn_name)}, '
-            "which is what this folder's models hold. To change it, set "
-            "<code>verbosity</code> in <code>models/scope.json</code> and run "
-            "<code>drifter update</code>.</p>\n"
+            "which is what this folder's models hold. To change it, run "
+            f"<code>drifter update --verbosity {drawn}</code> with the level you want, which "
+            "rewrites <code>models/scope.json</code> and the models together.</p>\n"
         )
     if drawn == committed:
         return (
@@ -205,8 +205,9 @@ def _levels_note(drawn: int, committed: int, served: bool) -> str:
         f"preview. This repository commits level {committed}, {escape(committed_name)}, and that "
         "is the level <code>drifter check</code> uses. The drift chips below compare level "
         f"{drawn} with level {drawn}, so they describe this preview and not the check. Previewing "
-        "changes nothing in the repository: to change the level, set <code>verbosity</code> in "
-        "<code>models/scope.json</code> and run <code>drifter update</code>.</p>\n"
+        "changes nothing in the repository: to commit this level, run "
+        f"<code>drifter update --verbosity {drawn}</code>, which rewrites "
+        "<code>models/scope.json</code> and the models together.</p>\n"
     )
 
 

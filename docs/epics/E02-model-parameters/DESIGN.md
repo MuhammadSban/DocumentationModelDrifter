@@ -34,14 +34,19 @@ This is the whole of how verbosity behaves over time, and it needs no new machin
 first `structural.json` at that level. So the level is set before the initial model is generated,
 and the first baseline is already at the chosen level.
 
-Afterwards the level is changed the way the scope is changed: a person edits `models/scope.json` by
-hand in a reviewed PR and runs `drifter update`, which reads the scope committed at that commit and
-rewrites `structural.json` and `behavioral.json` from it (`Source/drifter/cli.py:4-5`). The models
-it writes **are** the new baseline. Nothing reports the elements the old level held and the new one
-does not: there is no comparison between two levels anywhere, because the check never compares two
-commits' models. It regenerates at one commit and sets the result against the model committed at
-that same commit (`model_differences` and `differences`, `Source/drifter/check.py:110-136`, and
-"One check" in `docs/diagrams/model-seam.md`).
+Afterwards the level is changed with `drifter update --verbosity`, which writes the new level into
+`scope.json` and regenerates at it together, so the one commit carrying both is aligned. **Corrected
+in step 8, after driving the installed command:** this was first designed as a hand edit of
+`scope.json` followed by a plain `drifter update`, and that does not work. `update` reads the scope
+**committed at the commit**, not the working tree (`Source/drifter/cli.py`), so a level edited only
+in the working tree makes it regenerate at the old level and leaves the repository in drift. Two
+commits did work, the first of them deliberately red; the flag replaced them with one.
+
+Either way the models `update` writes **are** the new baseline. Nothing reports the elements the old
+level held and the new one does not: there is no comparison between two levels anywhere, because
+the check never compares two commits' models. It regenerates at one commit and sets the result
+against the model committed at that same commit (`model_differences` and `differences`,
+`Source/drifter/check.py:110-136`, and "One check" in `docs/diagrams/model-seam.md`).
 
 Both sides of that comparison therefore read their level from the same committed `scope.json`, and
 can never disagree about it. The one case left is a person who edits the level and does not
@@ -104,9 +109,9 @@ and nothing else.
 
 The page is also rendered standalone, by `python -m Frontend.model_viewer`, into a file with no
 server behind it. There the form has nowhere to submit, so `render` takes the route it was served
-from and renders the panel read-only without one: the committed level, and the sentence that
-changing it means editing `models/scope.json` and running `drifter update`. A page that offered a
-control that silently did nothing would be worse than a page that offers none.
+from and renders the panel read-only without one: the committed level, and the one command that
+changes it, `drifter update --verbosity`. A page that offered a control that silently did nothing
+would be worse than a page that offers none.
 
 `Source/Frontend/index.html` does not change. The console frames the page, and the page now carries
 its own control, so the console neither builds the panel nor holds the reader's choice.
@@ -132,7 +137,7 @@ Every fact the structure rests on, checked against the disk before it is written
 | INV-1 already counts `/models` among the inputs that fix the bytes, so a parameter inside it needs no rewording | `docs/invariants/INVARIANTS.md:16`, INV-1 | yes |
 | INV-2 already covers the scope rules, so a parameter inside `scope.json` inherits the W0-7 hole and its fix rather than opening a new one | `docs/invariants/INVARIANTS.md:17`, INV-2 | yes |
 | The check never compares two commits' models: it regenerates at one commit and sets that against the model committed at the same commit, so two levels are never diffed against each other | `Source/drifter/check.py:110-136`, `model_differences` and `differences`; "One check" in `docs/diagrams/model-seam.md` | yes |
-| `drifter update` reads the scope committed at the commit and rewrites only the two generated models, which is exactly the re-baseline a level change needs | `Source/drifter/cli.py:4-5`, `Source/drifter/check.py:279-287` | yes |
+| **Corrected in step 8, by driving the installed command.** `drifter update` reads the scope committed at the commit, not the working tree, so on its own it is **not** the re-baseline a level change needs: it regenerates at the old level and leaves the repository in drift. `update --verbosity` writes the level and the models together, which is one commit. | `Source/drifter/cli.py`, the module comment and `update`'s `--verbosity`; `Source/drifter/check.py`, `regenerate_models`; driven by hand on 2026-11-22 and pinned by `test_update_with_a_level_changes_it_and_rebaselines_in_one_commit` | no, as first written; yes as corrected |
 | The spec already states the semantic for editing the scope without regenerating, and verbosity is part of the scope | `docs/base/specifications.md:263-264` | yes |
 | **Corrected twice, by the first and second reviews. There is no choke point: three sites generate a model and the level must reach all three.** `_regenerate` serves init, update and `POST /system/generate`; `model_differences` calls the generator itself for the check; the console's page has its own loop over `GENERATORS` | `Source/drifter/check.py:290`, `_regenerate`, called at `:267` and `:287`; `Source/drifter/check.py:112` and `:116`, `model_differences`, which never calls `_regenerate`; `Source/Frontend/model_drift.py:51`, inside `snapshot` | yes, as corrected |
 | Only structural has a ladder, so one function decides which generator takes a level and the three sites do not each repeat it | `generate_one` beside `GENERATORS`, added by this Epic; behavioral keeps every element at every level while N2 is unruled | by construction |
