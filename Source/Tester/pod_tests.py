@@ -18,6 +18,9 @@ RUN_LIMIT = 600.0
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "contract"
 
+# names the map from REQ-01 to REQ-07 to the criteria, the only source of coverage.model's pairs
+REQUIREMENTS_MAP = Path(__file__).resolve().parents[2] / "docs" / "base" / "requirements-to-tests.md"
+
 GOLDEN = json.loads((CONTRACT / "golden-outputs.json").read_text(encoding="utf-8"))
 REPOSITORY = GOLDEN["fixture_repo"]
 CASES = {case["case"]: case for case in GOLDEN["cases"]}
@@ -431,6 +434,27 @@ def _unavailable(reason: str) -> dict:
 
 def _measure(covered: set, every: tuple, basis: str) -> dict:
     return {"basis": basis, "covered": len(covered & set(every)), "total": len(every)}
+
+
+def read_requirements_map(path: Path = REQUIREMENTS_MAP) -> tuple[str, dict[str, tuple[str, ...]]]:
+    # reads the map file's version line and pairs table; raises OSError or ValueError when it cannot
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if not lines or not lines[0].startswith("Version: ") or not lines[0][len("Version: "):].strip():
+        raise ValueError(f"{path.name} does not open with a version line")
+    requirements: dict[str, list[str]] = {}
+    for line in lines:
+        cells = [c.strip() for c in line.split("|")[1:-1]]
+        if len(cells) == 2 and cells[0] in CRITERIA:
+            for requirement in cells[1].split(", "):
+                requirements.setdefault(requirement, []).append(cells[0])
+    if not requirements:
+        raise ValueError(f"{path.name} has no pairs table")
+    return lines[0][len("Version: "):].strip(), {r: tuple(c) for r, c in sorted(requirements.items())}
+
+
+def requirement_tests(requirements: dict[str, tuple[str, ...]]) -> dict[str, tuple[str, ...]]:
+    # derives each requirement's tests from TESTS: every test that lists one of its criteria
+    return {r: tuple(t.id for t in TESTS if set(t.criteria) & set(c)) for r, c in requirements.items()}
 
 
 def catalog() -> list[dict]:

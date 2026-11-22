@@ -1,6 +1,6 @@
 # tests the pod test runner against the fake target: outcomes, skips, errors, coverage and the run limit
 
-from Tester.pod_tests import LIMIT_REACHED, TESTS, run_suite
+from Tester.pod_tests import LIMIT_REACHED, REQUIREMENTS_MAP, TESTS, read_requirements_map, requirement_tests,     run_suite
 
 IDS = [t.id for t in TESTS]
 
@@ -16,6 +16,24 @@ def ids(first, last):
 
 def test_table_has_33_tests_in_order():
     assert IDS == [f"T-{i:02d}" for i in range(1, 34)]
+
+
+def test_map_reader_returns_the_version_and_seven_requirements_with_their_criteria():
+    version, requirements = read_requirements_map()
+    assert version == "1"
+    assert requirements == {
+        "REQ-01": ("AC-01",), "REQ-02": ("AC-02", "AC-03"), "REQ-03": ("AC-04", "AC-05"), "REQ-04": ("AC-06",),
+        "REQ-05": ("AC-07", "AC-08"), "REQ-06": ("AC-09",), "REQ-07": ("AC-03", "AC-10"),
+    }
+
+
+def test_map_table_equals_the_tests_derived_from_the_test_list():
+    rows = [line.split("|")[1:4] for line in REQUIREMENTS_MAP.read_text(encoding="utf-8").splitlines()
+            if line.startswith("| REQ-")]
+    table = {r.strip(): (tuple(c.strip().split(", ")), tuple(t.strip().split(", "))) for r, c, t in rows}
+    _, requirements = read_requirements_map()
+    derived = requirement_tests(requirements)
+    assert table == {r: (requirements[r], derived[r]) for r in requirements}
 
 
 def test_target_meeting_the_contract_passes_everything_it_runs(fake):
