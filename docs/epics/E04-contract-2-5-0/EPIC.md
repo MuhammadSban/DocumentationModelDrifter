@@ -1,6 +1,6 @@
 # E04: Contract 2.5.0, system coverage from evaluated tests, and T-21, T-22 and T-23 run
 
-Status: draft · Owner: Kaan
+Status: ratified · Owner: Kaan
 
 W-row: W4-9, W4-5 and W4-10 in `docs/state/WORK-ITEMS.md` (build order steps C.4, C.5, 5.6 and 5.7) · Branch: `E04-contract-2-5-0`
 
@@ -414,3 +414,27 @@ Notes, not blocking:
 - Steps 8 to 13 each run more than one command. The W4-9 ruling sanctions the second command, the run of the whole file. Step 12's ten greps are one check block.
 
 Revised by the author after the review at 5c7a2e4: findings 1 to 3 are addressed in Relies on, steps 10, 12 and 13, Done line 15 and Out of scope (L8 is pushed; the table of files at the top of the contract gets its own change and grep, which makes eleven; the `SOURCE` line is named). The first and third notes are taken up in steps 9, 10 and 12.
+
+RATIFY · design-reviewer at 7cdd9c6 · 2026-11-22
+
+Scope: steps 8 to 13 and every section the revision changed. `git diff 5c7a2e4 7cdd9c6` touches only Relies on (lines 49-51), steps 9, 10, 12 and 13, Done line 15, Out of scope and the Review section. Steps 1 to 7 and the earlier verdicts are unchanged.
+
+- The three findings of the review at 5c7a2e4 are fixed on disk:
+  - Finding 1: `git ls-remote https://github.com/kaan-kanadasi/doc-tracker-model-fixtures` gives `HEAD`, `refs/heads/main` and `refs/tags/L8` at `c8058c2e8a52b5b1e86710e0821b94437fc438e1` and `refs/tags/L7` at `d288268…`, as Relies on (line 49) now says. `grep -n -i "pushed\|pushes"` finds no remaining "once L8 is pushed" in the Epic's sections; Out of scope and step 13 record the push as done.
+  - Finding 2: `docs/contract/pod-contract.md:22` reads "expected answers for T-24 to T-33 (section 3)". Step 12 changes it and adds grep 11, and Done line 15 counts eleven greps.
+  - Finding 3: `diff --strip-trailing-cr scripts/model_fixture.py t23-fixture/model_fixture_l8.py` shows the `SOURCE` line (13), the three texts and the L8 entry, and nothing else. Relies on (line 50) and step 10 name the `SOURCE` line.
+- The filled-copy check prints nothing (exit 1). No `DESIGN.md` is needed: no import changes (`docs/diagrams/dependency.md:79`, A4), and `git grep -n -i -E "T-2[123]|skip|pod_tests|feature|model_fixture|golden"` over the five models and `docs/invariants` finds nothing about the tester or the fixture (INV-1 only cites the golden file).
+- No conflict with a level above. Steps 8 to 13 follow the human's 2026-11-22 lines in the W4-9, W4-5 and W4-10 rows (`docs/state/WORK-ITEMS.md:212`, `:217`, `:218`). Keeping 2.5.0 matches contract §10 (`docs/contract/pod-contract.md:339-343`). The per-step "own check, then the whole file" follows the W4-9 ruling. `RULED/` holds only its README.
+- Relies on holds at the cited lines: `Source/Tester/pod_tests.py:188-206`, `:312-314`, `:351-355`, `:371-380`, `:483-486`; `Source/Tester/page.html:406-411`; `tests/tester/conftest.py:16`, `:29`, `:68-71`; `tests/connector/test_model_golden.py:23`; contract `:22`, `:40`, `:53-57`, `:102-103`, `:122-140`, `:152-155`, `:184-186`, `:198-200`, `:339-343`; spec `:331`, `:334`, `:351-352`, `:368-369`, `:378-388`, `:395`, `:494-496`, `:748`; `docs/base/requirements-to-tests.md:38`; the W1-8 live run (`docs/state/WORK-ITEMS.md:146`: 7 of 10, 6 of 7, 5 of 7).
+- Counts: `python -m pytest tests/tester/test_pod_tests.py -q` gives `31 passed`. `--collect-only` gives 29 for `test_model_golden.py`, 340 for the whole suite, and none for Done line 12's `-k` (31 deselected). So 36, 40, 43, 45, 32, 14 and 357 follow.
+- The probe holds, re-run independently by patching `TESTS` in memory (T-21 with `drift("L2")` under `model_drift` only, T-22 and T-23 with drift checks) against `FakeTarget` with `own=True`. System, component, model: today 8/6/6 plain, 7/6/5 `model_drift`, 8/6/6 both, 5/5/4 neither. After step 8, `model_drift` 8/6/6. After step 9, `model_drift` and both 9/7/6. After step 10, `model_drift` and both 10/7/7, and only T-18 to T-20 skip. Plain and neither stay 8/6/6 and 5/5/4. Every existing literal that moves in `tests/tester/test_pod_tests.py` (`:51`, `:52`, `:70`, `:129-131`, `:220`, `:226-228`) is named in its step; `:77`, `:86-87`, `:98`, `:108`, `:116` and `:122` stay true. No other file under `tests/` asserts T-21 to T-23 or the fixed skips.
+- L8 replays through the service. A scratch run mirrored `t23-fixture/build` as `test_model_golden.py`'s fixture does and posted `l8-case.json`'s request to `/system/analyze` through `TestClient`: 200, `drift` equal to the expected answer, `drift_error` null, no `l8-code-was-run.txt` anywhere. `l8-case.json` matches the golden file's indentation, so step 10's byte-for-byte copy fits.
+- Step 12's eleven greps give the "Today" outputs the Epic states, and each of grep 9's six phrases gives `1` alone. The old phrases occur only at the lines step 12 changes (`grep -n` over the contract). Step 13's grep prints both file names today. Done lines 3 and 11 hold today (nothing, and `docs/contract/pod-contract.md:2`).
+- Every step from 8 to 13 names its files, its check with the output that means done, and its trailer. Every Done line but line 4 is a command with its output.
+- Open questions 1, 2, 4 and 5 have sourced answers; 3 is ruled (W4-9 row). No row is needed in `docs/decisions/OPEN-DECISIONS.md`, and `git grep -n "E04"` there prints nothing.
+
+Notes, not blocking:
+
+- `docs/base/specifications.md:519-520` says AC-05 is tested by the pod "only in Phase 5 (T-22)", and `:536` says AC-09 is validated "also by inspection". Both stay true after the Epic, but step 13's "any other line the change makes untrue follows (R2)" should look at them.
+- Step 12's check is eleven commands, not one. It is a single check block over one file, as step 5's two greps were when ratified.
+- `lint-imports` was not run in this review (Done line 10).
