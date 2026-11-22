@@ -1,6 +1,6 @@
 # E03: Model coverage in our tester's report
 
-Status: draft · Owner: Kaan
+Status: ratified · Owner: Kaan
 
 W-row: W4-8 in `docs/state/WORK-ITEMS.md` (build order steps C.1 to C.3) · Branch: `E03-model-coverage`
 
@@ -98,10 +98,20 @@ This Epic's own:
 
 ## Open questions
 
-1. Which outcomes count as "evaluated" for `coverage.model` while contract 2.4.0 holds? Answered: only pass and fail, now, without waiting for 2.5.0 (W4-8 row, "Decided by the human, 2026-11-22").
-2. What exactly is the URL in our registry row? Answered: `https://documentationmodeldrifter-production.up.railway.app/system` (W4-8 row, "Decided by the human, 2026-11-22").
-3. Does "localhost" also mean `127.0.0.1` and `::1`, and any port? Answered: the hosts `localhost`, `127.0.0.1` and `::1`, on any port, only when not running on Railway (W4-8 row, "Decided by the human, 2026-11-22").
+1. Which outcomes count as "evaluated" for `coverage.model` while contract 2.4.0 holds? Answered: only pass and fail, now, without waiting for 2.5.0 (`docs/state/WORK-ITEMS.md:212`, W4-8 row, "Decided by the human, 2026-11-22").
+2. What exactly is the URL in our registry row? Answered: `https://documentationmodeldrifter-production.up.railway.app/system` (`docs/state/WORK-ITEMS.md:212`, W4-8 row, "Decided by the human, 2026-11-22").
+3. Does "localhost" also mean `127.0.0.1` and `::1`, and any port? Answered: the hosts `localhost`, `127.0.0.1` and `::1`, on any port, only when not running on Railway (`docs/state/WORK-ITEMS.md:212`, W4-8 row, "Decided by the human, 2026-11-22").
 
 ## Review
 
-Not reviewed yet. The design reviewer writes RATIFY or REVISE here.
+RATIFY · design-reviewer at 8f91a00 · 2026-11-22
+
+- The filled-copy check prints nothing for this file, and there is no `DESIGN.md` to check (the check in `docs/templates/README.md`, run on this file at 8f91a00, exit 1).
+- No `DESIGN.md` is needed: no model in `docs/diagrams/` describes the suite report (`grep -i "tester|coverage"` over `data-flow.md`, `behavior.md`, `models-folder.md`, `model-seam.md` finds no tester flow), and a new module inside `Tester` that reads `os.environ` keeps rule A4 (`docs/diagrams/dependency.md:79`, `:104`).
+- No conflict with a higher level. The course PDF asks for `coverage.model` only on our own system, with `total` the design requirements listed for the milestone and `basis` naming the design version and linking the map (`docs/base/student-facing-spec.docx.pdf` p. 5). The openapi `coverage` object requires only `code`, `component` and `system` and sets no `additionalProperties` (`docs/contract/pod-tester.openapi.yml:122-134`), and `CoverageMeasure` allows null counts (`:158-165`). The pass-or-fail rule differs from contract §5's rule for `system` (`docs/contract/pod-contract.md:238-241`), but `model` is not in the contract and no other team sees it. Spec §6.2 lists only REQ-03, REQ-04 and REQ-06 (`docs/base/specifications.md:534`). Step 5 changes that line to match the human's call (`docs/state/WORK-ITEMS.md:212`), as R2 requires.
+- Every claim about the repository holds. Spec §4.1's AC-to-REQ pairs match Step 1's list (`docs/base/specifications.md:318-359`). T-21, T-22 and T-23 skip on our system (`docs/contract/pod-contract.md:183-185`; `Source/Tester/pod_tests.py:313-315`; our `/health` features are only `model_drift`, `Source/GitHub_Connector/api.py:153`). `run_suite`, `_measure`, `TESTS` and `Result` exist (`Source/Tester/pod_tests.py:326`, `:432`, `:272`, `:72`), and so do `test_run` and `TEAM16_SYSTEM_URL` (`Source/Tester/api.py:72`, `:19`). The Dockerfile copies `docs/contract/` but no file from `docs/base/` (`Dockerfile:15-17`). `pyyaml` and `jsonschema` are in `requirements.txt:4`, `:7`, which CI installs (`.github/workflows/ci.yml:22`). `RAILWAY_PROJECT_ID` is already the repository's on-Railway signal (`Source/GitHub_Connector/settings.py:70`). `RULED/` holds only its README, INV-1 is determinism (`docs/invariants/INVARIANTS.md:16`), and spec line 534 is the §6.2 coverage line.
+- Every step names its files, one check with its expected output, and its trailer. Every Done criterion except line 4 is a command with an expected output. No existing tester test name matches `test_map_` or `test_model_` (`pytest tests/tester --collect-only -k "test_map_ or test_model_"` gives 0 of 32), so the counts 2, 7 and 9 can only come from the new tests. `.importlinter` holds 5 contracts, which fits Done line 9. `lint-imports` is not installed in this checkout, so line 9 was not run here.
+- Every open question has a sourced answer (`docs/state/WORK-ITEMS.md:212`), so no row is needed in `docs/decisions/OPEN-DECISIONS.md`, and `git grep -n "E03" -- docs/decisions/OPEN-DECISIONS.md` prints nothing today.
+- Note, not blocking: Step 1's and Done line 6's `git grep` does not search an untracked file. Run them after `git add docs/base/requirements-to-tests.md`, or before that they print nothing (`docs/templates/README.md` uses `--untracked` for this reason).
+- Note, not blocking: Step 1 puts each requirement's criteria in both tables of the map file, and no named test checks that the two tables agree. The builder should either have the reader use one table and say which, or let `test_map_reader_returns_the_version_and_seven_requirements_with_their_criteria` compare the two.
+- Note, not blocking: no named test covers Step 4's wiring in `test_run` from `own_system` to `run_suite`. Only Done line 5 (all tester tests) runs `api.py`. A test in `tests/tester/test_api.py` would check the W-row's "a run against our own system reports `coverage.model`" end to end.
