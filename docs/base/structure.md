@@ -1,10 +1,12 @@
 # Inputs and outputs of the function that generates the Structural Model
 
 ```python
-def generate_structural(files: dict[str, str]) -> dict
+def generate_structural(files: dict[str, str], verbosity: int = FULL) -> dict
 ```
 
 The function reads Python source code and returns the structural model of that code. It is a pure function: it runs no git, network, clock or randomness, so the same files always give the same model.
+
+`verbosity` is a level from 1 to 4 that says how much of the code the model describes, read from `scope.json`'s `verbosity` key. 4, the default, is every node kind and every attribute below, which is what this function returned before the parameter existed. Each lower level keeps everything the level below it keeps: 3 drops `async`, `decorators` and `params`; 2 drops the `function` and `method` nodes with them; 1 drops the `class` nodes and the `inherits` edges too, leaving the modules and the imports between them. The ladder is tabulated in `docs/diagrams/models-folder.md`.
 
 ## Input
 
