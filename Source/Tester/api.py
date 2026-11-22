@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from Tester import client, own_system, pod_tests, unit_tests
-from Tester.client import NoReply
+from Tester.client import NoReply, Refused
 
 # names Team 16's system base URL, shown on the page; empty hides it
 TEAM16_SYSTEM_URL = "https://doc-tracker-team16.onrender.com/system"
@@ -28,6 +28,10 @@ router = APIRouter(prefix="/tester", tags=["tester"])
 # holds sessions in memory, cleared by a restart as the contract allows (§2)
 SESSIONS: dict[str, dict] = {}
 LOCK = threading.Lock()
+# caps the sessions kept, in seat order; the oldest finished, then never run, makes room
+MAX_SESSIONS = 50
+# lets one pytest group run at a time, each is a subprocess beside real checks
+UNIT_LOCK = threading.Lock()
 
 
 def _error(status: int, message: str, source: str = "tester") -> JSONResponse:
@@ -52,20 +56,57 @@ async def test_setup(request: Request):
         return _error(400, "target_url is required: a system base URL such as https://host/system")
     target = target.rstrip("/")
     session_id = str(uuid.uuid4())
+    if not _take_seat(session_id, target):
+        return _error(500, f"the tester holds {MAX_SESSIONS} sessions, each running or being set up; retry later")
+    ready = False
     try:
-        reply = await run_in_threadpool(client.call, "POST", target + "/test/setup",
-                                        {"session_id": session_id, "setup": {}})
-    except NoReply as exc:
-        return _error(500, f"system setup gave no answer: {exc}", "communication")
-    if not 200 <= reply.status < 300:
-        body = reply.body if isinstance(reply.body, dict) else {}
-        message = body.get("message") if isinstance(body.get("message"), str) and body.get("message") \
-            else f"system setup answered {reply.status}"
-        source = body.get("source") if body.get("source") in SOURCES else "system"
-        return _error(reply.status, message, source)
+        try:
+            reply = await run_in_threadpool(client.call, "POST", target + "/test/setup",
+                                            {"session_id": session_id, "setup": {}})
+        except Refused as exc:
+            # answers a target the hosted tester will not call as a target_url it does not accept (W1-8)
+            return _error(400, f"target_url is not accepted: {exc}")
+        except NoReply as exc:
+            return _error(500, f"system setup gave no answer: {exc}", "communication")
+        if not 200 <= reply.status < 300:
+            body = reply.body if isinstance(reply.body, dict) else {}
+            message = body.get("message") if isinstance(body.get("message"), str) and body.get("message") \
+                else _fallback_message(reply)
+            source = body.get("source") if body.get("source") in SOURCES else "system"
+            return _error(reply.status, message, source)
+        with LOCK:
+            SESSIONS[session_id]["state"] = "ready"
+        ready = True
+        return {"session_id": session_id}
+    finally:
+        if not ready:
+            # frees the seat of a setup that failed, so it never counts against the cap
+            with LOCK:
+                SESSIONS.pop(session_id, None)
+
+
+def _fallback_message(reply: client.Reply) -> str:
+    # words a failed setup whose body gives no message; a 3xx names where it pointed, never an empty URL
+    if not 300 <= reply.status < 400:
+        return f"system setup answered {reply.status}"
+    where = f"a redirect to {reply.new_url}" if reply.new_url else "a redirect with no Location header"
+    return f"system setup answered {reply.status}, {where}; the tester does not follow redirects"
+
+
+def _take_seat(session_id: str, target: str) -> bool:
+    # reserves a seat before setup calls out; at the cap drops the oldest done, else the oldest
+    # ready session, and refuses when every seat is running or still in setup
     with LOCK:
-        SESSIONS[session_id] = {"report": None, "results": [], "state": "ready", "target_url": target}
-    return {"session_id": session_id}
+        if len(SESSIONS) >= MAX_SESSIONS:
+            for state in ("done", "ready"):
+                oldest = next((sid for sid, s in SESSIONS.items() if s["state"] == state), None)
+                if oldest is not None:
+                    del SESSIONS[oldest]
+                    break
+            else:
+                return False
+        SESSIONS[session_id] = {"report": None, "results": [], "state": "setup", "target_url": target}
+        return True
 
 
 @router.post("/test/run")
@@ -137,7 +178,12 @@ def catalog() -> dict:
 
 @router.post("/unit/{group}", include_in_schema=False)
 def unit(group: str):
-    # runs one pytest group, 404 for a folder the page does not offer
+    # runs one pytest group, 404 for a folder the page does not offer, 409 while another group runs
     if group not in unit_tests.GROUPS:
         return _error(404, f"unknown test group {group}")
-    return unit_tests.run_group(group)
+    if not UNIT_LOCK.acquire(blocking=False):
+        return _error(409, "another test group is running, retry when it ends")
+    try:
+        return unit_tests.run_group(group)
+    finally:
+        UNIT_LOCK.release()
