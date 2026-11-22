@@ -201,15 +201,19 @@ This Epic's own:
 Each line the draft could not answer. The reviewer settles what the code, the models or a ruling can
 answer, and the rest become rows in `docs/decisions/OPEN-DECISIONS.md`.
 
-1. Is this work approved at all, and where does it sit in the queue? It is a direction change with
-   no build-order step, and the Next action is step 0.6b. The human's call: row E02-a in
-   `docs/decisions/OPEN-DECISIONS.md`.
-2. Does the ladder answer N3, or pre-empt it? N3 asks which grain the structural model has and
-   lists "finer grain as an opt-in in `scope.json`" among its options, which is this Epic's shape.
-   The human's call: row N3, and row E02-b for whether E02 may land before N3 is ruled.
-3. Must the W0-7 ruling cover verbosity before this lands, or may the Epic land with the hole
-   named and DEFERRED? Lowering the level and regenerating in one push hides every drift the level
-   drops, which is gap G4 in a new place. The human's call: row E02-c.
+1. **Answered by the human, 2026-11-22: approved, build it now.** Is this work approved at all, and
+   where does it sit in the queue? It is a direction change with no build-order step, and the Next
+   action is step 0.6b. Row E02-a in `docs/decisions/OPEN-DECISIONS.md` records the word; only the
+   human writes `docs/decisions/RULED/`, so the row stays until they move it, and Done criterion 3
+   waits for that.
+2. **Answered by the human, 2026-11-22, by approving the recommendation.** Does the ladder answer
+   N3, or pre-empt it? E02 lands as the opt-in and N3's question of the default grain stays open:
+   the default grain does not move, no `schema_version` is bumped and no committed model changes,
+   so nothing N3 decides is foreclosed. Row E02-b records it.
+3. **Answered by the human, 2026-11-22, by approving the recommendation.** Must the W0-7 ruling
+   cover verbosity before this lands? No: E02 lands with the gap named in INV-2 and graded
+   DEFERRED, and the W0-7 ruling covers `scope.json` and `verbosity` together, since W0-7 already
+   owes `scope.json` the same fix. Row E02-c records it.
 4. Does the panel remember one level for every repository, or one per repository? One level for
    every repository is what step 6 builds, being the smaller thing. Settled by the human in the
    panel's first use, or left as it is.
