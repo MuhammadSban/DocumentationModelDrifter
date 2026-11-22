@@ -1,11 +1,13 @@
 # checks that /system/health answers the contract's Health shape
 
+from fastapi.testclient import TestClient
+
 from GitHub_Connector import api, rules
 from GitHub_Connector.settings import build_label
 
 
 def test_health_lists_model_drift_and_the_required_fields():
-    body = api.health()
+    body = TestClient(api.app).get("/system/health").json()
 
     assert body["status"] == "ok"
     assert body["tool_version"] == build_label()

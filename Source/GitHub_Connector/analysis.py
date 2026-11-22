@@ -6,6 +6,8 @@ import re
 import threading
 import time
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from drifter import check
@@ -60,11 +62,32 @@ def slot() -> threading.BoundedSemaphore:
         return _slots[1]
 
 
+def arrival_deadline() -> float:
+    # sets the check's deadline from its arrival, so the wait for a slot counts against it (spec 7.3)
+    return time.monotonic() + get_settings().analysis_deadline
+
+
+@contextmanager
+def slot_until(deadline: float) -> Iterator[None]:
+    # holds a slot, waiting for one only until the deadline; a wait past it is ANALYSIS_FAILED
+    sem = slot()
+    if not sem.acquire(timeout=max(0.0, deadline - time.monotonic())):
+        raise AnalysisError(
+            ErrorCode.ANALYSIS_FAILED,
+            f"No check slot came free within {get_settings().analysis_deadline:g} s",
+        )
+    try:
+        yield
+    finally:
+        sem.release()
+
+
 def analyze(request: AnalysisRequest) -> AnalysisResult:
-    # runs one analysis in a slot, starting the deadline only once the slot is free
+    # runs one analysis in a slot, under a deadline that started at arrival
+    deadline = arrival_deadline()
     validate(request)
-    with slot():
-        return _analyze(request, time.monotonic() + get_settings().analysis_deadline)
+    with slot_until(deadline):
+        return _analyze(request, deadline)
 
 
 def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
@@ -124,9 +147,9 @@ def _analyze(request: AnalysisRequest, deadline: float) -> AnalysisResult:
 def generate(request: AnalysisRequest) -> GenerateResult:
     # builds the four /models files at the commit on a fresh clone, as drifter init would; a
     # no-verdict code such as PARSE_FAILED becomes ANALYSIS_FAILED, the route's only 500
+    deadline = arrival_deadline()
     validate(request)
-    with slot():
-        deadline = time.monotonic() + get_settings().analysis_deadline
+    with slot_until(deadline):
         with fetch(request.repository, request.commit_id, request.base_commit, deadline) as cmp:
             try:
                 files = check.generate_models(cmp)

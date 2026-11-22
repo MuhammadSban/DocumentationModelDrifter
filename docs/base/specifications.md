@@ -599,7 +599,20 @@ one piece of state is the result store, which keeps every /analyze result durabl
 most 2 checks at once, stops each check at its deadline, and reports that it is up at
 GET /system/health. A third check waits for a free slot within its own deadline, and gets 500
 ANALYSIS_FAILED if the deadline passes while it waits; waiting in the request is not a job queue.
+The deadline starts when the request arrives. /system/generate and the console's /models/view wait
+for the same slots the same way, and GET /system/health answers while checks wait.
 System setup allows one active test session at a time (contract section 2).
+
+The tester served beside the system has limits of its own. It runs one pytest group at a time
+from its page; a second request gets 409 at once. It keeps at most 50 test sessions in memory: a
+new setup first drops the oldest finished session, then the oldest that never ran, and answers 500
+with source "tester" when every session is running or still being set up. It never follows a
+redirect: at setup a 3xx
+is passed through like any other system answer, with the system's own message and source when
+it gives them, and otherwise source "system" and a message that names the new URL. On Railway it
+calls no internal address: a host ending in .internal, or one that resolves to an address that is
+not globally routable, is refused before anything is sent, with 400 at setup and as a
+communication error during a run.
 
 Two measures show whether the check is useful: how often drift is accepted (updated /models)
 rather than fixed in the code, and the false-alert rate on labelled no-drift commits.

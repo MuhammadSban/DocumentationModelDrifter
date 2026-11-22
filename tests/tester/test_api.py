@@ -111,3 +111,129 @@ def test_page_and_catalog(app_url):
 
 def test_unknown_unit_group(app_url):
     assert post(app_url + "/unit/nope").status == 404
+
+
+@pytest.fixture
+def blocking_group(monkeypatch):
+    # replaces the pytest run with a stand-in that holds until the test lets it go
+    from Tester import unit_tests
+
+    entered, release = threading.Event(), threading.Event()
+
+    def run_group(group):
+        entered.set()
+        release.wait(10)
+        return {"group": group, "summary": "", "tests": [], "title": unit_tests.GROUPS[group]}
+
+    monkeypatch.setattr(unit_tests, "run_group", run_group)
+    yield entered, release
+    release.set()
+
+
+def test_unit_run_second_call_gets_409_at_once(app_url, blocking_group):
+    entered, release = blocking_group
+    first = threading.Thread(target=post, args=(app_url + "/unit/common",), daemon=True)
+    box = {}
+    second = threading.Thread(target=lambda: box.update(reply=post(app_url + "/unit/common")), daemon=True)
+    try:
+        first.start()
+        assert entered.wait(5), "the first run never started"
+        second.start()
+        second.join(3)
+        assert not second.is_alive(), "the second run waited for the first"
+    finally:
+        release.set()
+        first.join(10)
+        second.join(10)
+    assert box["reply"].status == 409
+    assert box["reply"].body["source"] == "tester"
+
+
+def test_unit_run_after_the_first_ended_runs(app_url, blocking_group):
+    _, release = blocking_group
+    release.set()
+    assert post(app_url + "/unit/common").status == 200
+    assert post(app_url + "/unit/common").status == 200
+
+
+@pytest.fixture
+def sessions(monkeypatch):
+    # gives the tester a fresh session table, seeded in the order the seats were taken
+    from Tester import api
+
+    table = {}
+    monkeypatch.setattr(api, "SESSIONS", table)
+
+    def seed(*states):
+        for i, state in enumerate(states):
+            table[f"s{i}"] = {"report": None, "results": [], "state": state, "target_url": "http://x/system"}
+        return table
+
+    return seed
+
+
+def test_session_cap_drops_the_oldest_finished_session(app_url, fake, sessions):
+    table = sessions(*(["running"] * 5 + ["done"] * 5 + ["ready"] * 40))
+    reply = post(app_url + "/test/setup", {"target_url": fake.url})
+    assert reply.status == 201
+    assert "s5" not in table and "s6" in table
+    assert reply.body["session_id"] in table
+    assert len(table) == 50
+
+
+def test_session_cap_drops_the_oldest_unrun_session_when_none_finished(app_url, fake, sessions):
+    table = sessions(*(["running"] * 5 + ["ready"] * 45))
+    reply = post(app_url + "/test/setup", {"target_url": fake.url})
+    assert reply.status == 201
+    assert "s5" not in table and "s6" in table and "s0" in table
+    assert len(table) == 50
+
+
+def test_session_cap_refuses_setup_with_500_and_calls_no_target_when_all_are_running(app_url, fake, sessions):
+    table = sessions(*["running"] * 50)
+    reply = post(app_url + "/test/setup", {"target_url": fake.url})
+    assert reply.status == 500
+    assert reply.body["source"] == "tester"
+    assert fake.setup_calls == 0
+    assert len(table) == 50
+
+
+def test_session_cap_frees_the_seat_of_a_setup_that_failed(app_url, fake, closed_url, sessions, monkeypatch):
+    from Tester import api
+
+    monkeypatch.setattr(api, "MAX_SESSIONS", 1)
+    table = sessions()
+    fake.setup_answer = (409, {"message": "another session is active", "source": "system"})
+    assert post(app_url + "/test/setup", {"target_url": fake.url}).status == 409
+    assert post(app_url + "/test/setup", {"target_url": closed_url}).status == 500
+    fake.setup_answer = (201, None)
+    reply = post(app_url + "/test/setup", {"target_url": fake.url})
+    assert reply.status == 201
+    assert list(table) == [reply.body["session_id"]]
+
+
+def test_setup_guard_answers_400_for_an_internal_target_on_railway(closed_url, sessions, monkeypatch):
+    # calls the app in-process: on Railway the guard would refuse a Tester.client call to 127.0.0.1
+    from fastapi.testclient import TestClient
+
+    from GitHub_Connector.api import app
+
+    monkeypatch.setenv("RAILWAY_PROJECT_ID", "p1")
+    table = sessions()
+    resp = TestClient(app).post("/tester/test/setup", json={"target_url": closed_url})
+    assert resp.status_code == 400
+    assert resp.json()["source"] == "tester"
+    assert "127.0.0.1" in resp.json()["message"]
+    assert table == {}
+
+
+def test_setup_guard_passes_a_redirect_through_and_names_the_new_url(app_url, local_server, monkeypatch):
+    monkeypatch.delenv("RAILWAY_PROJECT_ID", raising=False)
+    target, elsewhere = local_server(), local_server()
+    target.status = 302
+    target.headers = {"Location": elsewhere.url + "/test/setup"}
+    reply = post(app_url + "/test/setup", {"target_url": target.url})
+    assert reply.status == 302
+    assert reply.body["source"] == "system"
+    assert elsewhere.url + "/test/setup" in reply.body["message"]
+    assert elsewhere.hits == 0
