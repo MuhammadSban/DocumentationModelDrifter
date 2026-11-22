@@ -51,6 +51,17 @@ Everything this Epic reads or changes, found by looking before the steps are wri
 
 One commit per step, made after the step's check passes. No step starts before RATIFY.
 
+**Revised on 2026-11-22, after the first review returned REVISE.** Its three blocking findings
+were each checked against the disk and each held. The second generation site,
+`Source/Frontend/model_drift.py:40-52`, is now named in step 3 and covered by step 6, which also
+passes the same level to both `snapshot` calls so the drift chip compares like with like. Step 4's
+`generate_models` parameter is keyword with a default, because
+`Source/GitHub_Connector/analysis.py:132` calls it with one argument for `POST /system/generate`,
+and that step's check now runs `tests/connector` to prove it. Step 6 also rewords the module
+comment that says the page runs no scripts, step 7 adds the Next action line, Done criterion 9
+gains the chip case, and the stale citations are corrected here and in `DESIGN.md`. The step count
+is unchanged at seven.
+
 ### Step 1/7: Track the console's own tests
 
 - Files: `tests/frontend/test_models_view.py` and `tests/frontend/test_behavioral_view.py`, both
@@ -95,18 +106,27 @@ already regenerates from the scope committed at the commit, so the models it wri
 baseline. Validation is inline because `scope.json` has no schema yet; if W3-1 lands first, this
 step adds the key to `scope.schema.json` instead and the check command is unchanged.
 
+`_regenerate` is not the only generation site, and this step does not pretend it is: the console's
+page has its own loop over `GENERATORS` in `Source/Frontend/model_drift.py:40-52`, which step 6
+covers. This step is the tool proper.
+
 ### Step 4/7: Set the level before the first model exists
 
 - Files: `Source/drifter/cli.py` (`init` gains `--verbosity`, an integer from 1 to 4, default 4);
-  `Source/drifter/check.py` (`generate_models(reader, verbosity)` writes the level into the
+  `Source/drifter/check.py` (`generate_models(reader, verbosity=FULL)` writes the level into the
   `scope.json` it writes and generates at it); `tests/drifter/test_cli.py` (`init --verbosity 1`
   writes `verbosity: 1` into `scope.json` and a `structural.json` of modules and imports only, and
   a `check` straight after it is aligned)
-- Check: `pytest tests/drifter -q` → passes
+- Check: `pytest tests/drifter tests/connector -q` → passes
 - Trailer: `Step: 4/7`
 
 This is the human's "the change in verbosity happens before the initial model is generated": the
 first baseline is at the chosen level, not at level 4 and then lowered.
+
+The parameter is keyword with a default, as step 2's are, because `generate_models` has a second
+caller: `Source/GitHub_Connector/analysis.py:132` calls `check.generate_models(cmp)` with one
+argument, for `POST /system/generate`. It needs no edit, and this step's check runs
+`tests/connector` to prove it.
 
 ### Step 5/7: Prove the goldens and the contract are untouched
 
@@ -122,17 +142,24 @@ of its own if nothing changed; its result is recorded in this file instead.
 
 ### Step 6/7: Put the panel on the page, and the level on the route
 
-- Files: `Source/GitHub_Connector/api.py` (`models_view` gains `verbosity: int | None = None`,
-  validated 1 to 4, passes it to the regeneration, and hands `render` the route the page was served
-  from so the panel's form has somewhere to submit); `Source/Frontend/model_viewer.py` (the panel
-  above the three model panels: a GET form with four radio stops, `repository` and `commit_id` as
-  hidden inputs, read-only when there is no route; one note beside `_provenance` and `_compared`
-  saying which level is drawn, which the repository commits, and that the drift chips compare that
-  level with itself; a few lines of script that remember the stop in `localStorage`, in try and
-  catch); `Source/Frontend/app.css` (the panel's styles); `tests/frontend/test_models_view.py` (a
-  request at level 1 draws packages and no classes; a request with no level draws what it draws
-  today; a request at level 9 gives 422; the note names both levels when they differ and is absent
-  when they agree; the standalone render has no form and says how to change the level)
+- Files: `Source/Frontend/model_drift.py` (`snapshot(reader, commit, verbosity=None)` passes the
+  level to the structural generator, reading the commit's own `scope.json` through `_scope` when
+  none is given); `Source/GitHub_Connector/api.py` (`models_view` gains
+  `verbosity: int | None = None`, validated 1 to 4, passes the **same** level to both `snapshot`
+  calls, at `:198` and `:201`, and hands `render` the route the page was served from so the panel's
+  form has somewhere to submit, plus the committed level so the page can name both);
+  `Source/Frontend/model_viewer.py` (the panel above the three model panels: a GET form with four
+  radio stops, `repository` and `commit_id` as hidden inputs, read-only when there is no route; one
+  note beside `_provenance` and `_compared` saying which level is drawn, which the repository
+  commits, and that the drift chips compare that level with itself; a few lines of script that
+  remember the stop in `localStorage`, in try and catch; the module comment at `:5`, "no server, no
+  scripts, no network", reworded to what is then true); `Source/Frontend/app.css` (the panel's
+  styles); `tests/frontend/test_models_view.py` (a request at level 1 draws packages and no
+  classes; a request with no level draws what it draws today; a request at level 9 gives 422; the
+  note names both levels when they differ and is absent when they agree; the standalone render has
+  no form and says how to change the level; a preview of a repository whose two commits differ
+  only below the previewed level reports no drift, which is the two snapshots taking the same
+  level)
 - Check: `pytest tests/frontend -q` → passes
 - Trailer: `Step: 6/7`
 
@@ -147,11 +174,12 @@ change and Team 16 agrees to nothing.
 - Files: `docs/diagrams/model-seam.md` (the generator contract line, and one sentence that a
   parameter is committed in `/models` and never passed from a request); `docs/diagrams/models-folder.md`
   (the `scope.json` box gains `verbosity` and the ladder); `docs/base/structure.md` (line 4, the
-  signature); `docs/base/specifications.md` (line 261, what `scope.json` holds; line 264 already
-  says what an edit without regenerating does and is left as it is); `docs/README.md` (the lines
-  for the two models); `docs/invariants/INVARIANTS.md` (INV-2's check column names verbosity among
-  what the W0-7 ruling must cover); `docs/state/WORK-ITEMS.md` (the N7 row, and the W0-7 row gains
-  verbosity under gap G4)
+  signature); `docs/base/specifications.md` (line 261, what `scope.json` holds; the sentence at
+  lines 263 to 264 already says what an edit without regenerating does and is left as it is);
+  `docs/README.md` (the lines for the two models); `docs/invariants/INVARIANTS.md` (INV-2's check
+  column names verbosity among what the W0-7 ruling must cover); `docs/state/WORK-ITEMS.md` (the
+  N7 row at line 240, the W0-7 row gaining verbosity under gap G4, and the Next action line 13,
+  "Drafted, waiting on the human … No code", which RATIFY and this build make untrue)
 - Check: `git grep -c "verbosity" -- docs/diagrams/model-seam.md docs/diagrams/models-folder.md docs/base/structure.md docs/base/specifications.md`
   → each of the four files prints 1 or more
 - Trailer: `Step: 7/7`
@@ -184,8 +212,9 @@ This Epic's own:
    being `init --verbosity 1` followed by an aligned `check`, and a hand-edited level followed by
    `update` and an aligned `check`
 9. The page carries the panel and names both levels:
-   `pytest tests/frontend -q` → passes, including the 422 case, the note case and the standalone
-   case, and `git diff --stat main...HEAD -- Source/Frontend/index.html` → prints nothing, the panel
+   `pytest tests/frontend -q` → passes, including the 422 case, the note case, the standalone case
+   and the case that proves both snapshots take the previewed level, and
+   `git diff --stat main...HEAD -- Source/Frontend/index.html` → prints nothing, the panel
    being on the page and not in the console
 10. The models say what the code does:
     `git grep -c "verbosity" -- docs/diagrams/model-seam.md docs/diagrams/models-folder.md` → each
@@ -231,7 +260,7 @@ answer, and the rest become rows in `docs/decisions/OPEN-DECISIONS.md`.
    instead of reporting every dropped element as drift? No: the level is chosen before the first
    model is generated, and a change to it redefines the baseline. `drifter update` regenerates from
    the committed scope, so the new models are the baseline and nothing is reported. The one case
-   left, an edit without a regeneration, is already covered by `docs/base/specifications.md:264`.
+   left, an edit without a regeneration, is already covered by `docs/base/specifications.md:263-264`.
 
 ## Review
 
