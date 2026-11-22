@@ -58,6 +58,25 @@ class Order:
 '''
 
 
+HANGS = '''"""Never returns when imported or run: its top level loops forever."""
+
+while True:
+    pass
+'''
+
+RAISES = '''"""Fails when imported or run: its top level raises."""
+
+raise RuntimeError("the fixture's code was run")
+'''
+
+WRITES = '''"""Writes a file beside itself when imported or run."""
+
+from pathlib import Path
+
+Path(__file__).with_name("l8-code-was-run.txt").write_text("the fixture's code was run\\n")
+'''
+
+
 def _replace(old: str, new: str) -> Callable[[str], str]:
     # edits a file's current text, stopping the build unless old is there exactly once
     def edit(text: str) -> str:
@@ -109,6 +128,8 @@ COMMITS = [
      None),
     ("L7", "Remove an inherits edge from structural.json by hand", OWNER,
      {"models/structural.json": _drop_inherits}, None),
+    ("L8", "Add code that must never be run, and update /models in the same commit", OWNER,
+     {"src/hangs.py": HANGS, "src/raises.py": RAISES, "src/writes.py": WRITES}, "update"),
 ]
 
 

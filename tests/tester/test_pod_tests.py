@@ -50,7 +50,7 @@ def test_target_meeting_the_contract_passes_everything_it_runs(fake):
     assert {got[t]["outcome"] for t in ids("T-01", "T-21")} == {"pass"}
     assert got["T-22"] == {"message": "target does not implement model_drift", "outcome": "skip",
                            "test_id": "T-22"}
-    assert got["T-23"]["message"] == "checked by inspection"
+    assert got["T-23"]["message"] == "target does not implement model_drift"
     assert {got[t]["message"] for t in ids("T-24", "T-33")} == {"target does not implement model_drift"}
     assert report["coverage"]["component"]["covered"] == 6  # all but C7, which only T-22 lists
     assert report["coverage"]["system"]["covered"] == 8  # all but AC-05 (T-22) and AC-09 (T-23)
@@ -128,9 +128,9 @@ def test_system_counts_a_criterion_listed_by_two_evaluated_tests_once(fake):
     # counts AC-01 once though T-01 to T-07 pass, and AC-02 once though T-18, T-19, T-26 to T-28, T-30, T-31 pass
     fake.features = ["prose_detector", "model_drift"]
     report = run_suite(fake.url, "s")
-    assert {outcomes(report)[t]["outcome"] for t in ids("T-01", "T-22") + ids("T-24", "T-33")} == {"pass"}
+    assert {outcomes(report)[t]["outcome"] for t in ids("T-01", "T-33")} == {"pass"}
     system = report["coverage"]["system"]
-    assert (system["covered"], system["total"]) == (9, 10)  # all but AC-09 (T-23)
+    assert (system["covered"], system["total"]) == (10, 10)
 
 
 def test_system_basis_names_pass_or_fail_and_ac_11(fake):
@@ -270,6 +270,24 @@ def test_t22_run_skips_without_model_drift(fake):
     assert outcomes(run_suite(fake.url, "s"))["T-22"]["outcome"] == "skip"
 
 
+def test_t23_run_passes_with_model_drift(fake):
+    fake.features = ["model_drift"]
+    got = outcomes(run_suite(fake.url, "s"))
+    assert got["T-23"] == {"message": "L8 matches the expected answer", "outcome": "pass", "test_id": "T-23"}
+
+
+def test_t23_run_fails_when_the_answer_differs(fake):
+    fake.features = ["model_drift"]
+    fake.flip_aligned_case = "L8"
+    got = outcomes(run_suite(fake.url, "s"))
+    assert got["T-23"] == {"message": "L8: drift differs from the expected answer", "outcome": "fail",
+                           "test_id": "T-23"}
+
+
+def test_t23_run_skips_without_model_drift(fake):
+    assert outcomes(run_suite(fake.url, "s"))["T-23"]["outcome"] == "skip"
+
+
 def model_of(report):
     return report["coverage"]["model"]
 
@@ -281,7 +299,7 @@ def test_model_is_present_for_our_own_system_with_total_7_and_covered_at_most_to
 
 
 def test_model_counts_a_requirement_with_no_evaluated_test_in_total(fake):
-    # keeps REQ-06 in total, though its only test, T-23, always skips
+    # keeps REQ-06 in total, though its only test, T-23, skips without model_drift
     model = model_of(run_suite(fake.url, "s1", own=True))
     assert (model["covered"], model["total"]) == (6, 7)
 

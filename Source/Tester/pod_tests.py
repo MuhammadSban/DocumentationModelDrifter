@@ -331,7 +331,7 @@ TESTS = [
     _row("T-21", "New findings start PENDING_REVIEW", "C4 C5", "AC-04", pending_review,
          fallback=("model_drift", twice("L2")), **PROSE),
     _row("T-22", "Authorized and unauthorized review decisions", "C7", "AC-05", review_decisions, **DRIFT),
-    _row("T-23", "Read-only analysis, no repository code execution", "C2", "AC-09", skip="checked by inspection"),
+    _row("T-23", "Read-only analysis, no repository code execution", "C2", "AC-09", drift("L8"), **DRIFT),
     _row("T-24", "/analyze at L0: aligned: true, three empty lists", "C1 C2 C3 C4 C5", "AC-03", drift("L0"), **DRIFT),
     _row("T-25", "/analyze at L1: aligned: true", "C1 C2 C3 C4 C5", "AC-03", drift("L1"), **DRIFT),
     _row("T-26", "/analyze at L2: one structural ADDED", "C1 C2 C3 C4 C5", "AC-02", drift("L2"), **DRIFT),
