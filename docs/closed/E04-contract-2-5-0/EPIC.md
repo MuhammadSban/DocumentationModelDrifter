@@ -1,6 +1,6 @@
 # E04: Contract 2.5.0, system coverage from evaluated tests, and T-21, T-22 and T-23 run
 
-Status: ratified · Owner: Kaan
+Status: closed · Owner: Kaan
 
 W-row: W4-9, W4-5 and W4-10 in `docs/state/WORK-ITEMS.md` (build order steps C.4, C.5, 5.6 and 5.7) · Branch: `E04-contract-2-5-0`
 
