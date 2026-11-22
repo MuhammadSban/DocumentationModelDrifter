@@ -26,31 +26,70 @@ Level 4 is the default and is byte-identical to what the generators write today,
 `docs/contract/model-golden-outputs.json` and every structural test passes untouched. A repository
 that commits no `verbosity` key is at level 4.
 
-The seam changes in one way only. `docs/diagrams/model-seam.md` states the generator contract as
-`generate_structural(files) -> dict`; it becomes `generate_structural(files, verbosity=FULL) -> dict`,
-a keyword argument with a default. Every one of the 29 call sites outside the core keeps working
-unchanged, and the core's `GENERATORS` map in `Source/drifter/check.py` passes the value it read
-from `scope.json`. Behavioral keeps every element at every level in this Epic: it has no ladder yet,
-and inventing one is the "what is missing" note below, not this Epic's work.
+### The level is chosen before the first model exists, and a change to it redefines the baseline
 
-The panel is the console's, not the viewer page's. `Source/Frontend/model_viewer.py` renders a page
-with no scripts of its own, and that stays true: the panel lives in `Source/Frontend/index.html`,
-which already runs scripts and already persists reader state in `localStorage` under one `STORE` key.
-The panel sets a level, the console puts it on the iframe URL as `verbosity`, and
-`GET /models/view` regenerates at that level. The reader's chosen level is remembered per browser,
-beside the watchlist, and it is a preview: it never writes to any repository.
+This is the whole of how verbosity behaves over time, and it needs no new machinery.
 
-So there are two distinct things, and the page names both:
+`drifter init` gains `--verbosity`, writes it into the `scope.json` it writes, and generates the
+first `structural.json` at that level. So the level is set before the initial model is generated,
+and the first baseline is already at the chosen level.
 
-- **the committed level**, in `models/scope.json`, which is what `drifter check` and `/system/analyze`
-  use, and which is per repository;
-- **the previewed level**, from the panel, which is what the console's Models view draws, and which
-  is per reader and per browser.
+Afterwards the level is changed the way the scope is changed: a person edits `models/scope.json` by
+hand in a reviewed PR and runs `drifter update`, which reads the scope committed at that commit and
+rewrites `structural.json` and `behavioral.json` from it (`Source/drifter/cli.py:4-5`). The models
+it writes **are** the new baseline. Nothing reports the elements the old level held and the new one
+does not: there is no comparison between two levels anywhere, because the check never compares two
+commits' models. It regenerates at one commit and sets the result against the model committed at
+that same commit (`Source/drifter/check.py:110-119`, and "One check" in `docs/diagrams/model-seam.md`).
 
-Where they differ, the viewer page carries a note in the same place and style as its existing
-provenance and comparison notes: showing level 3 of 4, the repository commits level 4, and the drift
-chips on this page compare level 3 against level 3. A preview read as the real check is the one way
-this panel could mislead, so, like `_provenance`, it never goes unmarked.
+Both sides of that comparison therefore read their level from the same committed `scope.json`, and
+can never disagree about it. The one case left is a person who edits the level and does not
+regenerate, and that case already has a spec sentence and needs no new one: "Editing the scope
+without regenerating the models shows up as drift by itself" (`docs/base/specifications.md:264`).
+Verbosity is part of the scope, so the sentence covers it as written.
+
+`_regenerate(files)` in `Source/drifter/check.py:290` is the one place every generation passes
+through, from all three entry points: `generate_models` for init, `regenerate_models` for update,
+and `model_differences` for the check. It takes the level and hands it to the structural generator.
+The check reads the level from `sources.models["scope.json"]`, which `read_sources` has already
+parsed and validated, so `Sources` gains no field.
+
+### The panel is on the viewer page, and the function of it needs no script
+
+`Source/Frontend/model_viewer.py` renders the panel into the page itself, above the three model
+panels. It is a plain HTML form, `method="get"`, pointing at the route the page was served from:
+four radio stops named Overview, Types, Members and Full, `repository` and `commit_id` as hidden
+inputs, and a submit button. Choosing a level and submitting is a new GET of
+`/models/view`, which regenerates at that level. No JavaScript is involved in the function of the
+panel, so a blocked CDN or a disabled script leaves the panel working.
+
+Only remembering the choice needs a script, and it is the page's first: a few lines that read and
+write one key in `localStorage` and preselect the stop, wrapped in try and catch so that a private
+window or blocked storage leaves the panel working in memory. That ends the property that the page
+runs no script but Mermaid. The human asked for the panel on the viewer page on 2026-11-22, so the
+property is spent knowingly, and the panel is written so that losing the script costs the memory
+and nothing else.
+
+The page is also rendered standalone, by `python -m Frontend.model_viewer`, into a file with no
+server behind it. There the form has nowhere to submit, so `render` takes the route it was served
+from and renders the panel read-only without one: the committed level, and the sentence that
+changing it means editing `models/scope.json` and running `drifter update`. A page that offered a
+control that silently did nothing would be worse than a page that offers none.
+
+`Source/Frontend/index.html` does not change. The console frames the page, and the page now carries
+its own control, so the console neither builds the panel nor holds the reader's choice.
+
+### Two distinct things, and the page names both
+
+- **The committed level**, in `models/scope.json`: what `drifter check`, `drifter update` and
+  `/system/analyze` use, and what the baseline is at. Per repository.
+- **The previewed level**, from the panel: what the console's Models view is drawing right now.
+  Per reader and per browser, and it never writes to any repository.
+
+Where they differ, the page carries a note in the same place and style as its existing provenance
+and comparison notes: showing level 3 of 4, the repository commits level 4, and the drift chips on
+this page compare level 3 against level 3. A preview read as the real check is the one way this
+panel could mislead, so, like `_provenance`, it never goes unmarked.
 
 ## Premises, verified
 
@@ -60,26 +99,32 @@ Every fact the structure rests on, checked against the disk before it is written
 |---|---|---|
 | INV-1 already counts `/models` among the inputs that fix the bytes, so a parameter inside it needs no rewording | `docs/invariants/INVARIANTS.md:16`, INV-1 | yes |
 | INV-2 already covers the scope rules, so a parameter inside `scope.json` inherits the W0-7 hole and its fix rather than opening a new one | `docs/invariants/INVARIANTS.md:17`, INV-2 | yes |
-| `generate_structural(files)` and `generate_behavioral(files)` take one argument today, and the core calls them through one map | `Source/models/structural_model.py:15`, `Source/models/behavioral_model.py:17`, `Source/drifter/check.py:104-105` | yes |
-| 29 call sites would break on a positional parameter, which is why the new one is keyword with a default | `grep -rn "generate_structural\|generate_behavioral" Source tests` gives 29 invocations outside the two definitions | yes |
-| The structural model already carries exactly the four node kinds and two edge kinds the ladder cuts on | `Source/models/structural_model.py:1-2`, `docs/diagrams/models-folder.md`, the `structural.json` box | yes |
-| `scope.json` has no JSON Schema yet, so a new key is read and validated in the same place `include` and `exclude` are | `Source/drifter/check.py:153-154`; `docs/diagrams/models-folder.md` lists "open: JSON Schema"; W3-1 is the row that adds it | yes |
+| The check never compares two commits' models: it regenerates at one commit and sets that against the model committed at the same commit, so two levels are never diffed against each other | `Source/drifter/check.py:110-119`, `model_differences` and `differences`; "One check" in `docs/diagrams/model-seam.md` | yes |
+| `drifter update` reads the scope committed at the commit and rewrites only the two generated models, which is exactly the re-baseline a level change needs | `Source/drifter/cli.py:4-5`, `Source/drifter/check.py:279-287` | yes |
+| The spec already states the semantic for editing the scope without regenerating, and verbosity is part of the scope | `docs/base/specifications.md:264` | yes |
+| One choke point exists for every generation, from all three entry points | `Source/drifter/check.py:290`, `_regenerate`, called by `generate_models`, `regenerate_models` and (through `GENERATORS`) `model_differences` | yes |
+| The check already has the committed scope parsed and validated where the generators run, so `Sources` needs no new field | `Source/drifter/check.py:79-83` and `:230`, `_scope_rule(models["scope.json"])` | yes |
+| `drifter init` writes `scope.json` itself, so a flag can set the level before the first generation | `Source/drifter/check.py:263-270`, `generate_models`, and `Source/drifter/cli.py:57-65` | yes |
+| `generate_structural(files)` and `generate_behavioral(files)` take one argument today | `Source/models/structural_model.py:15`, `Source/models/behavioral_model.py:17` | yes |
+| 29 invocations would break on a positional parameter, which is why the new one is keyword with a default | `grep -rn "generate_structural(\|generate_behavioral(" Source tests` gives 29 outside the two definitions | yes |
+| The structural model already carries exactly the four node kinds and two edge kinds the ladder cuts on | `Source/models/structural_model.py:1-2`; the `structural.json` box of `docs/diagrams/models-folder.md` | yes |
+| `scope.json` has no JSON Schema yet, so a new key is validated where `_scope_rule` validates the rest | `Source/drifter/check.py:230`, `:285`; `docs/diagrams/models-folder.md` lists "open: JSON Schema"; W3-1 is the row that adds it, and W3-1 deletes `_scope_rule` in favour of the schema | yes |
 | `GET /models/view` is the console's own route, kept out of the OpenAPI document, so a new query parameter is not a contract change and needs no agreement from Team 16 | `Source/GitHub_Connector/api.py:169`, `include_in_schema=False` | yes |
-| The viewer page runs no script of its own, so the panel cannot live inside it without ending that | `Source/Frontend/model_viewer.py:1-6` and `_script`, whose only job is Mermaid | yes |
-| The console already persists reader state per browser in `localStorage`, so the panel adds a key to a store that exists rather than a mechanism that does not | `Source/Frontend/index.html:288-299` | yes |
+| The viewer page runs no script but Mermaid today, so the panel's memory ends that property; its function does not need to | `Source/Frontend/model_viewer.py:1-6` and `_script` | yes |
+| The page is rendered standalone with no server, where a form has nowhere to submit | `Source/Frontend/model_viewer.py`, `main`, and the module comment's own CLI line | yes |
 | The viewer page already carries notes that separate what a page shows from what it proves, in the style this panel's note follows | `Source/Frontend/model_viewer.py`, `_provenance` and `_compared` | yes |
 | `docs/base/structure.md:4` and `docs/base/specifications.md:261` both become untrue and are fixed in the same PR under R2 | `grep -n` on both files | yes |
 | `docs/base/specifications.md:213`, "four files", stays true, because verbosity is a key and not a fifth file | `docs/base/specifications.md:213` | yes |
 | Lowering the level hides drift in everything it drops, which is gap G4 of W0-7 in a new place and not a new kind of hole | `docs/state/WORK-ITEMS.md`, W0-7 detail, gap G4 | yes |
-| No import contract changes: the panel is console-side and the parameter is read where scope is read | `.importlinter`, and rule R5 in `CLAUDE.md` | yes |
+| No import contract changes: the panel is inside the Frontend, the route stays in `GitHub_Connector`, the levels are applied in `models` | `.importlinter`, and rule R5 in `CLAUDE.md` | yes |
 
 ## Must stay true
 
 | ID | What must stay true | Check |
 |---|---|---|
-| INV-1 | The same repository version, `/models` and tool version give byte-identical models. The level is read from committed `/models`, never from a request or a browser, and the default is today's output. | `pytest tests/structural tests/common/test_seam.py tests/drift -q`, plus the new `tests/structural/test_verbosity.py` case that asserts `generate_structural(CODE)` equals `generate_structural(CODE, verbosity=4)` byte for byte through `write_model` |
-| INV-2 | No author can change the rules to pass their own change. Verbosity sits in `scope.json`, so the W0-7 ruling must name it: whichever option closes `scope.json` closes verbosity with it. | DEFERRED. The check arrives with the W0-7 ruling, build order step 4.3 or 4.4 (row W3-5). This Epic adds the test that a lowered level hides a real drift, marked expected-fail until that ruling lands. |
-| INV-3 | Imports under `Source/` follow the module map. The panel is in `index.html`, the route stays in `GitHub_Connector`, the levels are applied in `models`. | `PYTHONPATH=Source lint-imports` ends `Contracts: 5 kept, 0 broken.` |
+| INV-1 | The same repository version, `/models` and tool version give byte-identical models. The level is read from committed `/models`, never from a request or a browser, and the default is today's output. The panel's level reaches one route and no generator that writes a file. | `pytest tests/structural tests/common/test_seam.py tests/drift -q`, plus the new `tests/structural/test_verbosity.py` case asserting that `write_model(generate_structural(CODE))` equals `write_model(generate_structural(CODE, verbosity=4))` byte for byte |
+| INV-2 | No author can change the rules to pass their own change. Verbosity sits in `scope.json`, so the W0-7 ruling must name it: whichever option closes `scope.json` closes verbosity with it. | DEFERRED. The check arrives with the W0-7 ruling, build order step 4.3 or 4.4 (row W3-5). This Epic adds the test that a lowered level plus `drifter update` in one commit hides a real drift, marked expected-fail until that ruling lands. |
+| INV-3 | Imports under `Source/` follow the module map. The panel is in `Frontend`, the route stays in `GitHub_Connector`, the levels are applied in `models`. | `PYTHONPATH=Source lint-imports` ends `Contracts: 5 kept, 0 broken.` |
 
 ## What is missing from a complete solution
 
@@ -91,10 +136,15 @@ Named here, not built, so that leaving them out is the human's decision and not 
 - **One parameter, not a set.** `scope.json` gains one key. A general parameter block, a
   per-generator namespace or a parameter registry would be the shape for the second and third
   parameter, and designing it now would be designing for one example.
-- **Lowering the level floods the next check.** Every element the new level drops is reported
-  REMOVED once. There is no "accept the level change without reporting its drift" path, and
-  `drifter update` is the only way through it.
+- **A level change is a large diff, even though it is not drift.** `drifter update` rewrites
+  `structural.json` whole, so the PR that lowers the level carries every dropped element as a
+  deleted line. That is a reviewer's problem and not the check's, and nothing here shrinks it.
+- **Nothing warns that a level was lowered.** The check reports no drift for a re-baselined level,
+  by design; a reviewer who does not read `scope.json` in the diff will not learn that the models
+  now describe less. The W0-7 ruling is where that belongs, because it is the same gap.
 - **The preview is per reader, not per repository.** Two readers of the same repository can be
   looking at different levels, and nothing on a screenshot of one says so except its note.
+- **The panel's memory is per origin.** The page is framed from the API's origin, so a reader who
+  points the console at a different API starts again from the committed level.
 - **No verbosity in the reporter.** W4-3 renders the answer to annotations and a job summary; it
   will not say which level produced it.
