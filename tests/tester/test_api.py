@@ -106,7 +106,7 @@ def test_page_and_catalog(app_url):
     catalog = client.call("GET", app_url + "/catalog").body
     assert len(catalog["pod"]) == 33
     assert [g["key"] for g in catalog["unit_groups"]] == ["structural", "behavioral", "ownership", "common"]
-    assert catalog["team16_url"] == ""
+    assert catalog["team16_url"] == "https://doc-tracker-team16.onrender.com/system"
 
 
 def test_unknown_unit_group(app_url):

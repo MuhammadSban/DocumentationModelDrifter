@@ -15,8 +15,8 @@ from starlette.concurrency import run_in_threadpool
 from Tester import client, pod_tests, unit_tests
 from Tester.client import NoReply
 
-# fills in Team 16's system base URL once they share it, for example https://host/system; empty hides it on the page
-TEAM16_SYSTEM_URL = ""
+# names Team 16's system base URL, shown on the page; empty hides it
+TEAM16_SYSTEM_URL = "https://doc-tracker-team16.onrender.com/system"
 
 # matches a system base URL with no query, fragment or credentials (SetupRequest.target_url)
 TARGET_URL = re.compile(r"^https?://[^\s?#@]+$")
