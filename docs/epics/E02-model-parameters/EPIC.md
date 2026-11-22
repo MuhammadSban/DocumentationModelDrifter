@@ -149,6 +149,26 @@ A step that changes nothing is here on purpose: the whole claim that this featur
 level 4 being today's bytes, and that claim is checked before the page is touched. It has no commit
 of its own if nothing changed; its result is recorded in this file instead.
 
+**Result, 2026-11-22, at the commit of step 4.** It passed, and nothing changed.
+`pytest tests/connector tests/behavioral -q` gives 82 passed, the eight golden cases of
+`tests/connector/test_golden.py` among them, with one failure that is not this Epic's:
+`tests/connector/test_fetch.py::test_a_skipped_batch_fails_at_once_instead_of_fetching_lazily`
+fails on `main` as well, in this environment only, where Apple Git 2.39.5 raises
+`CalledProcessError` from `git cat-file --batch` on a blobless clone instead of the `AnalysisError`
+the test expects. CI runs ubuntu-latest's git, where it passes.
+`git diff --stat main...HEAD -- docs/contract/` prints nothing, and so does the same command for
+`example-models/`. The four files changed under `Source/` are `drifter/check.py`, `drifter/cli.py`,
+`models/structural_model.py` and `models/structural.schema.json`.
+
+One thing the step found that the plan did not foresee, fixed in step 3's commit:
+`models/structural.schema.json` made `async`, `decorators` and `params` **required** on a function
+node while `plainNode`'s `kind` enum allowed only `class` and `module`, so a level-3 model, which
+names members without their signatures, matched neither variant and was refused as
+`INVALID_MODELS`. Levels 1 and 2 passed, having no function nodes, and level 4 passed, being
+today's shape; level 3 alone was broken. The schema gains a third variant, `memberNode`, which
+keeps level 4 validated as strictly as before and is purely additive, so `schema_version` stays 1
+and no committed model moves.
+
 ### Step 6/7: Put the panel on the page, and the level on the route
 
 - Files: `Source/Frontend/model_drift.py` (`snapshot(reader, commit, verbosity=None)` passes the
