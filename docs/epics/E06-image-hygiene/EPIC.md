@@ -1,6 +1,6 @@
 # E06: Image hygiene
 
-Status: draft · Owner: Kaan
+Status: ratified · Owner: Kaan
 
 W-row: W1-2 and W1-3 (build order step 2.1) in `docs/state/WORK-ITEMS.md` · Branch: `E06-image-hygiene`
 
@@ -129,11 +129,53 @@ Each is a conscious choice, not an oversight.
 
 The human decided the calls in the W1-2 row (`docs/state/WORK-ITEMS.md:143`). Three points rest on tools that were not run when this was drafted; each is checked by a step or a Done line, and none is the human's call.
 
-- Does `docs/` followed by the two lines that let `docs/contract/` and `docs/base/requirements-to-tests.md` back in keep both paths in the context? Checked by the build of Done line 5: it fails at a `COPY` line if not. Review: no file, model or ruling answers it; it is Docker's behavior, not the human's call, and the build settles it, but only once Done line 5 shows whether the build succeeded, which today it does not (see Review, first finding; `Dockerfile:17-18`).
+- Does `docs/` followed by the two lines that let `docs/contract/` and `docs/base/requirements-to-tests.md` back in keep both paths in the context? Checked by the build of Done line 5: it fails at a `COPY` line if not. Review: no file, model or ruling answers it; it is Docker's behavior, not the human's call, and the build settles it, but only once Done line 5 shows whether the build succeeded, which today it does not (see Review, first finding; `Dockerfile:17-18`). Review at fd9dea1: settled by Done line 5 as revised, whose `exit=${PIPESTATUS[0]}` is the build's own status and must read `exit=0`; a build that cannot find `docs/contract/` or `docs/base/requirements-to-tests.md` stops at its `COPY` and prints a non-zero exit (`EPIC.md:101`; `Dockerfile:17-18`).
 - Does pip accept two locks in one install when both name the same package at the same version? Checked in step 3 and by Done line 9, and by CI (Done line 1). Review: no file, model or ruling answers it; it is pip's behavior, not the human's call. Step 3's local install runs on Windows and 3.13 only, so the first Linux 3.12 answer is CI on step 3's push (`.github/workflows/ci.yml:20-21`).
 - Does a first build from a fresh folder print the whole context's size on its `transferring context` line? Checked in step 1, where the size before must come out near the 59.77 MB summed from the files; if Docker sends only the paths the `COPY` lines name, the builder writes that in the log, and step 5 writes it beside the two sizes in the W1-2 row. Review: no file, model or ruling answers it; it is BuildKit's behavior, not the human's call. If BuildKit sends only the `COPY` paths, the size before is near 21 MB (`Source/` with its 19.86 MB `.mypy_cache`, `tests/`, `docs/contract/`), not 59.77 MB; the step already says what to write then.
 
 ## Review
+
+RATIFY · design-reviewer at fd9dea1 · 2026-11-22
+
+The four blocking findings of the review at f85bdcc are resolved:
+
+- Done line 5 removes the old tag, then echoes `${PIPESTATUS[0]}` right after the `docker build | grep` pipeline, so the echoed status is the build's own exit status. A failed build prints a non-zero exit, and lines 7, 8 and 17 then find no `e06-image`. (`EPIC.md:101`)
+- Line 5 plants `Source/.env.e06`, `Source/drifter/__pycache__/e06.pyc` and `Source/.mypy_cache/e06` in the copy. `COPY Source/` would carry all three into the image if the ignore file failed, so line 7 now checks something real. Today `find . -name ".env*"` prints nothing in the checkout. (`EPIC.md:101`, `:103`; `Dockerfile:14`)
+- Done line 9 passes `--disable-pip-version-check`, and step 3 runs the same command. pip's warning about scripts not on PATH prints before `Successfully installed`, and pip does not print it for a venv's own `Scripts`. (`EPIC.md:66`, `:105`)
+- Step 1 no longer edits the W1-2 row, and step 5's check reads the two docs. It uses grep only, with no pytest, as the human decided. I proved that each grep can find its target. At fd9dea1 and at ff79932, `grep -Pzo` prints all three phrases of `docker.md`. `grep -c "Measured context:"` prints `0`, and `grep -c "Decided by the human, 2026-11-22"` prints `7`, so `-c` counts lines in this file. (`EPIC.md:46-48`, `:83`; `docs/state/WORK-ITEMS.md:143`)
+
+Not blocking (worth fixing during the build or in step 5):
+
+- The Goal says "a local build sends 60 MB today". Docker has not confirmed that figure. BuildKit's Dockerfile frontend usually sends only the paths that the `COPY` lines name. If it does, the size before is about 21 MB (`Source/` with its 19.86 MB `.mypy_cache`, plus `tests/`), and `.git` is never sent. Fact line 25 and open question 3 already allow for this. In step 5, write the measured figure in place of the "60 MB" wording, and do not keep it beside that wording. (`EPIC.md:9`, `:25`, `:134`)
+- Done line 7 does not run as written: bash rejects the bare `(` with a syntax error. Write the escapes into the command, for example `find /app \( -name __pycache__ -o -name ".env*" -o -name .mypy_cache \)`. The error would show, so the line cannot pass falsely. (`EPIC.md:103`)
+- Done line 8 prints the container id from `docker run -d` first. The rest reads `200e06`, because `curl -w` ends without a newline before `docker stop` prints the name. The expected output could say so. The line also assumes nothing else is listening on port 8000. (`EPIC.md:104`)
+- Done line 17 checks only the owner of `/home/drifter` itself. If root's pip run made a folder under it, that folder would not show. `find /home/drifter ! -user drifter` → prints nothing would cover the whole tree. (`EPIC.md:113`)
+- Done line 11's `sed` has no `g` flag, so it changes the first hash on each line only. It changes every hash because `uv pip compile --generate-hashes` writes one `--hash` per line. Adding `g` would keep the human's "every hash" call true whatever the layout. (`EPIC.md:107`; `docs/state/WORK-ITEMS.md:143`)
+- Done line 16 expects `1`. A step 3 comment above the pip line that names `--require-hashes` would make it `2`. Keep the flag out of the comment, or count only `RUN` lines. (`EPIC.md:116`)
+- Step 5 points at `docs/README.md:111`. Line 109, the heading text of that section, says the proposals there are "not agreed and not built", which stops being true of `docker.md`'s R1 and R2. (`docs/README.md:109`)
+- Fact line 32 is still not exhaustive. The grep also finds "Python sources", "Python facts", "Python with ast" and "Version 1". The conclusion holds: `grep -rniE "python ?[0-9]|[a-z]==[0-9]|3\.1[0-9]" docs/contract/` prints nothing. (`docs/contract/spec-v1.1.md:217`)
+- Next action still lists, as left over from E02, "the Python version on INV-1", a call of the human's. E06 pins 3.12.16 in the image and in CI and does not edit INV-1, so the two do not conflict. The human may want to settle that call alongside this Epic. (`docs/state/WORK-ITEMS.md:14`; `docs/invariants/INVARIANTS.md:16`)
+- `data-flow.md:121` cites `ci.yml:21`, but the version is on `:20`. This predates E06, and the human chose to leave the file unedited (W1-2 row). I agree that its sentence stays true. (`docs/diagrams/data-flow.md:121`)
+
+Claims checked and holding at fd9dea1:
+
+- `git diff --stat ff79932 fd9dea1` touches only this file and `WORK-ITEMS.md`.
+- Run 45074364848 is a push run on `ff79932`. It printed `Python 3.12.16` and `358 passed, 1 warning in 49.74s`. With four tests in one new file, the step checks expect 1, 2, 3, 4 and 4 passed, so the total is 358 + 4 = 362. Each test fails at its parent: there is no `.dockerignore`, the last `COPY` copies the requirements map, `requirements.txt` has no versions, and both files say `3.12`.
+- No `tests/build/` exists, no other `test_image*` exists, there is no `__init__.py` under `tests/` and there is no pytest configuration. Plain `pytest` collects the new file in CI.
+- `GROUPS` is at `unit_tests.py:15-20` and has no `build`. No test or tester code walks `tests/` for files.
+- `Dockerfile:3`, `:14`, `:16-18`, `:21-22` and `:25-28` say what the Epic claims. So do `ci.yml:17`, `:20` and `:21`, both requirement files, and `docker.md:3`, `:15`, `:38-47`, `:51-64` and `:72`.
+- `test_diagrams.py:10` uses `parents[2]`. Spec `:134-135` and `:685-688` say what the Epic quotes.
+- Recomputed sizes: 60.1 MB in 4039 files. The root `.mypy_cache` is 21.47 MB, `Source/` 20.59 MB (its `.mypy_cache` 19.86 MB), `.git` 14.89 MB, `docs/` 2.14 MB and `tests/` 0.93 MB. Step 1's list leaves 0.56 MB.
+- The only tracked dot-files that an ignore pattern could touch are `.github/workflows/ci.yml`, `.gitignore` and `tests/ownership/.gitkeep`. The ignore list matches none of them.
+- Docker Hub shows `3.12.16-slim-trixie` pushed 2026-11-08, the newest 3.12 `slim-trixie`. The `actions/python-versions` manifest lists 3.12.16 as the newest 3.12, for Linux x64 on 22.04, 24.04 and 26.04.
+- With uv 0.11.19, `uv help pip compile` lists `--universal`, `--generate-hashes`, `-c` and `-o`. It says universal mode treats `--python-version` as the lower bound.
+- This machine runs Python 3.13.13, its ensurepip bundles pip 26.0.1, and `pip-compile` is not installed.
+- `gh run list` has `--commit`, and Done lines 1 and 13 work on a known SHA. `.github/workflows/` holds only `ci.yml`.
+- `ci.yml` and `CLAUDE.md` are on the ask list (`.claude/settings.json:9-11`). `RULED/` holds only its README. No row of `OPEN-DECISIONS.md` names E06. The hook accepts the `Step: i/N` trailers (`.claude/hooks/step-trailer.py:13`).
+- The filled-copy check prints nothing for this file, and it does find 16 placeholder lines in `docs/templates/EPIC.md`.
+- Authority order: nothing above level 7 conflicts. `pdftotext` of the course PDF finds "Team Tester Interface" but no Docker, Python version or lock. The contract names no Python or package version. Spec §2.2 asks for the pin. No model in `docs/diagrams/` changes, so no `DESIGN.md` is needed.
+
+Open questions: each of the three ends with a sourced answer, and none needs a row in `docs/decisions/OPEN-DECISIONS.md`.
 
 Revised after the verdict below, on the human's answers of 2026-11-22 (W1-2 row): Done line 5 shows the build's exit status, removes the old tag and plants an env file and two cache files; Done line 9 passes `--disable-pip-version-check`; Done line 13 accepts one skip; Done lines 16 and 17 are new; fact line 32 is exact; step 1 no longer edits the W1-2 row, and step 5 writes the sizes and has a grep-only check. The next reviewer writes its verdict above this paragraph.
 
