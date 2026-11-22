@@ -13,7 +13,7 @@ import pytest
 from drifter import check, cli
 from models.behavioral_model import generate_behavioral
 from models.common import write_model
-from models.structural_model import generate_structural
+from models.structural_model import KEPT_KINDS, generate_structural
 
 CODE = {"src/app.py": "def charge(amount):\n    return amount\n"}
 SCOPE = {"exclude": ["tests/**"], "include": ["**/*.py"]}
@@ -741,6 +741,31 @@ def test_a_level_outside_the_ladder_gives_no_verdict(tmp_path, monkeypatch, caps
 
     assert json.loads(out)["drift_error"]["code"] == "INVALID_MODELS"
     assert code == 2
+
+
+def test_every_declared_parameter_is_read_validated_and_defaulted(tmp_path):
+    # the seam a second parameter plugs into: one declaration decides what scope.json may hold, and
+    # the reader and the validator both work from it, so a parameter cannot be half-added
+    for key, (default, allowed) in check.PARAMETERS.items():
+        assert allowed, f"{key} allows no value"
+        assert default in allowed, f"{key}'s default is not one of its allowed values"
+        # the reader answers for a scope that declares nothing, and for each allowed value
+        assert check.parameters_of({})[key] == default
+        for value in allowed:
+            assert check.parameters_of({key: value})[key] == value
+        # a value outside the declaration is no verdict through the validator, and the default
+        # through the reader, which the page relies on
+        with pytest.raises(check.DriftError) as raised:
+            check._scope_rule({**SCOPE, key: "not a value this build allows"})
+        assert raised.value.code == "INVALID_MODELS"
+        assert check.parameters_of({key: "not a value this build allows"})[key] == default
+
+
+def test_the_declaration_covers_verbosity_and_the_generator_agrees():
+    # verbosity is the one parameter today, and its allowed values are the generator's own ladder
+    assert set(check.PARAMETERS) == {"verbosity"}
+    assert check.PARAMETERS["verbosity"] == (4, (1, 2, 3, 4))
+    assert sorted(KEPT_KINDS) == list(check.PARAMETERS["verbosity"][1])
 
 
 @pytest.mark.parametrize("level", [1, 2, 3])

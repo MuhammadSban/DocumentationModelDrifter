@@ -110,6 +110,40 @@ GENERATORS: dict[str, Callable[..., dict]] = {
 }
 
 
+# the generation parameters scope.json may hold: a key, its default, and the values it allows.
+# Verbosity is the only one. A second parameter is one row here plus the generator argument it
+# feeds; nothing else in this module names a parameter by name.
+PARAMETERS: dict[str, tuple[object, tuple]] = {
+    "verbosity": (FULL, tuple(sorted(KEPT_KINDS))),
+}
+
+
+def parameters_of(scope: dict) -> dict:
+    # reads every declared parameter from a committed scope.json, each falling back to its default
+    # where the file omits it or holds a value PARAMETERS does not allow. Total on purpose: the
+    # check validates with _scope_rule first and never reaches a fallback, while the console's page
+    # reads a scope nothing has validated and must draw something rather than fail.
+    return {key: _parameter(scope, key) for key in PARAMETERS}
+
+
+def _parameter(scope: dict, key: str) -> object:
+    # one parameter's value, or its default where the file's value is not one this build allows
+    default, allowed = PARAMETERS[key]
+    value = scope.get(key, default)
+    return value if _allowed(value, allowed) else default
+
+
+def _allowed(value: object, allowed: tuple) -> bool:
+    # a bool is an int in Python, so True would otherwise pass as the level 1 it equals
+    return not isinstance(value, bool) and isinstance(value, type(allowed[0])) and value in allowed
+
+
+def verbosity_of(scope: dict) -> int:
+    # how much of the code the structural model describes, from the committed scope
+    level = parameters_of(scope)["verbosity"]
+    return level if isinstance(level, int) else FULL
+
+
 def generate_one(name: str, files: dict[str, str], verbosity: int = FULL) -> dict:
     # runs one model's generator at the given level. Only structural has a ladder: behavioral keeps
     # every element at every level while N2 is unruled, so it is called with the files alone. This
@@ -119,15 +153,6 @@ def generate_one(name: str, files: dict[str, str], verbosity: int = FULL) -> dic
     return generate(files, verbosity) if name == "structural" else generate(files)
 
 
-def verbosity_of(scope: dict) -> int:
-    # reads the level a committed scope.json declares, FULL where it declares none or declares one
-    # this ladder does not hold. Total on purpose: the check validates with _scope_rule and never
-    # reaches the fallback, while the console's page reads a scope nothing has validated and must
-    # draw something rather than fail on a level of 7.
-    level = scope.get("verbosity", FULL)
-    if isinstance(level, bool) or not isinstance(level, int) or level not in KEPT_KINDS:
-        return FULL
-    return level
 
 
 def model_differences(name: str, sources: Sources) -> list[dict]:
@@ -428,14 +453,14 @@ def _scope_rule(scope: object) -> None:
         patterns = scope.get(key, [])
         if not (isinstance(patterns, list) and all(isinstance(p, str) for p in patterns)):
             raise DriftError("INVALID_MODELS", f"models/scope.json: {key} is not a list of patterns")
-    # isinstance first: an unhashable value such as a list cannot be looked up in KEPT_KINDS at
-    # all, and a bool is an int in Python, so True would otherwise pass as level 1
-    level = scope.get("verbosity", FULL)
-    if not isinstance(level, int) or isinstance(level, bool) or level not in KEPT_KINDS:
-        raise DriftError(
-            "INVALID_MODELS",
-            f"models/scope.json: verbosity is {level!r}, not one of {sorted(KEPT_KINDS)}",
-        )
+    # every declared generation parameter, by one rule: a value the build does not allow is no
+    # more readable than a malformed pattern, so it is INVALID_MODELS and never a quiet default
+    for key, (_, allowed) in PARAMETERS.items():
+        if key in scope and not _allowed(scope[key], allowed):
+            raise DriftError(
+                "INVALID_MODELS",
+                f"models/scope.json: {key} is {scope[key]!r}, not one of {list(allowed)}",
+            )
 
 
 def _ownership_rule(model: object) -> None:
