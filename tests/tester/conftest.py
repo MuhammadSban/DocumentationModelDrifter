@@ -150,3 +150,54 @@ def closed_url():
     port = server.server_address[1]
     server.server_close()
     return f"http://127.0.0.1:{port}/system"
+
+
+class LocalServer:
+    # a target on 127.0.0.1 that counts its hits and answers with a set status, headers and JSON body
+    def __init__(self):
+        self.hits = 0
+        self.status = 200
+        self.headers = {}
+        self.body = {}
+        self.url = ""
+
+
+def _local_handler(target: LocalServer):
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def _answer(self):
+            target.hits += 1
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            data = json.dumps(target.body).encode()
+            self.send_response(target.status)
+            for name, value in target.headers.items():
+                self.send_header(name, value)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        do_GET = do_POST = _answer
+
+    return Handler
+
+
+@pytest.fixture
+def local_server():
+    # starts as many local servers as a test asks for, each stopped at the end
+    servers = []
+
+    def start():
+        target = LocalServer()
+        server = ThreadingHTTPServer(("127.0.0.1", 0), _local_handler(target))
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        servers.append(server)
+        target.url = f"http://127.0.0.1:{server.server_address[1]}/system"
+        return target
+
+    yield start
+    for server in servers:
+        server.shutdown()
+        server.server_close()
