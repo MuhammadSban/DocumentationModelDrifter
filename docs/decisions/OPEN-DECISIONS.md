@@ -14,6 +14,16 @@ An index only: the detail stays in the file each row names. Paths are relative t
 |---|---|---|---|---|---|
 | W0-7 | How is the ownership and scope self-grant hole closed, including gaps G1 to G4? | S1 rules from the base, S2 rules from each commit's parent, S3 flag every rules change, S4 GitHub enforces it. Recommended, not decided: S1 + S4. Detail: `state/WORK-ITEMS.md`, "W0-7 in detail". | none yet | W3-5, W4-1, W4-7 | 2026-11-05 |
 
+## Model generation parameters, and verbosity (N7)
+
+Detail for all three: `epics/E02-model-parameters/EPIC.md`, "Open questions", and its `DESIGN.md`.
+
+| ID | Question | Options + recommendation | Epic | Blocks | Since |
+|---|---|---|---|---|---|
+| E02-a | Is N7 approved, and where does it sit in the queue? It is a direction change: `STRATEGY.md` reserves direction to the team, the Next action is build order step 0.6b, and no build-order step covers this work. | Approve it with a wave and a build-order step; approve it as off-path work beside the release; or decline it and keep the draft as a record. No recommendation: this is direction. | `epics/E02-model-parameters/EPIC.md` | every step of E02 | 2026-11-22 |
+| E02-b | May E02 land before N3, the structural grain, is ruled? The ladder is N3's "finer grain opt-in through `scope.json`" option, built with full detail as the default so that no committed model moves and no `schema_version` is bumped. | Rule N3 first and build E02 from the ruling; or let E02 land as the opt-in and leave N3's question of the default grain open. Recommended: the second, because the default does not change and so nothing N3 decides is foreclosed. | `epics/E02-model-parameters/EPIC.md` | E02 steps 2, 3 and 7 | 2026-11-22 |
+| E02-c | Must the W0-7 ruling cover `verbosity` before E02 lands? A repository that lowers its level stops seeing drift in everything the level drops, and an author can lower it in the same push as the change it hides. That is gap G4 of W0-7 in a new place, not a new kind of hole. | Close W0-7 first; or land E02 with the hole named in INV-2 and DEFERRED, and have the W0-7 ruling cover `scope.json` and `verbosity` together. Recommended: the second, since W0-7 already owes `scope.json` the same fix. | `epics/E02-model-parameters/EPIC.md` | E02 step 7, Done line 11 | 2026-11-22 |
+
 ## Not yet in a wave
 
 Detail for each: `state/WORK-ITEMS.md`, "Not yet discussed".

@@ -94,6 +94,8 @@ Blank forms. Copy one into place and fill only the copy.
 Live Epics, one folder each. Finished ones move to `closed/`; never build from one.
 
 - `epics/README.md` — how an Epic is named, how it and its W-row name each other, its branch, its lifecycle from draft to closed, and when a change needs no Epic. Read it before drafting, reviewing, building or closing an Epic.
+- `epics/E02-model-parameters/EPIC.md` — the draft Epic for N7: a `verbosity` key in `scope.json` that decides how much of the code the structural model describes, and a panel in the console's Models view that previews any level. No code until it is ratified, and it waits on rows E02-a to E02-c.
+- `epics/E02-model-parameters/DESIGN.md` — that Epic's design: the four-level ladder, why a generation parameter lives in committed `/models` and the preview in the reader's browser, and what a complete solution would add.
 
 ## closed/
 
