@@ -22,6 +22,14 @@ Found while planning build order step 0.6b. Detail: the design doc of the system
 |---|---|---|---|---|---|
 | CLI-1 | Is it a defect that `drifter check`, `init` and `update` end with a traceback and exit 1 on a git failure, such as an unknown commit or a folder that is no checkout? Exit 1 is also the code for drift, and spec AC-08 gives exit 2 to a check with no verdict. | 1: leave it. 2: catch the git failure, print a one-line message and exit 2. Recommended: 2, as a small change with a failing test first. | none yet | nothing yet | 2026-11-21 |
 
+## Contract 2.5.0
+
+Found by the design review of E04. Detail: `epics/E04-contract-2-5-0/EPIC.md`, open question 3 and Review.
+
+| ID | Question | Options + recommendation | Epic | Blocks | Since |
+|---|---|---|---|---|---|
+| E04-1 | How do the code and commits of W4-5 (step 5.6) and W4-10 (step 5.7) reach E04's branch and its one pull request? R7 and `epics/README.md` build code only from a live, ratified Epic, on that Epic's own branch, with that Epic's `Step:` lines. | 1: each gets its own Epic and branch, cut from `E04-contract-2-5-0`, and merges into it before E04's pull request opens. 2: E04 is revised (`Step: plan`, a new review) to add their steps. 3: E04 merges on its own once Team 16 agrees, and W4-5 and W4-10 follow under the same version 2.5.0; this drops "for the merge" from the W4-9 row. Recommended, not decided: 1. | E04 | E04's Done line 12 and its pull request | 2026-11-22 |
+
 ## Not yet in a wave
 
 Detail for each: `state/WORK-ITEMS.md`, "Not yet discussed".
