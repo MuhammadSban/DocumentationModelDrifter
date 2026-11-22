@@ -210,3 +210,30 @@ def test_session_cap_frees_the_seat_of_a_setup_that_failed(app_url, fake, closed
     reply = post(app_url + "/test/setup", {"target_url": fake.url})
     assert reply.status == 201
     assert list(table) == [reply.body["session_id"]]
+
+
+def test_setup_guard_answers_400_for_an_internal_target_on_railway(closed_url, sessions, monkeypatch):
+    # calls the app in-process: on Railway the guard would refuse a Tester.client call to 127.0.0.1
+    from fastapi.testclient import TestClient
+
+    from GitHub_Connector.api import app
+
+    monkeypatch.setenv("RAILWAY_PROJECT_ID", "p1")
+    table = sessions()
+    resp = TestClient(app).post("/tester/test/setup", json={"target_url": closed_url})
+    assert resp.status_code == 400
+    assert resp.json()["source"] == "tester"
+    assert "127.0.0.1" in resp.json()["message"]
+    assert table == {}
+
+
+def test_setup_guard_passes_a_redirect_through_and_names_the_new_url(app_url, local_server, monkeypatch):
+    monkeypatch.delenv("RAILWAY_PROJECT_ID", raising=False)
+    target, elsewhere = local_server(), local_server()
+    target.status = 302
+    target.headers = {"Location": elsewhere.url + "/test/setup"}
+    reply = post(app_url + "/test/setup", {"target_url": target.url})
+    assert reply.status == 302
+    assert reply.body["source"] == "system"
+    assert elsewhere.url + "/test/setup" in reply.body["message"]
+    assert elsewhere.hits == 0
