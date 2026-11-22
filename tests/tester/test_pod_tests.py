@@ -48,7 +48,8 @@ def test_target_meeting_the_contract_passes_everything_it_runs(fake):
     got = outcomes(report)
     assert [r["test_id"] for r in report["results"]] == IDS
     assert {got[t]["outcome"] for t in ids("T-01", "T-21")} == {"pass"}
-    assert got["T-22"] == {"message": "Phase 5", "outcome": "skip", "test_id": "T-22"}
+    assert got["T-22"] == {"message": "target does not implement model_drift", "outcome": "skip",
+                           "test_id": "T-22"}
     assert got["T-23"]["message"] == "checked by inspection"
     assert {got[t]["message"] for t in ids("T-24", "T-33")} == {"target does not implement model_drift"}
     assert report["coverage"]["component"]["covered"] == 6  # all but C7, which only T-22 lists
@@ -127,9 +128,9 @@ def test_system_counts_a_criterion_listed_by_two_evaluated_tests_once(fake):
     # counts AC-01 once though T-01 to T-07 pass, and AC-02 once though T-18, T-19, T-26 to T-28, T-30, T-31 pass
     fake.features = ["prose_detector", "model_drift"]
     report = run_suite(fake.url, "s")
-    assert {outcomes(report)[t]["outcome"] for t in ids("T-01", "T-21") + ids("T-24", "T-33")} == {"pass"}
+    assert {outcomes(report)[t]["outcome"] for t in ids("T-01", "T-22") + ids("T-24", "T-33")} == {"pass"}
     system = report["coverage"]["system"]
-    assert (system["covered"], system["total"]) == (8, 10)
+    assert (system["covered"], system["total"]) == (9, 10)  # all but AC-09 (T-23)
 
 
 def test_system_basis_names_pass_or_fail_and_ac_11(fake):
@@ -239,6 +240,34 @@ def test_t21_run_skips_with_neither_feature(fake):
     got = outcomes(run_suite(fake.url, "s"))
     assert got["T-21"] == {"message": "target does not implement prose_detector", "outcome": "skip",
                            "test_id": "T-21"}
+
+
+def test_t22_run_passes_with_model_drift(fake):
+    fake.features = ["model_drift"]
+    got = outcomes(run_suite(fake.url, "s"))
+    assert got["T-22"] == {"message": "L5 and L6 match the expected answers", "outcome": "pass", "test_id": "T-22"}
+
+
+def test_t22_run_fails_when_the_unauthorized_change_is_not_flagged(fake):
+    # answers L6, a non-owner's edit, as aligned
+    fake.features = ["model_drift"]
+    fake.flip_aligned_case = "L6"
+    got = outcomes(run_suite(fake.url, "s"))
+    assert got["T-22"] == {"message": "L6: drift differs from the expected answer", "outcome": "fail",
+                           "test_id": "T-22"}
+
+
+def test_t22_run_fails_when_the_authorized_change_is_flagged(fake):
+    # answers L5, an owner's change with /models updated, as not aligned
+    fake.features = ["model_drift"]
+    fake.flip_aligned_case = "L5"
+    got = outcomes(run_suite(fake.url, "s"))
+    assert got["T-22"] == {"message": "L5: drift differs from the expected answer", "outcome": "fail",
+                           "test_id": "T-22"}
+
+
+def test_t22_run_skips_without_model_drift(fake):
+    assert outcomes(run_suite(fake.url, "s"))["T-22"]["outcome"] == "skip"
 
 
 def model_of(report):

@@ -217,6 +217,14 @@ def twice(case: str) -> Callable[[Run], str]:
     return check
 
 
+def review_decisions(run: Run) -> str:
+    # checks that an owner's change with /models updated is aligned (L5), and that a non-owner's edit of an
+    # owned path is a violation (L6), each as the drift tests compare (contract §4, T-22)
+    for case in ("L5", "L6"):
+        drift(case)(run)
+    return "L5 and L6 match the expected answers"
+
+
 def generated(case: str) -> Callable[[Run], str]:
     # checks the /models texts /generate returns against model-golden-outputs.json, each byte for byte;
     # ownership.json is never compared, as people correct it by hand (contract §4)
@@ -322,7 +330,7 @@ TESTS = [
     _row("T-20", "Code and documentation updated together", "C4", "AC-03", issues("c7-code-and-doc"), **PROSE),
     _row("T-21", "New findings start PENDING_REVIEW", "C4 C5", "AC-04", pending_review,
          fallback=("model_drift", twice("L2")), **PROSE),
-    _row("T-22", "Authorized and unauthorized review decisions", "C7", "AC-05", skip="Phase 5"),
+    _row("T-22", "Authorized and unauthorized review decisions", "C7", "AC-05", review_decisions, **DRIFT),
     _row("T-23", "Read-only analysis, no repository code execution", "C2", "AC-09", skip="checked by inspection"),
     _row("T-24", "/analyze at L0: aligned: true, three empty lists", "C1 C2 C3 C4 C5", "AC-03", drift("L0"), **DRIFT),
     _row("T-25", "/analyze at L1: aligned: true", "C1 C2 C3 C4 C5", "AC-03", drift("L1"), **DRIFT),
