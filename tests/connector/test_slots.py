@@ -1,10 +1,14 @@
 # checks the 2 check slots: a wait for one counts against the check's own deadline (spec 7.3)
 
+import json
+import socket
 import threading
 import time
+import urllib.request
 from contextlib import contextmanager
 
 import pytest
+import uvicorn
 from fastapi.testclient import TestClient
 
 from GitHub_Connector import analysis, api, runs
@@ -156,3 +160,55 @@ def test_models_view_frees_its_slot(monkeypatch):
         if taken:
             sem.release()
     assert all(held)
+
+
+@pytest.fixture
+def served():
+    # serves the real app under uvicorn, so routes share its real 40-thread pool
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    server = uvicorn.Server(uvicorn.Config(api.app, host="127.0.0.1", port=port, log_level="warning"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    while not server.started:
+        time.sleep(0.01)
+    yield f"http://127.0.0.1:{port}"
+    server.should_exit = True
+    thread.join(5)
+
+
+def test_health_answers_while_40_checks_wait(monkeypatch, slots, deadline, served):
+    monkeypatch.setattr(analysis, "fetch", fake_fetch)
+    monkeypatch.setattr(runs, "save", lambda *args: None)
+    arrived = threading.Semaphore(0)
+    real_validate = analysis.validate
+
+    def counting_validate(request):
+        arrived.release()
+        real_validate(request)
+
+    monkeypatch.setattr(analysis, "validate", counting_validate)
+    deadline(60)
+    body = json.dumps(REQUEST).encode()
+
+    def check():
+        request = urllib.request.Request(served + "/system/analyze", data=body, method="POST",
+                                         headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(request, timeout=60) as resp:
+            resp.read()
+
+    checks = [threading.Thread(target=check, daemon=True) for _ in range(40)]
+    try:
+        for thread in checks:
+            thread.start()
+        for _ in checks:
+            assert arrived.acquire(timeout=JOIN), "not all 40 checks reached the route"
+        start = time.monotonic()
+        with urllib.request.urlopen(served + "/system/health", timeout=1) as resp:
+            assert resp.status == 200
+        assert time.monotonic() - start < 1
+    finally:
+        slots()
+        for thread in checks:
+            thread.join(JOIN)

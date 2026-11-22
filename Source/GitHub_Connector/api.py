@@ -142,8 +142,9 @@ def index() -> dict:
 
 
 @router.get("/health")
-def health() -> dict[str, object]:
-    # answers the warm-up call, does no git work; model_drift lets testers skip the prose tests (contract §1)
+async def health() -> dict[str, object]:
+    # answers the warm-up call on the event loop, so waiting checks never hold it up; model_drift lets
+    # testers skip the prose tests (contract §1)
     return {
         "status": "ok",
         "tool_version": build_label(),

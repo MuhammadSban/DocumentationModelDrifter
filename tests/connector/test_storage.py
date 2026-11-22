@@ -45,4 +45,4 @@ def test_the_app_starts_on_railway_with_a_volume(env, tmp_path):
 
 
 def test_health_says_ephemeral_without_a_volume(env):
-    assert api.health()["storage"] == "ephemeral"
+    assert TestClient(api.app).get("/system/health").json()["storage"] == "ephemeral"

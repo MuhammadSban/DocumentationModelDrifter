@@ -62,7 +62,7 @@ One commit per step, made after the step's check passes. 26 new tests in all: 7 
 
 ### Step 3/9: health answers while 40 checks wait
 
-- Files: `Source/GitHub_Connector/api.py`, `tests/connector/test_slots.py`
+- Files: `Source/GitHub_Connector/api.py`, `tests/connector/test_slots.py`, `tests/connector/test_health.py`, `tests/connector/test_storage.py` (both added while building, decided by the human, 2026-11-22: `health` became `async def` and an existing test in each file called it directly, so each now calls `GET /system/health` through `TestClient` and asserts the same fields under the same name; no test is added)
 - What: `health` becomes `async def` with the same body, so it runs on the event loop and not in the 40-thread pool. Test, seam A, the app served under uvicorn on `127.0.0.1` as the `app_url` fixture does:
   - `test_health_answers_while_40_checks_wait`: written first. The test holds both slots, sets a deadline longer than the test, starts 40 `POST /system/analyze` calls in threads and waits until all 40 have arrived; then `GET /system/health` must answer 200 within 1 s. At the parent the 40 waiting calls hold all 40 threads, so health does not answer in 1 s and the test fails. A `finally` releases the slots and joins the 40 threads.
 - Check: `python -m pytest tests/connector/test_slots.py -q -k "test_health_answers_while_40_checks_wait"` → the summary line starts with `1 passed` and has no `failed`
