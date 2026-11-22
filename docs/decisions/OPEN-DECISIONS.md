@@ -14,14 +14,6 @@ An index only: the detail stays in the file each row names. Paths are relative t
 |---|---|---|---|---|---|
 | W0-7 | How is the ownership and scope self-grant hole closed, including gaps G1 to G4? | S1 rules from the base, S2 rules from each commit's parent, S3 flag every rules change, S4 GitHub enforces it. Recommended, not decided: S1 + S4. Detail: `state/WORK-ITEMS.md`, "W0-7 in detail". | none yet | W3-5, W4-1, W4-7 | 2026-11-05 |
 
-## The tester's answer to a redirect
-
-Found by the design review of E05 (`epics/E05-hosted-limits/EPIC.md`, Review and Open questions, reading 1).
-
-| ID | Question | Options + recommendation | Epic | Blocks | Since |
-|---|---|---|---|---|---|
-| URL-1 | When the target's system setup answers with a redirect (3xx), what does `POST /tester/test/setup` answer? W1-8 says a refusal answers 400, but the tester contract passes a system response's status through and gives 500 `communication` only for "no system response at all" (`contract/pod-tester.openapi.yml:34-41`). Also: is a redirect in the middle of a run a communication error, and is 400 right for an address refusal, whose contract description is "missing or malformed target_url"? | 1: 400, source `tester`, like an address refusal. 2: 500, source `communication`, the new URL in the message (the Epic's draft). 3: the 3xx passed through, source `system`, as the contract's `default` answer reads. Recommended, not decided: 3 for setup, since it changes no contract wording; in a run a redirect stays a communication error; 400 kept for an address refusal, read as a target_url the hosted tester will not accept. | E05 | E05 steps 7 and 8 (RATIFY) | 2026-11-22 |
-
 ## The CLI's exit codes
 
 Found while planning build order step 0.6b. Detail: the design doc of the system-models Epic, "Where the code and the build order disagree", last row. The row is not that Epic's to settle, so it does not carry its number.
