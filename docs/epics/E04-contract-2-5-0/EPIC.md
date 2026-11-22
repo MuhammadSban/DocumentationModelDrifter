@@ -56,15 +56,15 @@ One commit per step, made after the step's check passes. Each named test checks 
 ### Step 3/7: a criterion counts once
 
 - Files: `tests/tester/test_pod_tests.py`
-- What: one guard. `test_system_counts_a_criterion_listed_by_two_evaluated_tests_once`: the `fake` target with `features = ["prose_detector", "model_drift"]`, so T-01 to T-21 and T-24 to T-33 all pass; AC-01 is listed by seven passing tests and AC-02 by more than ten, yet `covered == 8` and `total == 10` (AC-05 and AC-09 come only from T-22 and T-23, which skip).
+- What: one guard. `test_system_counts_a_criterion_listed_by_two_evaluated_tests_once`: the `fake` target with `features = ["prose_detector", "model_drift"]`, so T-01 to T-21 and T-24 to T-33 all pass; AC-01 is listed by seven passing tests (T-01 to T-07) and AC-02 by seven (T-18, T-19, T-26, T-27, T-28, T-30, T-31), yet `covered == 8` and `total == 10` (AC-05 and AC-09 come only from T-22 and T-23, which skip).
 - Check: `python -m pytest tests/tester/test_pod_tests.py -q -k "test_system_counts_a_criterion_listed_by_two_evaluated_tests_once"` → `1 passed`
 - Trailer: `Step: 3/7`
 
 ### Step 4/7: the two basis strings
 
 - Files: `Source/Tester/pod_tests.py`, `tests/tester/test_pod_tests.py`
-- What: `system`'s basis says: criteria AC-01 to AC-10, each counted once, from tests that ended pass or fail, with AC-11 counted as AC-02 (pod-contract.md section 5). AC-11 appears only in our tester's basis, as spec §4.1 (lines 360-362) and ADR 0001 count it; the contract text does not name it (step 5). `component`'s basis keeps its wording, "components C1 to C7 exercised by a test the target answered (pod-contract.md section 5)". Tests:
-  - `test_system_basis_names_pass_or_fail_and_ac_11`, written first: the basis contains "AC-01 to AC-10", "pass or fail", "AC-11" and "section 5".
+- What: `system`'s basis says: criteria AC-01 to AC-10 (pod-contract.md section 5), each counted once, from tests that ended pass or fail, with AC-11 counted as AC-02 (specifications.md section 4.1). AC-11 appears only in our tester's basis, as spec §4.1 (lines 360-362) and ADR 0001 count it; the contract text does not name it (step 5). `component`'s basis keeps its wording, "components C1 to C7 exercised by a test the target answered (pod-contract.md section 5)". Tests:
+  - `test_system_basis_names_pass_or_fail_and_ac_11`, written first: the basis contains "AC-01 to AC-10", "pass or fail", "AC-11", "pod-contract.md section 5" and "specifications.md section 4.1".
   - `test_component_basis_keeps_the_answered_wording`, a guard: the basis equals today's string, as a literal.
 - Check: `python -m pytest tests/tester/test_pod_tests.py -q -k "test_system_basis_ or test_component_basis_"` → `2 passed`
 - Trailer: `Step: 4/7`
@@ -76,10 +76,10 @@ One commit per step, made after the step's check passes. Each named test checks 
   - §5 "What counts" gives two rules. A component is covered when a test the target answered lists it and ended `pass`, `fail`, or `error` with source `system` (today's rule). A criterion is covered only when a test that lists it ended `pass` or `fail`. One sentence says why they differ: a component that answered with a 5xx was still exercised, but a criterion is checked only when its test's answer could be judged.
   - §5 says what is in scope, in the phrase "in scope for system coverage": AC-01 to AC-10, AC-05 and AC-09 included, so `total` is 10 on every system. It does not name AC-11, which is Team 15's own (ADR 0001).
   - §5 defines "a tester's own system" as `own_system.py` decides it: after normalising `target_url` (scheme and host in lowercase, a default port dropped, a trailing slash stripped, the path compared exactly), it is the team's Railway public URL with `/system`, the system URL in the team's registry row, or `localhost`, `127.0.0.1` or `::1` on any port with the path `/system`, only when the tester is not running on Railway. Only then does the report carry `coverage.model`.
-  - §5 gains one line on `target_url` and the course's `format: uri`, in the direction that holds: every system base URL that is a valid `format: uri` with a lowercase `http` or `https` scheme and no `?`, `#` or `@` also matches our pattern (`Source/Tester/api.py` `TARGET_URL`). The line does not claim the reverse: the pattern also accepts some strings that are not URIs, such as `http://a%zz/system`, so a tester does not use it to validate a URI.
+  - §5 gains one line on `target_url` and the course's `format: uri`, in the direction that holds: every system base URL that is a valid `format: uri`, starts with `http://` or `https://` in lowercase, has a non-empty host, and contains no `?`, `#` or `@` also matches our pattern (`Source/Tester/api.py` `TARGET_URL`). The line does not claim the reverse: the pattern also accepts some strings that are not URIs, such as `http://a%zz/system`, so a tester does not use it to validate a URI.
   - §1's line "It counts coverage only from tests the target answered (section 5)" says both rules.
   - `pod-tester.openapi.yml`: `coverage.system`'s description says criteria AC-01 to AC-10 from tests that ended pass or fail; `coverage` gains an optional `model` entry (`CoverageMeasure`), described as present only in a report whose tester and target belong to the same team.
-- Check: `git grep -h -o -E "ended .pass. or .fail.|in scope for system coverage|a tester's own system|format: uri" -- docs/contract/pod-contract.md | sort -u` → exactly four lines, one per phrase: "a tester's own system", "ended `pass` or `fail`", "format: uri", "in scope for system coverage". Today it prints nothing.
+- Check: `git grep -h -o -E "ended .pass. or .fail.|in scope for system coverage|a tester's own system|format: uri" -- docs/contract/pod-contract.md | sort -u` → exactly four lines, one per phrase: "a tester's own system", "ended `pass` or `fail`", "format: uri", "in scope for system coverage". Today it prints nothing. And `git grep -h -o -E "ended pass or fail|same team" -- docs/contract/pod-tester.openapi.yml | sort -u` → exactly two lines, "ended pass or fail" (the `system` description) and "same team" (the `model` description). Today it prints nothing.
 - Trailer: `Step: 5/7`
 
 ### Step 6/7: the version
@@ -126,7 +126,7 @@ After the merge, and not part of Done, the human tags the merge commit `contract
 
 ## Open questions
 
-1. Does a change to the pod contract count as a boundary change that needs a `DESIGN.md` beside this Epic (`docs/epics/README.md`, Naming)? The draft reads "boundary" as a module boundary or a model in `docs/diagrams/`, neither of which changes, and treats the contract as the boundary's own document, edited directly. Answered: no `DESIGN.md`. A boundary here is a module boundary, "what calls what, and who owns which file" (`docs/templates/DESIGN.md:7`; INV-3, `docs/invariants/INVARIANTS.md:18`), and no import or module changes (`docs/diagrams/dependency.md:79`, rule A4). No model in `docs/diagrams/` describes the suite report or its coverage rules (`git grep -n -i "coverage\|suite"` over the five models prints only `data-flow.md:97`, the `drift` answer). E03 changed the same report's `coverage` object without a `DESIGN.md` and was ratified (`docs/closed/E03-model-coverage/EPIC.md`, Review, second finding).
+1. Does a change to the pod contract count as a boundary change that needs a `DESIGN.md` beside this Epic (`docs/epics/README.md`, Naming)? The draft reads "boundary" as a module boundary or a model in `docs/diagrams/`, neither of which changes, and treats the contract as the boundary's own document, edited directly. Answered: no `DESIGN.md`. A boundary here is a module boundary, "what calls what, and who owns which file" (`docs/templates/DESIGN.md:7`; INV-3, `docs/invariants/INVARIANTS.md:18`), and no import or module changes (`docs/diagrams/dependency.md:79`, rule A4). No model in `docs/diagrams/` describes the suite report or its coverage rules (`git grep -n -i -E "coverage|suite"` over the five models prints nothing). E03 changed the same report's `coverage` object without a `DESIGN.md` and was ratified (`docs/closed/E03-model-coverage/EPIC.md`, Review, second finding).
 2. Who writes Team 16's agreement into §10, and does recording it need its own commit on this branch before the pull request opens (Done line 11)? Answered: its own commit, written once the human reports Team 16's agreement, as 2.4.0's was (commit `6371a3e`, "Record Team 16's agreement to contract 2.4.0"). On this branch every agent commit needs `Step: i/N`, `plan` or `close` (`.claude/hooks/step-trailer.py:12`; R7), and none of steps 1 to 6 records the agreement, so the Epic needs a step for it (Review, finding 5).
 3. Added by the design reviewer: how do the code and commits of W4-5 and W4-10 reach this branch and its one pull request, when R7 and `docs/epics/README.md` ("Build only from a live, ratified Epic"; Naming, Branch: "All work on the Epic happens on it") give each Epic its own branch and `Step:` lines? Not answered by the code, a model or a ruling: row E04-1 in `docs/decisions/OPEN-DECISIONS.md`.
 
@@ -159,3 +159,38 @@ Notes, not blocking:
 - Step 5's expected output "`:4` or more" is a range, not a literal. The regex also matches weak phrases such as "in scope".
 
 Revised by the author after this review: findings 1 to 5 and the four notes are addressed in the steps, Relies on, Goal, Done and Out of scope; finding 6 stays open as row E04-1.
+
+REVISE · design-reviewer at 33cd766 · 2026-11-22
+
+What holds:
+
+- The filled-copy check prints nothing for this file. No `DESIGN.md` is needed (open question 1): no import changes (`docs/diagrams/dependency.md:79`, A4), and no model describes the coverage rules.
+- No conflict with a level above. The decision is the W4-9 row (`docs/state/WORK-ITEMS.md:215`). `RULED/` holds only its README. AC-11 now stays out of the contract text (step 5), and `git grep -n "AC-11" -- docs/contract` prints nothing.
+- The counts in steps 1 to 3 were checked by running today's `run_suite` against `FakeTarget` (`tests/tester/conftest.py`). For each setup the test computed today's `system`, and also the set of criteria from pass-or-fail tests only:
+  - Plain fake: 8 of 10, component 6.
+  - Every `/analyze` at 500: today 8, pass-or-fail 2. Only T-15 passes, with AC-06 and AC-08. So step 1's new assertion and its changed `== 2` in `test_model_does_not_cover_...` (`tests/tester/test_pod_tests.py:190`) both fail first. Step 1's check selects both tests: `--co` gives `2/24 tests collected`.
+  - `closed_url`: 0. T-22 and T-23 skip; the other 31 are `error`/`communication`.
+  - A limit of 0.2 with `analyze_delay = 0.4`: T-01 is `error`/`tester`, the other 32 skip, 0.
+  - `/health` at 500: 5 (AC-01, AC-06, AC-07, AC-08, AC-10). T-01 to T-17 pass; T-18 to T-21 and T-24 to T-33 are `error`/`system` with `answered=False` (`Source/Tester/pod_tests.py:375-377`).
+  - `features = ["prose_detector", "model_drift"]`: T-01 to T-21 and T-24 to T-33 pass, and system is 8 of 10.
+  - So step 2's four guards and step 3's guard pass today.
+- Step 4: the system basis today is "criteria AC-01 to AC-10 exercised by a test the target answered (pod-contract.md section 5)". It lacks "pass or fail" and "AC-11", so the written-first test fails today. The component guard's string equals today's (`Source/Tester/pod_tests.py:351-354`).
+- Done line 7's 9 = 2 + 4 + 1 + 2. Today its `-k` collects only the two existing tests.
+- Step 6's grep lists exactly the eleven lines the step names. Step 5's grep prints nothing today. Step 7's pattern, run with 2.4.0 in place of 2.5.0, prints `docs/contract/pod-contract.md:2`, so the form is right. Done line 12's pattern matches the form of done rows (`docs/state/WORK-ITEMS.md:214`).
+- The own-system text in step 5 matches `Source/Tester/own_system.py:15-39`. `target_url`'s pattern is at `pod-tester.openapi.yml:101-104` and `Source/Tester/api.py:22`. Spec lines 73, 409, 709, 716 and 360-362 say what Relies on claims.
+- Done lines 1 to 12 are commands with outputs, except line 4. Every step names its files, one check and its trailer.
+- `lint-imports` is not installed in this checkout, so Done line 10 was not run.
+
+What must change for RATIFY:
+
+1. Step 5's `format: uri` line is still false as written. `format: uri` is an RFC 3986 URI, and its `hier-part` may be `path-rootless`, `path-absolute`, or `//` with an empty authority. So `http:foo/system`, `http:/system` and `http://` are valid `format: uri` values with a lowercase `http` scheme and no `?`, `#` or `@`, yet none matches `^https?://[^\s?#@]+$` (checked with Python `re`; `Source/Tester/api.py:22`). Limit the line to URIs that start with `http://` or `https://` and have a non-empty host. Under that limit the claim holds, because the authority and path characters of RFC 3986 include no whitespace, and `?`, `#` and `@` are excluded by name.
+2. Step 3 says AC-02 is listed by "more than ten" passing tests. It is listed by seven: T-18, T-19, T-26, T-27, T-28, T-30 and T-31 (`docs/contract/pod-contract.md:180-181, 188-190, 192-193`; the probe's count among passing tests is `AC-02: 7`). Write seven. The literal `covered == 8` is unaffected.
+3. Open question 1 says `git grep -n -i "coverage\|suite"` over the five models "prints only `data-flow.md:97`". It prints nothing, also with `-E "coverage|suite"`, and `docs/diagrams/data-flow.md:97` contains neither word. Correct the line. Its answer, no `DESIGN.md`, still stands.
+
+Notes, not blocking:
+
+- Step 4's system basis ends "with AC-11 counted as AC-02 (pod-contract.md section 5)". That cites section 5 for a pairing the contract will not contain (`docs/base/specifications.md:360-362` is its source). Consider putting the section 5 citation before the AC-11 clause, or citing spec §4.1 for it.
+- Step 5's check reads only `pod-contract.md`. The `pod-tester.openapi.yml` edits (the `system` description and the optional `model` entry) have no check of their own. `test_model_report_validates_against_the_pod_tester_openapi` passes with or without them, because `coverage` sets no `additionalProperties`.
+- Open question 3 remains the human's call: row E04-1 in `docs/decisions/OPEN-DECISIONS.md`. No new row is needed.
+
+Revised by the author after the second review: findings 1 to 3 and both notes are addressed in steps 3, 4 and 5 and open question 1.
