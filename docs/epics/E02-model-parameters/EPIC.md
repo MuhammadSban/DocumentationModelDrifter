@@ -319,6 +319,35 @@ session that did not build the Epic.
 corrected here on the same day: their `-k verbosity` selectors matched no test, the test names
 saying "level" and not "verbosity", so as written they reported success while running nothing.
 
+### Driven by hand, 2026-11-22
+
+No Done line drives the installed command or the running service, so both were driven once, on a
+throwaway repository of two modules, a class, an inheriting class and an async method.
+
+- `drifter init --verbosity 1` wrote `"verbosity": 1` into `scope.json` and a `structural.json` of
+  two module nodes and one imports edge. `drifter check` on the commit that carried them: `aligned:
+  true`, exit 0.
+- The level raised to 4 by hand and committed without regenerating: five `ADDED` differences, exit
+  1, which is the spec's "editing the scope without regenerating the models shows up as drift by
+  itself" (`docs/base/specifications.md:263-264`). Then `drifter update`, commit, `drifter check`:
+  `aligned: true`, exit 0. That is the re-baseline.
+- The service started with the Dockerfile's `uvicorn` line: `GET /system/health` 200,
+  `storage: ephemeral`. `GET /models/view` with no level drew level 4 and the note "which is the
+  level this repository commits"; `&verbosity=1` drew the packages with no classes and the preview
+  note naming both levels; `&verbosity=2` drew the classes again. All three answered 200 with four
+  stops and the right one checked. `&verbosity=9` answered 400 `INVALID_REQUEST`, in the contract's
+  error shape. `POST /system/analyze` answered `aligned: true` on the level-4 repository.
+- **Found by hand, and documented rather than fixed:** changing the level takes two commits.
+  `drifter update` reads the scope committed at the commit, not the working tree, so a level edited
+  only in the working tree makes `update` regenerate at the **old** level and leaves the repository
+  in drift. Recorded in `docs/diagrams/models-folder.md`, "The verbosity ladder". A
+  `drifter update --verbosity` would remove the trap and is not in this Epic.
+
+**Not driven:** the panel has not been opened in a browser, so its layout, the stop a reader
+actually clicks, and the `localStorage` memory are unverified by eye. The markup and the three note
+wordings were read from the rendered HTML, and the form is a plain GET whose submission is the URL
+the three fetches above already exercise, but that is not the same as having seen it work.
+
 ## Review
 
 REVISE · design-reviewer at d0b4cef · 2026-11-22

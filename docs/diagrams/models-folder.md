@@ -54,6 +54,8 @@ classDiagram
 
 `scope.json`'s `verbosity` says how much of the code `structural.json` describes. Each level keeps everything the level below it keeps, so a level is a subset of the one above. An absent key means 4, which is what the generator wrote before the parameter existed, so a repository that declares none holds byte-identical models. `drifter init --verbosity` sets it before the first model is generated; afterwards a person edits it by hand in a reviewed PR and runs `drifter update`, which regenerates at the new level and makes it the baseline.
 
+**Changing the level takes two commits, and `drifter update` has no `--verbosity`.** `update` reads the scope **committed at the commit**, not the working tree, and rewrites only `structural.json` and `behavioral.json` (`Source/drifter/cli.py`). So the new level must be committed before `update` runs: commit the edited `scope.json`, which is drift by itself and a red check, then `drifter update`, then commit the regenerated models, which is green. Running `update` with the level changed only in the working tree regenerates at the **old** level and leaves the repository in drift, because the committed scope and the committed model then disagree. Verified by hand on 2026-11-22; `drifter validate` (row W3-8) is where a warning for it would belong.
+
 | Level | Name | `structural.json` holds | Answers |
 |---|---|---|---|
 | 1 | Overview | `module` nodes, `imports` edges | which parts depend on which |
