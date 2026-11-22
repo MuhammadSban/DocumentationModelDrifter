@@ -131,6 +131,18 @@ def test_system_counts_a_criterion_listed_by_two_evaluated_tests_once(fake):
     assert (system["covered"], system["total"]) == (8, 10)
 
 
+def test_system_basis_names_pass_or_fail_and_ac_11(fake):
+    basis = run_suite(fake.url, "s")["coverage"]["system"]["basis"]
+    for part in ("AC-01 to AC-10", "pass or fail", "AC-11", "pod-contract.md section 5",
+                 "specifications.md section 4.1"):
+        assert part in basis
+
+
+def test_component_basis_keeps_the_answered_wording(fake):
+    basis = run_suite(fake.url, "s")["coverage"]["component"]["basis"]
+    assert basis == "components C1 to C7 exercised by a test the target answered (pod-contract.md section 5)"
+
+
 def test_golden_mismatch_fails_and_names_the_field(fake):
     fake.break_case = "c1-impl-only"
     got = outcomes(run_suite(fake.url, "s"))

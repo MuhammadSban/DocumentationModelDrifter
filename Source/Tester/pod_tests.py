@@ -350,8 +350,9 @@ def run_suite(target_url: str, session_id: str, limit: float | None = None,
         "code": _code_coverage(run, session_id),
         "component": _measure(components, COMPONENTS, "components C1 to C7 exercised by a test the target "
                               "answered (pod-contract.md section 5)"),
-        "system": _measure(criteria, CRITERIA, "criteria AC-01 to AC-10 exercised by a test the target "
-                           "answered (pod-contract.md section 5)"),
+        "system": _measure(criteria, CRITERIA, "criteria AC-01 to AC-10 (pod-contract.md section 5), each counted "
+                           "once, from tests that ended pass or fail, with AC-11 counted as AC-02 "
+                           "(specifications.md section 4.1)"),
     }
     if own:
         coverage["model"] = _model_coverage(evaluated)
