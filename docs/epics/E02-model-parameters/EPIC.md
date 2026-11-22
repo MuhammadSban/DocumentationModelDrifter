@@ -365,14 +365,18 @@ session that did not build the Epic.
 | 2. Spec lines updated | Pass. The diff names `docs/base/specifications.md`; line 261 was made untrue and is fixed in step 7. |
 | 3. No open row for E02 | **Fails by design, and must.** Rows E02-a to E02-c carry the human's approval but only the human moves a row to `docs/decisions/RULED/` (R1). It passes once they do. |
 | 4. The human accepts | Theirs, after lines 1 to 3. |
-| 5. Level 4 is today's bytes | Pass. The whole suite gives 358 passed, 1 failed, and the one failure is `tests/connector/test_fetch.py::test_a_skipped_batch_fails_at_once_instead_of_fetching_lazily`, which fails on `main` in this environment too: Apple Git 2.39.5 raises `CalledProcessError` from `git cat-file --batch` on a blobless clone instead of the `AnalysisError` the test expects. `git diff --stat main...HEAD -- docs/contract/` prints nothing. |
+| 5. Level 4 is today's bytes | Pass. The whole suite gives 368 passed, 1 failed, and the one failure is `tests/connector/test_fetch.py::test_a_skipped_batch_fails_at_once_instead_of_fetching_lazily`, which fails on `main` in this environment too: Apple Git 2.39.5 raises `CalledProcessError` from `git cat-file --batch` on a blobless clone instead of the `AnalysisError` the test expects. `git diff --stat main...HEAD -- docs/contract/` prints nothing. |
 | 6. The ladder is a ladder | Pass, 9 passed. |
-| 7. A bad level never reaches a generator | Pass, 8 passed, 72 deselected. |
-| 8. Set before the first model, and re-baselined | Pass, 5 passed, 75 deselected. |
+| 7. A bad level never reaches a generator | Pass, 8 passed, 76 deselected. |
+| 8. Set before the first model, and re-baselined | Pass, 5 passed, 79 deselected. |
 | 9. The panel and both levels | Pass, 40 passed, and the `Source/Frontend/index.html` diff prints nothing. |
-| 10. The models say what the code does | Pass, 2 and 4. |
+| 10. The models say what the code does | Pass, 3 and 5. |
 | 11. Imports follow the map | Pass, `Contracts: 5 kept, 0 broken.` |
 | 12. The hole is named | Pass, 1 and 3. |
+
+Re-run in full after step 10, at the commit that corrected the page's advice. The counts above are
+that run's. Steps 8 to 10 add no Done line: step 8's behaviour is pinned by line 8's selector, step
+9's by line 5's whole-suite run, and step 10's by the two seam tests inside line 5.
 
 `ruff check` passes, which is not a Done line but is half of what CI runs. Lines 7 and 8 were
 corrected here on the same day: their `-k verbosity` selectors matched no test, the test names
