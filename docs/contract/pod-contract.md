@@ -38,7 +38,8 @@ one-session rule. Team 16's tester needs seven changes:
 - It runs T-24 to T-33 against `model-golden-outputs.json` as each group is published
   (sections 3 and 4).
 - It reports T-22 and T-23 as `skip` with the messages in section 4.
-- It counts coverage only from tests the target answered (section 5).
+- It counts a component only from tests the target answered, and a criterion only
+  from tests that ended `pass` or `fail` (section 5).
 - It keeps to section 6's limits: 110 s for system setup, 15 s for the system's
   `GET /test/report`, and a stop at 570 s of the 600 s run.
 
@@ -234,12 +235,34 @@ Both testers use the same lists, so totals match.
 | AC-09 | Repository unchanged, no code executed, no credentials in logs | inspection, Phase 5 |
 | AC-10 | Five runs of c4 and of c1 give identical significant fields, including identical finding_ids | c4, c1 |
 
-- **What counts:** a component or criterion is covered when at least one test that sent
+- **What counts, components:** a component is covered when at least one test that sent
   its project calls and got an answer from the target lists it in section 4: outcome
-  `pass` or `fail`, or `error` with source `system`. A test covers nothing when it is
-  `skip`, `error` because `/health` failed (section 4), or `error` with any other source.
+  `pass` or `fail`, or `error` with source `system`.
+- **What counts, criteria:** a criterion is covered only when at least one test that
+  lists it in section 4 ended `pass` or `fail`. An `error` with source `system` covers
+  its components but not its criteria.
+- **Why they differ:** a component that answered, even with a 5xx, was exercised, but a
+  criterion is checked only when its test's answer could be judged.
+- Each component and criterion counts once, however many tests list it. A test covers
+  nothing when it is `skip`, `error` because `/health` failed (section 4), or `error`
+  with any source other than `system`.
+- **Criteria in scope for system coverage:** AC-01 to AC-10, AC-05 and AC-09 included,
+  so the system `total` is 10 on every system, also while their tests skip.
 - **Code coverage** comes from the system's `GET /test/report`; `null` counts with a
   basis when unavailable, never 0.
+- **Model coverage, same team only.** A report carries `coverage.model` only when its
+  target is a tester's own system. After normalising `target_url` (scheme and host in
+  lowercase, a default port dropped, a trailing slash stripped, the path compared
+  exactly), that is the team's deployed public URL with the path `/system` (for Team 15,
+  its Railway public domain), the system URL in the team's registry row, or `localhost`,
+  `127.0.0.1` or `::1` on any port with the path `/system`, only while the tester is not
+  running on its deployed host (for Team 15, not on Railway). A cross-team report never
+  carries it.
+- **`target_url`.** Every system base URL that is a valid `format: uri`, starts with
+  `http://` or `https://` in lowercase, has a non-empty host and contains no `?`, `#`
+  or `@` also matches the tester's `target_url` pattern (`pod-tester.openapi.yml`). The
+  pattern also accepts some strings that are not URIs, such as `http://a%zz/system`, so a
+  tester does not use it to validate a URI.
 
 ## 6. Limits and retries
 
