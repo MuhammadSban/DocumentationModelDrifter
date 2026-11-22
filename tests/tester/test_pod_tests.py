@@ -288,6 +288,15 @@ def test_t23_run_skips_without_model_drift(fake):
     assert outcomes(run_suite(fake.url, "s"))["T-23"]["outcome"] == "skip"
 
 
+def test_full_coverage_system_is_10_of_10_with_model_drift(fake):
+    # covers every criterion though T-18 to T-20 skip: AC-04 by T-21's model version, AC-05 by T-22, AC-09 by T-23
+    fake.features = ["model_drift"]
+    report = run_suite(fake.url, "s")
+    assert [r["test_id"] for r in report["results"] if r["outcome"] != "pass"] == ids("T-18", "T-20")
+    system = report["coverage"]["system"]
+    assert (system["covered"], system["total"]) == (10, 10)
+
+
 def model_of(report):
     return report["coverage"]["model"]
 
@@ -344,3 +353,10 @@ def test_model_unreadable_map_gives_null_counts_and_a_basis_saying_why(fake, mon
     model = model_of(run_suite(fake.url, "s1", own=True))
     assert model["covered"] is None and model["total"] is None
     assert "unavailable" in model["basis"] and "missing.md" in model["basis"]
+
+
+def test_full_coverage_model_is_7_of_7_on_our_own_system(fake):
+    # covers REQ-03 by T-21 and T-22 and REQ-06 by T-23, as on our own system, which lists only model_drift
+    fake.features = ["model_drift"]
+    model = model_of(run_suite(fake.url, "s1", own=True))
+    assert (model["covered"], model["total"]) == (7, 7)
