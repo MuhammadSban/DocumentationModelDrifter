@@ -234,12 +234,14 @@ This Epic's own:
 6. The ladder is a ladder: `pytest tests/structural/test_verbosity.py -q` → passes, its subset case
    asserting that every element at one level is present at the level above
 7. A bad level never reaches a generator:
-   `pytest tests/drifter/test_cli.py -q -k verbosity` → passes, levels 0, 5 and "high" each giving
-   `INVALID_MODELS`
+   `pytest tests/drifter/test_cli.py -q -k "level_outside_the_ladder"` → 8 passed, 1 deselected or
+   more, levels 0, 5, `true`, `null`, a list, an object and "high" each giving `INVALID_MODELS`
+   through the check, and `init` refusing one before it writes anything
 8. The level is set before the first model and a change to it redefines the baseline:
-   `pytest tests/drifter/test_cli.py -q -k "verbosity and (init or update)"` → passes, its two cases
-   being `init --verbosity 1` followed by an aligned `check`, and a hand-edited level followed by
-   `update` and an aligned `check`
+   `pytest tests/drifter/test_cli.py -q -k "init_sets_the_level or redefines_the_baseline or default_level"`
+   → 5 passed, its cases being `init --verbosity` at each of levels 1 to 3 followed by an aligned
+   `check`, a hand-edited level followed by `update` and an aligned `check`, and `init` at the
+   default writing byte-identical files whether or not the level is asked for
 9. The page carries the panel and names both levels:
    `pytest tests/frontend -q` → passes, including the 422 case, the note case, the standalone case
    and the case that proves both snapshots take the previewed level, and
@@ -290,6 +292,32 @@ answer, and the rest become rows in `docs/decisions/OPEN-DECISIONS.md`.
    model is generated, and a change to it redefines the baseline. `drifter update` regenerates from
    the committed scope, so the new models are the baseline and nothing is reported. The one case
    left, an edit without a regeneration, is already covered by `docs/base/specifications.md:263-264`.
+
+## Done, as run by the drafting session
+
+Run on 2026-11-22 at the commit of step 7, in a Python 3.13 virtualenv built from
+`requirements.txt`, `requirements-dev.txt` and `pip install -e .`. This is the builder's own run and
+does not replace the auditor's: `.claude/agents/auditor.md` re-runs every line at HEAD, from a
+session that did not build the Epic.
+
+| Line | Result |
+|---|---|
+| 1. CI green | **Not run.** `gh` is not installed on this machine, and nothing is pushed, so no run exists to ask about. The human's or the auditor's, with `gh` available. |
+| 2. Spec lines updated | Pass. The diff names `docs/base/specifications.md`; line 261 was made untrue and is fixed in step 7. |
+| 3. No open row for E02 | **Fails by design, and must.** Rows E02-a to E02-c carry the human's approval but only the human moves a row to `docs/decisions/RULED/` (R1). It passes once they do. |
+| 4. The human accepts | Theirs, after lines 1 to 3. |
+| 5. Level 4 is today's bytes | Pass. The whole suite gives 358 passed, 1 failed, and the one failure is `tests/connector/test_fetch.py::test_a_skipped_batch_fails_at_once_instead_of_fetching_lazily`, which fails on `main` in this environment too: Apple Git 2.39.5 raises `CalledProcessError` from `git cat-file --batch` on a blobless clone instead of the `AnalysisError` the test expects. `git diff --stat main...HEAD -- docs/contract/` prints nothing. |
+| 6. The ladder is a ladder | Pass, 9 passed. |
+| 7. A bad level never reaches a generator | Pass, 8 passed, 72 deselected. |
+| 8. Set before the first model, and re-baselined | Pass, 5 passed, 75 deselected. |
+| 9. The panel and both levels | Pass, 40 passed, and the `Source/Frontend/index.html` diff prints nothing. |
+| 10. The models say what the code does | Pass, 2 and 4. |
+| 11. Imports follow the map | Pass, `Contracts: 5 kept, 0 broken.` |
+| 12. The hole is named | Pass, 1 and 3. |
+
+`ruff check` passes, which is not a Done line but is half of what CI runs. Lines 7 and 8 were
+corrected here on the same day: their `-k verbosity` selectors matched no test, the test names
+saying "level" and not "verbosity", so as written they reported success while running nothing.
 
 ## Review
 
