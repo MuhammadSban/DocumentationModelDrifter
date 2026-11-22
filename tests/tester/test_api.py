@@ -111,3 +111,46 @@ def test_page_and_catalog(app_url):
 
 def test_unknown_unit_group(app_url):
     assert post(app_url + "/unit/nope").status == 404
+
+
+@pytest.fixture
+def blocking_group(monkeypatch):
+    # replaces the pytest run with a stand-in that holds until the test lets it go
+    from Tester import unit_tests
+
+    entered, release = threading.Event(), threading.Event()
+
+    def run_group(group):
+        entered.set()
+        release.wait(10)
+        return {"group": group, "summary": "", "tests": [], "title": unit_tests.GROUPS[group]}
+
+    monkeypatch.setattr(unit_tests, "run_group", run_group)
+    yield entered, release
+    release.set()
+
+
+def test_unit_run_second_call_gets_409_at_once(app_url, blocking_group):
+    entered, release = blocking_group
+    first = threading.Thread(target=post, args=(app_url + "/unit/common",), daemon=True)
+    box = {}
+    second = threading.Thread(target=lambda: box.update(reply=post(app_url + "/unit/common")), daemon=True)
+    try:
+        first.start()
+        assert entered.wait(5), "the first run never started"
+        second.start()
+        second.join(3)
+        assert not second.is_alive(), "the second run waited for the first"
+    finally:
+        release.set()
+        first.join(10)
+        second.join(10)
+    assert box["reply"].status == 409
+    assert box["reply"].body["source"] == "tester"
+
+
+def test_unit_run_after_the_first_ended_runs(app_url, blocking_group):
+    _, release = blocking_group
+    release.set()
+    assert post(app_url + "/unit/common").status == 200
+    assert post(app_url + "/unit/common").status == 200

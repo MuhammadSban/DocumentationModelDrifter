@@ -28,6 +28,8 @@ router = APIRouter(prefix="/tester", tags=["tester"])
 # holds sessions in memory, cleared by a restart as the contract allows (§2)
 SESSIONS: dict[str, dict] = {}
 LOCK = threading.Lock()
+# lets one pytest group run at a time, each is a subprocess beside real checks
+UNIT_LOCK = threading.Lock()
 
 
 def _error(status: int, message: str, source: str = "tester") -> JSONResponse:
@@ -137,7 +139,12 @@ def catalog() -> dict:
 
 @router.post("/unit/{group}", include_in_schema=False)
 def unit(group: str):
-    # runs one pytest group, 404 for a folder the page does not offer
+    # runs one pytest group, 404 for a folder the page does not offer, 409 while another group runs
     if group not in unit_tests.GROUPS:
         return _error(404, f"unknown test group {group}")
-    return unit_tests.run_group(group)
+    if not UNIT_LOCK.acquire(blocking=False):
+        return _error(409, "another test group is running, retry when it ends")
+    try:
+        return unit_tests.run_group(group)
+    finally:
+        UNIT_LOCK.release()
