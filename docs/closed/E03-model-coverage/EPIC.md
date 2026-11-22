@@ -1,6 +1,6 @@
 # E03: Model coverage in our tester's report
 
-Status: ratified · Owner: Kaan
+Status: closed · Owner: Kaan
 
 W-row: W4-8 in `docs/state/WORK-ITEMS.md` (build order steps C.1 to C.3) · Branch: `E03-model-coverage`
 
