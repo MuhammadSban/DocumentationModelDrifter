@@ -20,7 +20,7 @@ Specs and tickets for this repo live as files in the repo, not as GitHub issues.
 - **Close a ticket**: run the step's check, then commit with its `Step: i/N` trailer. The commit is the record.
 - **Close a spec**: the closing commit in `docs/epics/README.md`: the folder moves to `docs/closed/`, the Status becomes closed, and the W-row is marked done with the new path.
 
-A small change needs no Epic: one that touches no boundary, no invariant and no model in `docs/diagrams/` goes straight to a PR.
+A small change needs no Epic: one that touches no boundary, no invariant and no model in `docs/diagrams/` is committed to a branch and pushed, CI runs on the push, and once it is green it goes to `main` on the human's word, with no pull request. Epic work gets one pull request, opened when its last step is committed, before the audit. Any change gets a pull request when another person's approval or review is needed.
 
 ## Labels
 
