@@ -88,16 +88,21 @@ Written failing first: the subset case and the byte-identity case both fail agai
 signature, which takes no keyword. Behavioral is untouched, so `generate_behavioral` keeps its one
 argument and the seam gains the argument on one generator only, as `DESIGN.md` states.
 
-### Step 3/7: Read the level from the committed scope, through the one choke point
+### Step 3/7: Read the level from the committed scope, at both of the core's generation sites
 
-- Files: `Source/drifter/check.py` (`_regenerate(files, verbosity)` passes the level to the
-  structural generator; `model_differences` reads it from `sources.models["scope.json"]`, which
-  `read_sources` has already parsed; `regenerate_models` reads it from the scope it already reads;
-  `_scope_rule` rejects anything that is not an integer from 1 to 4 with `INVALID_MODELS`);
-  `tests/drifter/test_cli.py` (a committed `scope.json` at level 1 gives a structural model of
-  modules and imports only; a level of 0, of 5 and of "high" each give `INVALID_MODELS`; `update`
-  at a changed level rewrites the models and a `check` straight after it is aligned)
-- Check: `pytest tests/drifter tests/drift tests/common -q` → passes
+- Files: `Source/drifter/check.py` (`generate_one(name, files, verbosity)` beside `GENERATORS`,
+  holding the one fact that only structural has a ladder, so no site repeats it; `GENERATORS`
+  retyped `dict[str, Callable[..., dict]]`, its entries no longer sharing one signature;
+  `_regenerate(files, verbosity)` calls `generate_one`; `model_differences` calls it too, with the
+  level from `sources.models["scope.json"]`, which `read_sources` has already parsed;
+  `regenerate_models` reads the level from the scope it already reads; `DEFAULT_SCOPE` carries
+  `verbosity`; `_scope_rule` rejects anything that is not an integer from 1 to 4 with
+  `INVALID_MODELS`); `tests/drifter/test_cli.py` (a committed `scope.json` at level 1 gives a
+  structural model of modules and imports only, and a `check` against it is aligned rather than
+  reporting every dropped element as `REMOVED`; a level of 0, of 5, of `true` and of "high" each
+  give `INVALID_MODELS`; `update` at a changed level rewrites the models and a `check` straight
+  after it is aligned)
+- Check: `pytest tests/drifter tests/drift tests/common tests/connector -q` → passes
 - Trailer: `Step: 3/7`
 
 `Sources` gains no field: the committed scope is already in `sources.models`. The last test is the
@@ -106,9 +111,13 @@ already regenerates from the scope committed at the commit, so the models it wri
 baseline. Validation is inline because `scope.json` has no schema yet; if W3-1 lands first, this
 step adds the key to `scope.schema.json` instead and the check command is unchanged.
 
-`_regenerate` is not the only generation site, and this step does not pretend it is: the console's
-page has its own loop over `GENERATORS` in `Source/Frontend/model_drift.py:40-52`, which step 6
-covers. This step is the tool proper.
+There is no single choke point, and this step no longer claims one. The core generates a model in
+two places, `_regenerate` and `model_differences` (`Source/drifter/check.py:116`, which never calls
+`_regenerate`), and the console's page in a third, `snapshot`
+(`Source/Frontend/model_drift.py:40-52`), which step 6 covers. `model_differences` is the site that
+matters most: miss it and `drifter check` regenerates at level 4 against a level-1 committed model
+and reports every element the level drops as `REMOVED`, which is why this step's tests assert an
+aligned check at level 1 and not only a trimmed model.
 
 ### Step 4/7: Set the level before the first model exists
 

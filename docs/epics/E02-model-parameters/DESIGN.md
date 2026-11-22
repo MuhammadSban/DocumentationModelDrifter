@@ -49,25 +49,36 @@ regenerate, and that case already has a spec sentence and needs no new one: "Edi
 without regenerating the models shows up as drift by itself" (`docs/base/specifications.md:263-264`).
 Verbosity is part of the scope, so the sentence covers it as written.
 
-### Two generation sites take the level, not one
+### Three generation sites take the level, and one function decides which generator has a ladder
 
-Corrected after the first review, which found the second site. There are two places a model is
-generated, and the level reaches both.
+Corrected twice: the first review found the second site, the second review found the third. There
+is no choke point. A model is generated in three places, and the level reaches all three.
 
-1. **`_regenerate(files, verbosity)`**, `Source/drifter/check.py:290`, which every path of the tool
-   proper passes through: `generate_models` for `drifter init` and for `POST /system/generate`,
-   `regenerate_models` for `drifter update`, and `model_differences` for the check itself. The
-   check reads the level from `sources.models["scope.json"]`, which `read_sources` has already
-   parsed and validated (`Source/drifter/check.py:230`), so `Sources` gains no field.
-2. **`snapshot(reader, commit, verbosity)`**, `Source/Frontend/model_drift.py:40-52`, which the
+1. **`_regenerate(files, verbosity)`**, `Source/drifter/check.py:290`, for `generate_models`
+   (`drifter init` and `POST /system/generate`) and `regenerate_models` (`drifter update`).
+2. **`model_differences`**, `Source/drifter/check.py:110-119`, for the check itself. It takes the
+   generator out of `GENERATORS` at `:112` and calls it at `:116` without going through
+   `_regenerate`. It reads the level from `sources.models["scope.json"]`, which `read_sources` has
+   already parsed and validated (`Source/drifter/check.py:230`), so `Sources` gains no field. This
+   is the site that matters most: miss it and the check regenerates at level 4 against a level-1
+   committed model and reports every element the level drops as `REMOVED`.
+3. **`snapshot(reader, commit, verbosity)`**, `Source/Frontend/model_drift.py:40-52`, which the
    console's models page uses for its naive chip. It loops over `GENERATORS` itself and never calls
-   `_regenerate`. That duplication is known and is not this Epic's to repair: `.importlinter:47`
-   carries the ignore line `Frontend.model_drift -> drifter.check` with the comment "removed by
-   W3-3, the page asks the core for the models at a commit". E02 passes the level to it and leaves
-   the duplication to W3-3.
+   `_regenerate` either. That duplication is known and is not this Epic's to repair:
+   `.importlinter:47` carries the ignore line `Frontend.model_drift -> drifter.check` with the
+   comment "removed by W3-3, the page asks the core for the models at a commit". E02 passes the
+   level to it and leaves the duplication to W3-3.
+
+What the three sites do share is **`generate_one(name, files, verbosity)`**, which this Epic adds to
+`Source/drifter/check.py` beside `GENERATORS`. Only structural has a ladder: behavioral keeps every
+element at every level while N2 is unruled, so it is still called with one argument. That fact lives
+in `generate_one` and nowhere else, so the three sites each pass the level and none of them repeats
+the decision. `GENERATORS` is retyped `dict[str, Callable[..., dict]]`, because its entries no
+longer share one signature and `ruff` is not a type checker that would have caught the old
+annotation going stale.
 
 `snapshot` already reads the commit's own `scope.json` to choose its files (`_scope`,
-`Source/Frontend/model_drift.py:80-88`), so the committed level is there to be read when no level
+`Source/Frontend/model_drift.py:80-89`), so the committed level is there to be read when no level
 is given. A level passed in is the panel's preview and overrides it.
 
 `Source/GitHub_Connector/api.py:198` and `:201` call `snapshot` twice, at the head and at the base,
@@ -123,7 +134,9 @@ Every fact the structure rests on, checked against the disk before it is written
 | The check never compares two commits' models: it regenerates at one commit and sets that against the model committed at the same commit, so two levels are never diffed against each other | `Source/drifter/check.py:110-136`, `model_differences` and `differences`; "One check" in `docs/diagrams/model-seam.md` | yes |
 | `drifter update` reads the scope committed at the commit and rewrites only the two generated models, which is exactly the re-baseline a level change needs | `Source/drifter/cli.py:4-5`, `Source/drifter/check.py:279-287` | yes |
 | The spec already states the semantic for editing the scope without regenerating, and verbosity is part of the scope | `docs/base/specifications.md:263-264` | yes |
-| **Corrected after the first review.** There are two generation sites, not one, and the level must reach both. `_regenerate` covers the tool proper; the console's page has its own loop over `GENERATORS` and never calls it | `Source/drifter/check.py:290`, `_regenerate`, called by `generate_models`, `regenerate_models` and (through `GENERATORS`) `model_differences`; and `Source/Frontend/model_drift.py:40-52`, `snapshot` | yes, as corrected |
+| **Corrected twice, by the first and second reviews. There is no choke point: three sites generate a model and the level must reach all three.** `_regenerate` serves init, update and `POST /system/generate`; `model_differences` calls the generator itself for the check; the console's page has its own loop over `GENERATORS` | `Source/drifter/check.py:290`, `_regenerate`, called at `:267` and `:287`; `Source/drifter/check.py:112` and `:116`, `model_differences`, which never calls `_regenerate`; `Source/Frontend/model_drift.py:51`, inside `snapshot` | yes, as corrected |
+| Only structural has a ladder, so one function decides which generator takes a level and the three sites do not each repeat it | `generate_one` beside `GENERATORS`, added by this Epic; behavioral keeps every element at every level while N2 is unruled | by construction |
+| The `GENERATORS` annotation stops being true of one entry once structural takes a level, and nothing would catch it: CI runs `ruff`, not a type checker | `Source/drifter/check.py:103`, `dict[str, Callable[[dict[str, str]], dict]]`; `.github/workflows/ci.yml` runs `pytest`, `ruff check` and `lint-imports` only | yes, so step 3 retypes it |
 | The console's page regenerates through `snapshot` twice, at the head and at the base, so both calls must take the same level or the chip compares the preview with level 4 | `Source/GitHub_Connector/api.py:198` and `:201` | yes |
 | `snapshot` already reads the commit's own `scope.json`, so the committed level is there to read when the panel passes none | `Source/Frontend/model_drift.py:44` and `:80-88`, `_scope` | yes |
 | `model_drift`'s duplicate reading is known and owned by another row, so E02 passes the level and does not unify the two sites | `.importlinter:47`, the ignore line `Frontend.model_drift -> drifter.check` and its comment "removed by W3-3"; W3-3's row in `docs/state/WORK-ITEMS.md` | yes |
