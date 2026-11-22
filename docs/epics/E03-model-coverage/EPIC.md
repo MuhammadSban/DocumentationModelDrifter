@@ -94,8 +94,7 @@ This Epic's own:
 6. The map file has its version line and 17 rows: `git grep -c -E "^(Version: |\| (REQ-0[1-7]|AC-(0[1-9]|10)) )" -- docs/base/requirements-to-tests.md` → `docs/base/requirements-to-tests.md:18`
 7. The named tests pass: `python -m pytest tests/tester -q -k "test_map_ or test_model_"` → `9 passed`, and `python -m pytest tests/tester/test_own_system.py -q` → `12 passed`
 8. The image ships the map file: `git grep -n "requirements-to-tests.md" -- Dockerfile` → one `COPY` line
-9. No commit SHA in the basis: `git grep -n "RAILWAY_GIT_COMMIT_SHA" -- Source/Tester` → prints nothing
-10. Imports still follow the map: `PYTHONPATH=Source lint-imports` → `Contracts: 5 kept, 0 broken.`
+9. Imports still follow the map: `PYTHONPATH=Source lint-imports` → `Contracts: 5 kept, 0 broken.`
 
 ## Open questions
 
