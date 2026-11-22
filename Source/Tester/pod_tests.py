@@ -343,8 +343,8 @@ def run_suite(target_url: str, session_id: str, limit: float | None = None,
             on_result(results[-1])
         if result.answered and (result.outcome in ("pass", "fail") or result.source == "system"):
             components.update(test.components)
-            criteria.update(test.criteria)
         if result.outcome in ("pass", "fail"):
+            criteria.update(test.criteria)
             evaluated.add(test.id)
     coverage = {
         "code": _code_coverage(run, session_id),
