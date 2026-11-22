@@ -28,6 +28,7 @@ class FakeTarget:
         self.break_generate = None  # a /models file whose text /generate returns changed
         self.break_drift_case = None  # a model fixture case whose drift_error code, or else drift order, is wrong
         self.setup_answer = (201, None)
+        self.setup_calls = 0  # how many system setups reached the target
         self.saved = {}
         self.url = ""
 
@@ -122,6 +123,7 @@ def _handler(fake: FakeTarget):
             elif self.path == "/system/generate":
                 self._send(*fake.generate(raw))
             elif self.path == "/system/test/setup":
+                fake.setup_calls += 1
                 status, body = fake.setup_answer
                 self._send(status, body or {"session_id": json.loads(raw)["session_id"]})
             else:

@@ -154,3 +154,59 @@ def test_unit_run_after_the_first_ended_runs(app_url, blocking_group):
     release.set()
     assert post(app_url + "/unit/common").status == 200
     assert post(app_url + "/unit/common").status == 200
+
+
+@pytest.fixture
+def sessions(monkeypatch):
+    # gives the tester a fresh session table, seeded in the order the seats were taken
+    from Tester import api
+
+    table = {}
+    monkeypatch.setattr(api, "SESSIONS", table)
+
+    def seed(*states):
+        for i, state in enumerate(states):
+            table[f"s{i}"] = {"report": None, "results": [], "state": state, "target_url": "http://x/system"}
+        return table
+
+    return seed
+
+
+def test_session_cap_drops_the_oldest_finished_session(app_url, fake, sessions):
+    table = sessions(*(["running"] * 5 + ["done"] * 5 + ["ready"] * 40))
+    reply = post(app_url + "/test/setup", {"target_url": fake.url})
+    assert reply.status == 201
+    assert "s5" not in table and "s6" in table
+    assert reply.body["session_id"] in table
+    assert len(table) == 50
+
+
+def test_session_cap_drops_the_oldest_unrun_session_when_none_finished(app_url, fake, sessions):
+    table = sessions(*(["running"] * 5 + ["ready"] * 45))
+    reply = post(app_url + "/test/setup", {"target_url": fake.url})
+    assert reply.status == 201
+    assert "s5" not in table and "s6" in table and "s0" in table
+    assert len(table) == 50
+
+
+def test_session_cap_refuses_setup_with_500_and_calls_no_target_when_all_are_running(app_url, fake, sessions):
+    table = sessions(*["running"] * 50)
+    reply = post(app_url + "/test/setup", {"target_url": fake.url})
+    assert reply.status == 500
+    assert reply.body["source"] == "tester"
+    assert fake.setup_calls == 0
+    assert len(table) == 50
+
+
+def test_session_cap_frees_the_seat_of_a_setup_that_failed(app_url, fake, closed_url, sessions, monkeypatch):
+    from Tester import api
+
+    monkeypatch.setattr(api, "MAX_SESSIONS", 1)
+    table = sessions()
+    fake.setup_answer = (409, {"message": "another session is active", "source": "system"})
+    assert post(app_url + "/test/setup", {"target_url": fake.url}).status == 409
+    assert post(app_url + "/test/setup", {"target_url": closed_url}).status == 500
+    fake.setup_answer = (201, None)
+    reply = post(app_url + "/test/setup", {"target_url": fake.url})
+    assert reply.status == 201
+    assert list(table) == [reply.body["session_id"]]
