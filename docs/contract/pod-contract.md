@@ -1,6 +1,6 @@
 # Pod 15/16 contract: testing rules
 
-Version 2.4.0, proposed 2026-10-31 and agreed by Team 16 (recorded 2026-11-05, section 10); it is the first agreed version. Both teams' registry rows link this file as the intra-pod
+Version 2.5.0, proposed 2026-11-22, pending Team 16's agreement (section 10). Both teams' registry rows link this file as the intra-pod
 specification. The course's `docs/base/student-facing-spec.docx.pdf` wins over every
 file here.
 
@@ -143,7 +143,7 @@ For each group:
 - [x] Fill the SHAs of the commits its tests use in the table above.
 - [x] Add its tests' expected answers to `model-golden-outputs.json`.
 - [x] Remove "pending" from its tests in section 4.
-- [ ] Bump the version (section 10).
+- [x] Bump the version (section 10).
 
 ## 4. Test list
 
@@ -310,14 +310,14 @@ cannot run again (409).
 ## 8. Registry and access
 
 Both teams' "Intra-pod specification URL" links this file:
-<https://github.com/MuhammadSban/DocumentationModelDrifter/blob/contract-2.4.0/docs/contract/pod-contract.md>.
+<https://github.com/MuhammadSban/DocumentationModelDrifter/blob/contract-2.5.0/docs/contract/pod-contract.md>.
 Team 15's "Access / run notes" cell:
 
 > No authentication; public GitHub repositories only. Limits: tester setup 120 s, tester
 > run 600 s, system setup 90 s, 90 s per project call. One session at a time: a new
 > system setup answers 409 until the last session's /test/report is read, or for 720 s
 > after its setup. Spec:
-> https://github.com/MuhammadSban/DocumentationModelDrifter/blob/contract-2.4.0/docs/contract/pod-contract.md
+> https://github.com/MuhammadSban/DocumentationModelDrifter/blob/contract-2.5.0/docs/contract/pod-contract.md
 
 ## 9. Differences from Team 16's v1.1 package, in one place
 
@@ -336,8 +336,9 @@ Team 15's "Access / run notes" cell:
 
 ## 10. Agreement and changes
 
-Version 2.4.0 is agreed by both teams (recorded 2026-11-05); it is the first agreed
-version. Every later change to any file in this folder
+Version 2.5.0 is proposed (2026-11-22) and applies once Team 16 agrees to it. The version
+before it was the first one both teams agreed to; Team 16's agreement to it was recorded
+on 2026-11-05. Every later change to any file in this folder
 bumps the version and applies once
 both teams agree to it. `spec-v1.1.md`, `mapping-v1.1.yaml` and `golden-outputs.json`
 change only when Team 16 publishes a new version of them.

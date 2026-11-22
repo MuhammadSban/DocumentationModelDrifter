@@ -70,7 +70,7 @@ paths, methods, inputs, responses, and behavior must match the shared specificat
 their internal implementations." [6] Staff may pair either team's tester with either team's system,
 so both teams build to one contract.
 
-That contract is docs/contract/ (version 2.4.0, agreed by Team 16, recorded 2026-11-05). It builds
+That contract is docs/contract/ (version 2.5.0, proposed, pending Team 16's agreement). It builds
 on Team 16's v1.1 package [7], in which Team 16 checks prose documentation. Team 15 checks models
 instead, which the contract allows through two deviations (5.1). Team 16 builds no models.
 
@@ -406,8 +406,8 @@ inspected for criteria that cannot be decided from responses alone (AC-04, AC-09
 
 ### 5.1 The pod contract
 
-The cross-team interface is the pod contract in docs/contract/, version 2.4.0, agreed by
-Team 16 (recorded 2026-11-05). It builds on Team 16's v1.1 package [7] and wins over this file for anything
+The cross-team interface is the pod contract in docs/contract/, version 2.5.0, proposed, pending
+Team 16's agreement. It builds on Team 16's v1.1 package [7] and wins over this file for anything
 another team's tester or system sees.
 
 | File | Holds |
@@ -706,14 +706,14 @@ repository.
 [7] Team 16. "Documentation Tracker: Pod 15/16 Shared Specification v1.1" (SPEC.md,
 openapi-system-v1.1.yaml, mapping-v1.1.yaml, golden-outputs.json). Proposed 2026-10-30.
 
-[8] Teams 15 and 16. "Pod 15/16 contract", version 2.4.0. docs/contract/ in this repository.
-Proposed 2026-10-31, agreed by Team 16 (recorded 2026-11-05).
+[8] Teams 15 and 16. "Pod 15/16 contract", version 2.5.0. docs/contract/ in this repository.
+Proposed 2026-11-22, pending Team 16's agreement; the version before it was agreed (recorded 2026-11-05).
 
 ## Q11 Open decisions
 
 #### Agreed in the pod contract (recorded 2026-11-05)
 
-- Team 16's agreement to the interface and the testing contract: agreed; docs/contract/ 2.4.0 is the agreed version.
+- Team 16's agreement to the interface and the testing contract: agreed for the version before 2.5.0 (recorded 2026-11-05); docs/contract/ 2.5.0 is proposed, pending Team 16's agreement.
 - The shared fixture: Team 16's fixture serves the shared tests; Team 15 builds the model fixture.
 - Saving answers by id: every /analyze result is saved durably and returned by GET
   /system/analysis/{analysis_id}.
