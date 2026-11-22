@@ -1,6 +1,6 @@
 # E04: Contract 2.5.0, system coverage from evaluated tests
 
-Status: draft · Owner: Kaan
+Status: ratified · Owner: Kaan
 
 W-row: W4-9 in `docs/state/WORK-ITEMS.md` (build order steps C.4 and C.5) · Branch: `E04-contract-2-5-0`
 
@@ -194,3 +194,37 @@ Notes, not blocking:
 - Open question 3 remains the human's call: row E04-1 in `docs/decisions/OPEN-DECISIONS.md`. No new row is needed.
 
 Revised by the author after the second review: findings 1 to 3 and both notes are addressed in steps 3, 4 and 5 and open question 1.
+
+RATIFY · design-reviewer at 928a0b0 · 2026-11-22
+
+- The filled-copy check in `docs/templates/README.md` prints nothing for this file (exit 1). There is no `DESIGN.md`, and none is needed (open question 1): no import changes (`docs/diagrams/dependency.md:79`, A4), and `git grep -n -i -E "coverage|suite"` over the five models prints nothing.
+- No conflict with a level above. The course PDF, p. 5, asks system coverage to count the criteria "the suite evaluated out of all criteria in scope", "each criterion once", and defines `fail` as "can be evaluated" and `error` as what "prevents evaluation" (`docs/base/student-facing-spec.docx.pdf`, checked with `pdftotext`). Its OpenAPI gives `target_url` `format: uri`. The decision is the W4-9 row (`docs/state/WORK-ITEMS.md:215`). `RULED/` holds only its README. `git grep -n "AC-11" -- docs/contract` prints nothing, and step 5 keeps it out.
+- The counts in steps 1 to 3 hold. Checked by running today's `run_suite` against `FakeTarget` (`tests/tester/conftest.py`), with today's `system` and the set of criteria from pass-or-fail tests side by side:
+  - Plain fake: 8 of 10, component 6. T-22 to T-33 skip.
+  - Every `/analyze` at 500: today 8, pass-or-fail 2 (AC-06, AC-08). Only T-15 passes. So step 1's new assertion and its `== 2` at `tests/tester/test_pod_tests.py:190` both fail today. Its check collects 2 of 24 tests today.
+  - `closed_url`: 0. That is 31 `error`/`communication`, with T-22 and T-23 skipped.
+  - Limit 0.2 with `analyze_delay = 0.4`: T-01 `error`/`tester`, 32 skip, 0.
+  - `/health` at 500: 5 (AC-01, AC-06, AC-07, AC-08, AC-10). T-01 to T-17 pass, and 14 are `error`/`system`.
+  - Both features: 31 pass and system is 8. AC-01 and AC-02 are each listed by 7 passing tests.
+  - So step 2's four guards and step 3's guard pass today.
+- Step 4: today's system basis lacks "pass or fail" and "AC-11", so its written-first test fails. The component guard's string equals `Source/Tester/pod_tests.py:351-352`. Spec §4.1 starts at `docs/base/specifications.md:311` and holds the AC-11 line at `:360-362`.
+- Step 5's `format: uri` line holds under its stated limits. Under RFC 3986, a URI that starts with `http://` or `https://` is `"//" authority path-abempty`. Its characters are unreserved, pct-encoded, sub-delims, `:`, `@`, `/`, `[` and `]`, none of them whitespace. With a non-empty host and no `?`, `#` or `@`, it matches `^https?://[^\s?#@]+$` (`Source/Tester/api.py:22`). The reverse example `http://a%zz/system` matches the pattern (Python `re`). The own-system text matches `Source/Tester/own_system.py:15-39` and the W4-8 decisions (`docs/state/WORK-ITEMS.md:214`).
+- Checks and Done lines:
+  - Step 5's two greps print nothing today.
+  - Step 7's pattern, with 2.4.0 in place of 2.5.0, prints `docs/contract/pod-contract.md:2` today.
+  - Step 6's grep lists exactly the eleven lines the step names, and `git grep -n -i "answered" -- docs/base/specifications.md` prints nothing. Outside `docs/closed` and `docs/epics`, the only other 2.4.0 mentions are history (`docs/base/phase4.md`, `docs/README.md:105`, `docs/decisions/contract-contradictions.md`).
+  - `- [ ]` appears only at `docs/contract/pod-contract.md:145`.
+  - Done line 7's 9 = 2 + 4 + 1 + 2, and its `-k` collects only the two existing tests today.
+  - `.importlinter` holds 5 contracts.
+  - `python -m pytest tests/tester -q` gives `53 passed` today.
+  - Every step names its files, one check with its output and its trailer. Every Done line but line 4 is a command with an output.
+- Relies on holds: `pod-tester.openapi.yml:101-104` (pattern), `:130`, `:133` (descriptions, no `model`, no `additionalProperties`), `page.html:223`, spec lines 73, 409, 709 and 716, ADR 0001, commit `6371a3e`, `.claude/hooks/step-trailer.py:12`, and the PDF quote on p. 5.
+- Open questions: 1 and 2 have sourced answers. 3 is row E04-1 in `docs/decisions/OPEN-DECISIONS.md`, which blocks Done lines 3 and 12 and the pull request, not the steps. No new row is needed.
+
+Notes, not blocking:
+
+- Step 6 lists the top line of `pod-contract.md` only among the places where 2.4.0 becomes 2.5.0. That line also says "agreed by Team 16 (recorded 2026-11-05) … the first agreed version" (`docs/contract/pod-contract.md:3`). If only the number changes, the 2.5.0 text claims an agreement that does not exist yet, and no check catches it. Step 7's grep would then pass on the old date. When building step 6, make the top line say proposed and pending, as §10 does. A cheap guard to add to step 6's check: `git grep -n -E "agreed by Team 16|is agreed by both teams|first agreed version" -- docs/contract/pod-contract.md` prints nothing.
+- Done line 6 says the output "ends with `passed`". pytest's last line reads `53 passed in 63.15s (0:01:03)`, so the auditor should read it as "the summary line says `passed` and no `failed`".
+- Step 5 defines "a tester's own system" for both teams in terms of Railway, which is how Team 15 hosts. Team 16 may host elsewhere. Their agreement (step 7) covers it, but the wording could say "the team's deployed URL".
+- Done line 3 needs more than ruling E04-1. The "Contract 2.5.0" section intro in `docs/decisions/OPEN-DECISIONS.md` also names E04, so it must go with the row.
+- `lint-imports` is not installed in this checkout, so Done line 10 was not run.
