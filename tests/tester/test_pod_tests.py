@@ -171,16 +171,16 @@ def test_model_is_present_for_our_own_system_with_total_7_and_covered_at_most_to
 
 
 def test_model_counts_a_requirement_with_no_evaluated_test_in_total(fake):
-    # REQ-06's only test, T-23, always skips; it still counts in total
+    # keeps REQ-06 in total, though its only test, T-23, always skips
     model = model_of(run_suite(fake.url, "s1", own=True))
     assert (model["covered"], model["total"]) == (6, 7)
 
 
 def test_model_does_not_cover_a_requirement_whose_tests_ended_skip_or_error(fake):
-    # without prose_detector T-18 to T-21 skip, so REQ-03 drops; T-24 to T-33 run, so REQ-02 stays
+    # drops REQ-03 when T-18 to T-21 skip without prose_detector; T-24 to T-33 run, so REQ-02 stays
     fake.features = ["model_drift"]
     assert model_of(run_suite(fake.url, "s1", own=True))["covered"] == 5
-    # a 5xx is error with source system: system coverage still counts it, model coverage does not
+    # leaves out a 5xx, error with source system, which system coverage still counts
     fake.features = None
     fake.analyze_status = 500
     report = run_suite(fake.url, "s2", own=True)
@@ -191,7 +191,7 @@ def test_model_does_not_cover_a_requirement_whose_tests_ended_skip_or_error(fake
 
 
 def test_model_counts_a_requirement_listed_by_two_evaluated_tests_once(fake):
-    # REQ-01 alone has seven passing tests, T-01 to T-07; it adds one to covered
+    # counts REQ-01 once, though seven of its tests, T-01 to T-07, pass
     report = run_suite(fake.url, "s1", own=True)
     assert {outcomes(report)[t]["outcome"] for t in ids("T-01", "T-07")} == {"pass"}
     assert model_of(report)["covered"] == 6
