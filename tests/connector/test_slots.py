@@ -118,3 +118,41 @@ def test_slot_is_free_again_after_a_check(monkeypatch):
         if taken:
             sem.release()
     assert all(held)
+
+
+VIEW = "/models/view?repository=owner/repo&commit_id=" + "a" * 40
+
+
+def test_models_view_waits_for_a_slot_and_fails_at_its_deadline(monkeypatch, slots, deadline):
+    calls = []
+
+    def counting_fetch(*args):
+        calls.append(args)
+        raise AssertionError("fetch was called without a slot")
+
+    monkeypatch.setattr(api, "fetch", counting_fetch)
+    deadline(0.5)
+    try:
+        thread, box = call_in_thread("GET", VIEW)
+        thread.join(JOIN)
+        assert not thread.is_alive(), "the view still waits for a slot past its deadline"
+    finally:
+        slots()
+        thread.join(JOIN)
+    assert calls == []
+    assert box["resp"].status_code == 500
+    assert box["resp"].json()["code"] == "ANALYSIS_FAILED"
+
+
+def test_models_view_frees_its_slot(monkeypatch):
+    def missing_fetch(*args):
+        raise analysis.AnalysisError(analysis.ErrorCode.REPOSITORY_NOT_FOUND, "no such repository")
+
+    monkeypatch.setattr(api, "fetch", missing_fetch)
+    assert TestClient(api.app).get(VIEW).status_code == 404
+    sem = analysis.slot()
+    held = [sem.acquire(blocking=False) for _ in range(get_settings().max_concurrent)]
+    for taken in held:
+        if taken:
+            sem.release()
+    assert all(held)
