@@ -1,14 +1,22 @@
-# E04: Contract 2.5.0, system coverage from evaluated tests
+# E04: Contract 2.5.0, system coverage from evaluated tests, and T-21, T-22 and T-23 run
 
-Status: ratified · Owner: Kaan
+Status: draft · Owner: Kaan
 
-W-row: W4-9 in `docs/state/WORK-ITEMS.md` (build order steps C.4 and C.5) · Branch: `E04-contract-2-5-0`
+W-row: W4-9, W4-5 and W4-10 in `docs/state/WORK-ITEMS.md` (build order steps C.4, C.5, 5.6 and 5.7) · Branch: `E04-contract-2-5-0`
 
 ## Goal
 
 Our tester's `coverage.system` counts a criterion only when a test that lists it ended `pass` or `fail`; `coverage.component` keeps today's rule (`pass`, `fail`, or `error` with source `system`, from a test the target answered). The pod contract becomes version 2.5.0 and states both rules, what "in scope" means for system coverage (AC-01 to AC-10, AC-05 and AC-09 included, so `total` is 10), and how a tester knows a target is its own system. The decision is the human's, in the W4-9 row of `docs/state/WORK-ITEMS.md` ("Decided by the human, 2026-11-22": "evaluated" means a test that ended pass or fail; the course PDF leaves the rule to the pod, and the stricter reading makes the report explicit about what was really checked). Team 16's tester and system see this change, so it is a ⚠ CONTRACT CHANGE: it applies once Team 16 agrees (contract §10).
 
-This Epic does not close when its steps are done. Steps 5.6 and 5.7 (W4-5 and W4-10) add their rules for T-21, T-22 and T-23 to this same branch and the same contract version; how their work reaches this branch is the human's call, row E04-1 in `docs/decisions/OPEN-DECISIONS.md`. The one pull request is opened only after Team 16 agrees to the 2.5.0 text (step 7) and the code of steps 5.6 and 5.7 is on the branch (Done line 12), before the audit, and the Epic merges through it.
+Revised 2026-11-22 to hold build order steps 5.7 and 5.6 as well (W4-10 and W4-5), by the human's ruling on E04-1 (option 2, recorded in the W4-9 row). When this Epic closes, T-21, T-22 and T-23 run, and no longer skip, on a system that lists `model_drift`, in our tester and in the contract text, still version 2.5.0:
+
+- T-21 has a model version: `POST /analyze` for case L2 twice, and both answers equal L2's expected answer by T-26's rule. The prose version runs when the system lists `prose_detector`, also when it lists both features; the model version when it lists `model_drift` only; with neither, T-21 is `skip`.
+- T-22: case L5 must come back aligned (the authorized change) and case L6 with its one ownership violation (the unauthorized change), both by the drift comparison T-24 to T-31 use. Without `model_drift` it is `skip`.
+- T-23: case L8 of `docs/contract/model-golden-outputs.json` must equal its expected answer. L8 is a commit whose code would hang, fail or write a file if it were imported or run. Without `model_drift` it is `skip`, until Team 16 publishes a case of their own.
+
+The components and criteria of the three tests do not change. On our own system, which lists `model_drift` only, `coverage.system` becomes 10 of 10 and `coverage.model` 7 of 7. The human sends contract 2.5.0 to Team 16 when this Epic is merged. The credential check of step 5.6 is not in this Epic (Out of scope).
+
+Steps 1 to 7 are built, and Team 16's agreement is recorded (step 7). Steps 8 to 13 are this revision. The one pull request is opened when step 13 is committed, before the audit, and the Epic merges through it.
 
 ## Relies on
 
@@ -30,10 +38,32 @@ Everything this Epic reads or changes, found by looking before the steps are wri
   - `docs/base/specifications.md`: lines 73, 409, 709 and 716 name version 2.4.0; lines 73, 409 and 716 also say it is agreed. Lines 360-362: AC-11 is this system's own, and the pod's coverage reports count it as AC-02 (T-30 lists AC-02).
   - `docs/adr/0001-one-acceptance-criteria-list.md`: AC-11 stays ours and counts as AC-02, with no contract change.
   - `docs/closed/E03-model-coverage/EPIC.md`: the form of a ratified Epic here.
+- Added by the revision of 2026-11-22, read at `d41a1c3` (the merge of `main`, which brought E05, build order steps 2.2 and 2.3):
+  - Rulings: still none in `docs/decisions/RULED/`. The human's rulings for steps 8 to 13 are the "Decided by the human, 2026-11-22" lines of the W4-9, W4-5 and W4-10 rows of `docs/state/WORK-ITEMS.md`.
+  - Models and invariants: none read or changed. `git grep -n -E "T-2[123]" -- docs/diagrams docs/invariants` prints nothing, and no import changes, so no `DESIGN.md` (open question 1).
+  - `Source/Tester/pod_tests.py`: T-21's row is `pending_review` with `**PROSE`, the feature `prose_detector` (`:312`). T-22 and T-23 carry the fixed skips "Phase 5" and "checked by inspection" (`:313-314`). `drift(case)` compares one case of the model fixture (`:188-206`). `_run_one` decides a fixed skip before it looks at the features (`:371-380`). `catalog()` gives each test's `feature` and `skip` to the page (`:483-486`).
+  - `Source/Tester/page.html:406-411`: `plannedLabel` says "runs only when /health lists" a test's one feature, or "skips:" with a fixed skip's message.
+  - `tests/tester/conftest.py`: `MODEL_BY_COMMIT` (`:16`) makes the fake answer every case of `model-golden-outputs.json` that has a `drift`, so a new case needs no change there. `break_drift_case` (`:29`, `:68-71`) reverses `drift.behavioral`, which is empty for L2, L5, L6 and L8, so it changes nothing for them.
+  - `docs/contract/model-golden-outputs.json`: cases L-pre, L0, L0-generate and L1 to L7. No L8.
+  - `scripts/model_fixture.py`: builds the model fixture from nothing with fixed authors and dates, one commit a day from 2026-01-01, and tags each case. `tests/connector/test_model_golden.py` builds it and replays every case of the golden file: `EXIT` (`:23`) lists L-pre to L7, `test_the_golden_file_has_every_case_and_the_l0_generate_case` compares the file's cases with it, and three tests are parametrized over the cases. So a case added to the golden file must also be built by the script and named in `EXIT`. The file collects 29 tests today.
+  - The fixture repository `kaan-kanadasi/doc-tracker-model-fixtures`: its `main` is at L7, `d288268468df65602e9f4b348a95ff561ddd67bd`, and it carries the tags L-pre and L0 to L7 at the SHAs of contract §3 (`git ls-remote`, 2026-11-22).
+  - L8, prepared outside this repository on 2026-11-22 in `C:/Users/kaank/Documents/documentationDrifter2/t23-fixture/`. `model_fixture_l8.py` there is `scripts/model_fixture.py` plus three texts and one entry, and its build gives L-pre to L7 at their published SHAs and L8 at `c8058c2e8a52b5b1e86710e0821b94437fc438e1`. `drifter check` on L8, run twice with this checkout's CLI, gave the same bytes both times (aligned, three empty lists) with exit 0, in 0.33 s and 0.34 s, and left `git status --short` empty and no planted file. `l8-case.json` there holds the case. The human pushes the commit and its tag. CI does not need the push, because the replay test builds the fixture with the script.
+  - `docs/contract/pod-contract.md`: §1's bullet "It reports T-22 and T-23 as `skip` with the messages in section 4" (`:40`) and its Features paragraph, which gives a skipped test the message "target does not implement" plus the feature's name (`:53-57`); §3's "Used by" column (`:102-103`), its table of commits (`:122-132`) and its two publishing groups (`:134-140`); §4's sentence on a failed `/health` (`:152-155`), its rows for T-21, T-22 and T-23 (`:184-186`) and the sentence that T-22 and T-23 are `skip` on every system (`:198-200`); §10's sentence that section 4 does not hold the three rules yet (`:339-343`). `git grep -n -E "T-2[123]" -- docs/contract/pod-tester.openapi.yml docs/contract/pod-contract.openapi.yml` prints nothing, so neither file goes stale.
+  - `docs/base/specifications.md`, found by grep after the merge: `:331` (AC-04, T-21), `:334` (AC-05, "Phase 5 (T-22)"), `:351-352` (AC-09, "inspection, Phase 5; T-23"), `:368-369` (two publishing groups), the table of cases from `:378`, `:395` ("Every commit L0 to L7 except L6"), `:494-496` ("T-18 to T-21 (prose findings) are skipped") and `:748` (the cases L-pre and L0 to L7).
+  - `docs/base/requirements-to-tests.md:38`: "On our system T-21, T-22 and T-23 skip today, so REQ-03 and REQ-06 stay uncovered until W4-5 and W4-10".
+  - The W1-8 row's live run of 2026-11-22 against our own system: T-18 to T-21, T-22 and T-23 skip, `coverage.component` is 6 of 7, `coverage.system` 7 of 10 and `coverage.model` 5 of 7.
+  - The literals of steps 8 to 11 were probed at `d41a1c3` by patching the test list in memory, with L8 added, and running `run_suite` against `FakeTarget`. Each entry gives system, component and model:
+    - Today: plain fake 8, 6, 6; `model_drift` only 7, 6, 5; both features 8, 6, 6; neither feature 5, 5, 4.
+    - After step 8: `model_drift` only 8, 6, 6. The rest as today.
+    - After step 9: `model_drift` only 9, 7, 6; both features 9, 7, 6. Plain and neither as today.
+    - After step 10: `model_drift` only 10, 7, 7; both features 10, 7, 7. Plain and neither as today.
+  - `tests/tester/test_pod_tests.py` holds 31 tests, and `python -m pytest tests/tester/test_pod_tests.py --collect-only -q -k "test_t21_run_ or test_t22_run_ or test_t23_run_ or test_full_coverage_"` collects none of them, so no existing test name matches a `-k` pattern of steps 8 to 11. The whole suite collects 340 tests.
 
 ## Steps
 
 One commit per step, made after the step's check passes. Each named test checks one behaviour, and each step's check selects its tests by name. A guard is a test expected to pass once written, because today's code already behaves as it asks; every other new or changed assertion is written first and fails before the code changes. Expected values are literals, read from contract §4.
+
+Steps 1 to 7 are built. Their text below is kept as it was ratified at `928a0b0`: step 1 is commit `d64cd3f`, step 2 `c5b767a`, step 3 `74e9c0c`, step 4 `5b57e1b`, step 5 `182badb`, step 6 `30920fb` and step 7 `e3ef662`. Their trailers stay `Step: 1/7` to `Step: 7/7`. Steps 8 to 13 follow them and carry `Step: 8/13` to `Step: 13/13`.
 
 ### Step 1/7: system stops counting an error with source system
 
@@ -96,6 +126,114 @@ One commit per step, made after the step's check passes. Each named test checks 
 - Check: `git grep -c -E "2\.5\.0.*agreed by Team 16|2\.5\.0 is agreed by both teams" -- docs/contract/pod-contract.md` → `docs/contract/pod-contract.md:2`, and `git grep -n "pending Team 16" -- docs/contract docs/base/specifications.md` → prints nothing
 - Trailer: `Step: 7/7`
 
+### Steps 8 to 13, added by the revision of 2026-11-22
+
+What holds for all six:
+
+- The seam is `run_suite`'s returned report against the `fake` target, as in steps 1 to 4.
+- Each new test is marked "written first" (it fails before the step's code) or "guard" (it passes once written). Each existing test whose literal changes is named in the step that changes it and marked "changed first": its new literal is written, and seen to fail, before the code.
+- A full test run happens in CI only, on each push. Locally a step runs its own check and then the whole of `tests/tester/test_pod_tests.py`, whose expected summary the step gives.
+- Every expected pytest result reads: the summary line starts with the count given and has no `failed`.
+- The build uses two checkers: one over the code steps, 8 to 11, and one over the docs steps, 12 and 13.
+
+### Step 8/13: T-21 gets its model version
+
+- Files: `Source/Tester/pod_tests.py`, `Source/Tester/page.html`, `tests/tester/test_pod_tests.py`, `tests/tester/conftest.py`
+- What:
+  - T-21's row keeps its feature `prose_detector` and its check `pending_review`, and gains a second check that needs `model_drift`: `POST /analyze` for L2 twice, each answer compared by `drift("L2")`, which is T-26's rule. `_run_one` picks the prose check when the features list `prose_detector`, also when they list both; otherwise the model check when they list `model_drift`; otherwise T-21 is `skip` with today's message, "target does not implement prose_detector" (open question 4). A failed `/health` leaves T-21 `error`, as today.
+  - `catalog()` names T-21's second feature, and `plannedLabel` in `page.html` says T-21 runs when `/health` lists `prose_detector` or `model_drift`. The page's label has no test today (`tests/tester/test_api.py`, `test_page_and_catalog`, checks only the count of 33), and this step adds none.
+  - `conftest.py`: `FakeTarget` gains two switches, `flip_aligned_case` (a model fixture case) and `flip_aligned_from` (default 1). From that answer of the case on, counted from 1, `drift.aligned` comes back flipped. `break_drift_case` cannot do this (Relies on).
+  - New tests:
+    - `test_t21_run_uses_the_model_version_with_only_model_drift`, written first: with `features = ["model_drift"]`, T-21 is `pass` and its message names L2. Today it is `skip`.
+    - `test_t21_run_fails_when_the_second_answer_differs`, written first: with `features = ["model_drift"]`, `flip_aligned_case = "L2"` and `flip_aligned_from = 2`, T-21 is `fail` and its message names L2. Today it is `skip`. A check that read only the first answer would pass, so this test pins the second.
+    - `test_t21_run_keeps_the_prose_version_with_prose_detector`, guard: the `fake` as it is, T-21 is `pass` with the message "all 3 findings start PENDING_REVIEW".
+    - `test_t21_run_keeps_the_prose_version_with_both_features`, guard: with both features, the same outcome and message.
+    - `test_t21_run_skips_with_neither_feature`, guard: with `features = []`, T-21 is `skip` with the message "target does not implement prose_detector".
+  - Existing tests:
+    - `test_missing_feature_is_skipped_not_failed`, changed first: with `features = ["model_drift"]` it asserts that T-18 to T-21 skip. It becomes T-18 to T-20, and gains the assertion that T-21 is `pass`, which fails before the code.
+    - `test_model_does_not_cover_a_requirement_whose_tests_ended_skip_or_error`, changed in this step, not first: its first half asserts `model` `covered == 5` with `features = ["model_drift"]`. That literal would move to 6 here and to 7 in step 10, where nothing is left uncovered. Its first half becomes `features = []` with `covered == 4` (REQ-01, REQ-04, REQ-05 and REQ-07; REQ-02, REQ-03 and REQ-06 are dropped), and the comment says so. 4 holds before and after the code (Relies on, the probe), so this change cannot fail first; the two written-first tests above carry the new behaviour.
+- Check: `python -m pytest tests/tester/test_pod_tests.py -q -k "test_t21_run_"` → the summary line starts with `5 passed` and has no `failed`. Then the whole file: `python -m pytest tests/tester/test_pod_tests.py -q` → starts with `36 passed`, no `failed`.
+- Trailer: `Step: 8/13`
+
+### Step 9/13: T-22 runs
+
+- Files: `Source/Tester/pod_tests.py`, `tests/tester/test_pod_tests.py`; `tests/tester/conftest.py` only if step 8's switch needs a change, and none is expected
+- What:
+  - T-22's row loses its fixed skip "Phase 5" and gets the feature `model_drift` and a check: `drift("L5")`, which must come back aligned (the authorized change), then `drift("L6")`, with its one ownership violation (the unauthorized change). Its components and criteria stay C7 and AC-05. Without `model_drift` it is `skip` with the message "target does not implement model_drift"; when `/health` fails it is `error`, like every test that needs a feature.
+  - New tests:
+    - `test_t22_run_passes_with_model_drift`, written first: with `features = ["model_drift"]`, T-22 is `pass`. Today it is `skip`.
+    - `test_t22_run_fails_when_the_unauthorized_change_is_not_flagged`, written first: with `flip_aligned_case = "L6"`, so L6 comes back aligned, T-22 is `fail` and its message names L6.
+    - `test_t22_run_fails_when_the_authorized_change_is_flagged`, written first: with `flip_aligned_case = "L5"`, so L5 comes back not aligned, T-22 is `fail` and its message names L5.
+    - `test_t22_run_skips_without_model_drift`, guard: the `fake` as it is, T-22's outcome is `skip`. It asserts the outcome only, since the message changes in this step.
+  - Existing tests, both changed first:
+    - `test_target_meeting_the_contract_passes_everything_it_runs`: T-22's entry has the message "Phase 5". It becomes "target does not implement model_drift". Its `component` 6 and `system` 8 stay.
+    - `test_system_counts_a_criterion_listed_by_two_evaluated_tests_once`: with both features, `(8, 10)` becomes `(9, 10)`, and the tests asserted to pass become T-01 to T-22 and T-24 to T-33.
+- Check: `python -m pytest tests/tester/test_pod_tests.py -q -k "test_t22_run_"` → the summary line starts with `4 passed` and has no `failed`. Then the whole file: `python -m pytest tests/tester/test_pod_tests.py -q` → starts with `40 passed`, no `failed`.
+- Trailer: `Step: 9/13`
+
+### Step 10/13: T-23 runs
+
+- Files: `Source/Tester/pod_tests.py`, `tests/tester/test_pod_tests.py`, `docs/contract/model-golden-outputs.json`, `scripts/model_fixture.py`, `tests/connector/test_model_golden.py`; `tests/tester/conftest.py` only if step 8's switch needs a change, and none is expected
+- What:
+  - `model-golden-outputs.json` gains case L8 after L7, byte for byte as `C:/Users/kaank/Documents/documentationDrifter2/t23-fixture/l8-case.json` holds it: `case` "L8", `request` with the fixture repository and `commit_id` `c8058c2e8a52b5b1e86710e0821b94437fc438e1`, and `expected` with `drift` (`aligned: true`, and `behavioral`, `ownership` and `structural` empty) and `drift_error: null`.
+  - `scripts/model_fixture.py` gains the texts `HANGS`, `RAISES` and `WRITES` and the entry L8 after L7, as `t23-fixture/model_fixture_l8.py` holds them: the owner adds `src/hangs.py` (its top level loops forever), `src/raises.py` (it raises at import) and `src/writes.py` (it writes a file beside itself), with `update` folded into the commit. The build then gives L8 at the SHA above (Relies on).
+  - `tests/connector/test_model_golden.py`: `EXIT` gains `"L8": 0`. Its three parametrized tests each gain an L8 case.
+  - T-23's row loses its fixed skip "checked by inspection" and gets the feature `model_drift` and the check `drift("L8")`. Its components and criteria stay C2 and AC-09. Without `model_drift` it is `skip` with the message "target does not implement model_drift".
+  - New tests:
+    - `test_t23_run_passes_with_model_drift`, written first: with `features = ["model_drift"]`, T-23 is `pass` with the message "L8 matches the expected answer". Today it is `skip`.
+    - `test_t23_run_fails_when_the_answer_differs`, written first: with `flip_aligned_case = "L8"`, T-23 is `fail` and its message names L8.
+    - `test_t23_run_skips_without_model_drift`, guard: the `fake` as it is, T-23's outcome is `skip`. It asserts the outcome only.
+  - Existing tests:
+    - `test_target_meeting_the_contract_passes_everything_it_runs`, changed first: T-23's message "checked by inspection" becomes "target does not implement model_drift".
+    - `test_system_counts_a_criterion_listed_by_two_evaluated_tests_once`, changed first: `(9, 10)` becomes `(10, 10)`, and all of T-01 to T-33 are asserted to pass.
+    - `test_the_golden_file_has_every_case_and_the_l0_generate_case` in `tests/connector/test_model_golden.py`, changed first through `EXIT`: with `"L8": 0` in `EXIT` and no L8 in the golden file it fails.
+    - `test_model_counts_a_requirement_with_no_evaluated_test_in_total`: its literal `(6, 7)` stays; its comment "always skips" becomes "skips without model_drift".
+- Check: `python -m pytest tests/tester/test_pod_tests.py -q -k "test_t23_run_"` → the summary line starts with `3 passed` and has no `failed`. Then the whole file: `python -m pytest tests/tester/test_pod_tests.py -q` → starts with `43 passed`, no `failed`. Then the replay: `python -m pytest tests/connector/test_model_golden.py -q` → starts with `32 passed`, no `failed` (29 today, plus L8 in three parametrized tests).
+- Trailer: `Step: 10/13`
+
+### Step 11/13: coverage is full on a system that lists model_drift
+
+- Files: `tests/tester/test_pod_tests.py`. `Source/Tester/pod_tests.py` is not touched: both basis strings stay true (`:351-355`).
+- What: two guards. After step 10 the code already gives both literals (Relies on, the probe), so neither can fail first (open question 5).
+  - `test_full_coverage_system_is_10_of_10_with_model_drift`: with `features = ["model_drift"]`, `coverage.system` is `(10, 10)`. From contract §4: AC-01 by T-01, AC-02 by T-26, AC-03 by T-24, AC-04 by T-21's model version, AC-05 by T-22, AC-06 by T-14, AC-07 by T-08, AC-08 by T-12, AC-09 by T-23 and AC-10 by T-17. T-18 to T-20 skip, and they are the only tests that do.
+  - `test_full_coverage_model_is_7_of_7_on_our_own_system`: with `features = ["model_drift"]` and `own=True`, `coverage.model` is `(7, 7)`. From `docs/base/requirements-to-tests.md`: REQ-03 by T-21 and T-22, REQ-06 by T-23, and the other five as today.
+- Check: `python -m pytest tests/tester/test_pod_tests.py -q -k "test_full_coverage_"` → the summary line starts with `2 passed` and has no `failed`. Then the whole file: `python -m pytest tests/tester/test_pod_tests.py -q` → starts with `45 passed`, no `failed`.
+- Trailer: `Step: 11/13`
+
+### Step 12/13: the contract text, still version 2.5.0
+
+- Files: `docs/contract/pod-contract.md`. `docs/contract/pod-tester.openapi.yml` and `docs/contract/pod-contract.openapi.yml` are not touched: neither names T-21, T-22 or T-23 (Relies on).
+- What:
+  - §1: the bullet "It reports T-22 and T-23 as `skip` with the messages in section 4" becomes "It runs T-22 and T-23, and T-21's model version, against `model-golden-outputs.json` on a system that lists `model_drift` (section 4)". The count of seven changes stays.
+  - §3: the model fixture's "Used by" cell becomes "T-21 (model version), T-22 to T-33". The table of commits gains the row L8 with its SHA. "published in two groups" becomes "published in three groups", and the table of groups gains row 3: T-21 (model version), T-22 and T-23, using L2, L5, L6 and L8.
+  - §4: in the sentence on a failed `/health`, "(T-18 to T-21, T-24 to T-33)" becomes "(T-18 to T-33)".
+  - §4, the three rows, with components and criteria as they are. T-21: the case cell adds "model version: L2, twice", and the cell for a system without `prose_detector` says it runs the model version with `model_drift` and skips otherwise. T-22: the case cell is "model fixture: L5 and L6", with "runs" and "skip" in the last two cells. T-23: the case cell is "model fixture: L8", with "runs" and "skip".
+  - §4: the sentence "T-22 and T-23 are `skip` on every system, with the messages ..." goes. In its place: T-22 and T-23 need `model_drift`, and "T-21 runs on either feature".
+  - §4 gains "Rules for T-21, T-22 and T-23", one paragraph each, starting `- **T-21.**`, `- **T-22.**` and `- **T-23.**`, with the rules as the Goal gives them. T-21's paragraph also says that a system listing neither feature gets `skip` with the message for `prose_detector`. T-23's paragraph says what L8 is, and that without `model_drift` it is `skip` until Team 16 publishes a case of their own.
+  - §10: the two sentences from "Section 4 does not hold those three rules yet" to "before this version is merged" become "Section 4 holds all three rules." The sentence "Version 2.5.0 is agreed by both teams" stays, so step 7's check still counts 2.
+- Check: each grep below, on `docs/contract/pod-contract.md`, with its output. A `grep -z` reads the file as one line and `\s+` matches a line break, so a phrase split across lines is still found. A `git grep` is used only for table rows and list items, which are one line each.
+  1. §1's bullet: `grep -z -c -E "It\s+runs\s+T-22\s+and\s+T-23" docs/contract/pod-contract.md` → `1`. Today `0`.
+  2. §3's "Used by" cell: `git grep -c -F "| Team 15 | T-21 (model version), T-22 to T-33 |" -- docs/contract/pod-contract.md` → `docs/contract/pod-contract.md:1`. Today nothing.
+  3. §3's rows for L8 and group 3: `git grep -c -E "^\| L8 \|.*c8058c2e8a52b5b1e86710e0821b94437fc438e1|^\| 3 \| T-21 \(model version\), T-22, T-23 \|" -- docs/contract/pod-contract.md` → `docs/contract/pod-contract.md:2`. Today nothing.
+  4. §4's `/health` sentence: `grep -z -c -E "\(T-18\s+to\s+T-33\)" docs/contract/pod-contract.md` → `1`. Today `0`.
+  5. §4's three rows: `git grep -c -E "^\| T-21 \|.*L2, twice.*\| runs \||^\| T-22 \|.*L5 and L6.*\| runs \| skip \||^\| T-23 \|.*L8.*\| runs \| skip \|" -- docs/contract/pod-contract.md` → `docs/contract/pod-contract.md:3`. Today nothing.
+  6. §4's replaced sentence: `grep -z -c -E "T-21\s+runs\s+on\s+either\s+feature" docs/contract/pod-contract.md` → `1`. Today `0`.
+  7. §4's rules, the heading and the three paragraphs: `grep -z -c -E "Rules\s+for\s+T-21,\s+T-22\s+and\s+T-23" docs/contract/pod-contract.md` → `1`, today `0`; and `git grep -c -E "^- \*\*T-2[123]\.\*\*" -- docs/contract/pod-contract.md` → `docs/contract/pod-contract.md:3`, today nothing.
+  8. §10: `grep -z -c -E "Section\s+4\s+holds\s+all\s+three\s+rules" docs/contract/pod-contract.md` → `1`. Today `0`.
+  9. The old sentences are gone: `grep -z -c -E "It\s+reports\s+T-22\s+and\s+T-23\s+as|published\s+in\s+two\s+groups|\(T-18\s+to\s+T-21,\s+T-24\s+to\s+T-33\)|T-22\s+and\s+T-23\s+are\s+.skip.\s+on\s+every\s+system|checked\s+by\s+inspection|does\s+not\s+hold\s+those\s+three\s+rules" docs/contract/pod-contract.md` → `0`. Today `1`, and each of the six phrases alone gives `1` today.
+  10. The old rows are gone: `git grep -c -E "^\| T-21 \|.*\| skip \| runs \||^\| T-22 \|.*\| Phase 5 \||^\| T-23 \|.*\| inspection \||\| Team 15 \| T-24 to T-33 \|" -- docs/contract/pod-contract.md` → prints nothing. Today `docs/contract/pod-contract.md:4`.
+- Trailer: `Step: 12/13`
+
+### Step 13/13: the spec, the map and the queue
+
+- Files: `docs/base/specifications.md`, `docs/base/requirements-to-tests.md`, `docs/state/WORK-ITEMS.md`. `Source/Tester/page.html` is not touched here: it states no skip of its own, and its one stale label is fixed in step 8.
+- What:
+  - `docs/base/specifications.md`, the lines Relies on lists. `:331` names T-21's model version for this system. `:334` loses "Phase 5" and names L5 and L6. `:351-352` loses "inspection, Phase 5" for the parts T-23 now checks, names L8, and keeps the credentials part as checked by inspection. `:368-369` says three groups and names the third. The table of cases gains the row L8, expected true. `:395` and `:748` say L0 to L8. `:494-496` says that against this system T-18 to T-20 skip, T-21 runs its model version, and T-22 and T-23 run. Any other line the change makes untrue follows (R2).
+  - `docs/base/requirements-to-tests.md`: the last sentence says that on our system T-21 runs its model version and T-22 and T-23 run, so all seven requirements can be covered. The version line stays 1, since no pair changes.
+  - `docs/state/WORK-ITEMS.md`: the W4-10 and W4-5 rows say what steps 8 to 13 built, and carry the builder's run against the service on localhost once L8 is pushed (Out of scope). The credential check stays open in the W4-5 row. Next action follows. The rows are marked done by the closing commit, not here.
+- Check: `grep -z -l -E "T-18\s+to\s+T-21\s+\(prose\s+findings\)\s+are\s+skipped|review\s+decisions,\s+Phase\s+5\s+\(T-22\)|Phase\s+5;\s+T-23|T-23\s+skip\s+today|in\s+two\s+groups|L0\s+to\s+L7\s+except\s+L6" docs/base/specifications.md docs/base/requirements-to-tests.md` → prints nothing. Today it prints both file names. Then `python -m pytest tests/tester/test_pod_tests.py -q` → the summary line starts with `45 passed` and has no `failed`.
+- Trailer: `Step: 13/13`
+
 ## Done criteria
 
 Each line is a command and the output that means done. The auditor re-runs every line at HEAD.
@@ -116,11 +254,23 @@ This Epic's own:
 9. No open box in §3: `git grep -n -F -- "- [ ]" docs/contract/pod-contract.md` → prints nothing
 10. Imports still follow the map: `PYTHONPATH=Source lint-imports` → `Contracts: 5 kept, 0 broken.`
 11. Team 16's agreement is recorded (step 7): `git grep -c -E "2\.5\.0.*agreed by Team 16|2\.5\.0 is agreed by both teams" -- docs/contract/pod-contract.md` → `docs/contract/pod-contract.md:2`
-12. Steps 5.6 and 5.7 are done on this branch: `git grep -c -E "^\| W4-(5|10) \| \*\*Done" -- docs/state/WORK-ITEMS.md` → `docs/state/WORK-ITEMS.md:2`
+12. The tests of steps 8 to 11 pass: `python -m pytest tests/tester/test_pod_tests.py -q -k "test_t21_run_ or test_t22_run_ or test_t23_run_ or test_full_coverage_"` → the summary line starts with `14 passed` and has no `failed`
+13. CI ran the whole suite on the pushed HEAD: `gh run view $(gh run list --commit $(git rev-parse HEAD) --limit 1 --json databaseId --jq ".[0].databaseId") --log | grep -oE "[0-9]+ passed" | head -1` → `357 passed` (340 at `d41a1c3`, plus 14, plus L8 in the three parametrized tests of `tests/connector/test_model_golden.py`). An empty answer means a run is still in progress.
+14. Lint is clean: `ruff check` → `All checks passed!`
+15. The contract holds the three rules: the ten greps of step 12, each with the output step 12 gives
+16. No old claim is left in the spec or the map: `grep -z -l -E "T-18\s+to\s+T-21\s+\(prose\s+findings\)\s+are\s+skipped|review\s+decisions,\s+Phase\s+5\s+\(T-22\)|Phase\s+5;\s+T-23|T-23\s+skip\s+today|in\s+two\s+groups|L0\s+to\s+L7\s+except\s+L6" docs/base/specifications.md docs/base/requirements-to-tests.md` → prints nothing
+
+Line 12 replaces the line that waited for steps 5.6 and 5.7 to arrive on this branch: they are steps 8 to 13 now. Lines 6 and 7 still hold as written; line 10 is the import check.
 
 ## Out of scope
 
-The rules for T-21, T-22 and T-23: build order steps 5.6 and 5.7, rows W4-5 and W4-10. They are added to this branch later, in the same contract version 2.5.0, and are not steps of this Epic. Also out: the `/tester` page showing `coverage.model` and an end-to-end `test_run` test (left over from E03, `docs/state/WORK-ITEMS.md` Next action).
+- The credential check of step 5.6: running the hosted service with a fake credential and searching every response and the logs for it. By the human's ruling it stays open in the W4-5 row, as a follow-up after the tag.
+- Pushing L8 and its tag to `kaan-kanadasi/doc-tracker-model-fixtures`: the human's. CI does not wait for it, since the replay test builds the fixture with the script. A run against a hosted or local service does.
+- Team 16's tester and system. Their tester takes the three rules from the contract text. Their system lists no `model_drift`, so T-22 and T-23 skip on it and T-21 runs its prose version.
+- A case of Team 16's own for T-23 on a system without `model_drift`.
+- The `/tester` page showing `coverage.model` and an end-to-end `test_run` test (left over from E03, `docs/state/WORK-ITEMS.md` Next action).
+
+Not a Done line, recorded in the W4-5 and W4-10 rows by the builder once L8 is pushed: one run of our tester against the service on localhost, showing T-21, T-22 and T-23 as `pass`, `coverage.system` 10 of 10 and `coverage.model` 7 of 7.
 
 After the merge, and not part of Done, the human tags the merge commit `contract-2.5.0` and points both teams' registry rows to it.
 
@@ -128,7 +278,9 @@ After the merge, and not part of Done, the human tags the merge commit `contract
 
 1. Does a change to the pod contract count as a boundary change that needs a `DESIGN.md` beside this Epic (`docs/epics/README.md`, Naming)? The draft reads "boundary" as a module boundary or a model in `docs/diagrams/`, neither of which changes, and treats the contract as the boundary's own document, edited directly. Answered: no `DESIGN.md`. A boundary here is a module boundary, "what calls what, and who owns which file" (`docs/templates/DESIGN.md:7`; INV-3, `docs/invariants/INVARIANTS.md:18`), and no import or module changes (`docs/diagrams/dependency.md:79`, rule A4). No model in `docs/diagrams/` describes the suite report or its coverage rules (`git grep -n -i -E "coverage|suite"` over the five models prints nothing). E03 changed the same report's `coverage` object without a `DESIGN.md` and was ratified (`docs/closed/E03-model-coverage/EPIC.md`, Review, second finding).
 2. Who writes Team 16's agreement into §10, and does recording it need its own commit on this branch before the pull request opens (Done line 11)? Answered: its own commit, written once the human reports Team 16's agreement, as 2.4.0's was (commit `6371a3e`, "Record Team 16's agreement to contract 2.4.0"). On this branch every agent commit needs `Step: i/N`, `plan` or `close` (`.claude/hooks/step-trailer.py:12`; R7), and none of steps 1 to 6 records the agreement, so the Epic needs a step for it (Review, finding 5).
-3. Added by the design reviewer: how do the code and commits of W4-5 and W4-10 reach this branch and its one pull request, when R7 and `docs/epics/README.md` ("Build only from a live, ratified Epic"; Naming, Branch: "All work on the Epic happens on it") give each Epic its own branch and `Step:` lines? Not answered by the code, a model or a ruling: row E04-1 in `docs/decisions/OPEN-DECISIONS.md`.
+3. Added by the design reviewer: how do the code and commits of W4-5 and W4-10 reach this branch and its one pull request, when R7 and `docs/epics/README.md` ("Build only from a live, ratified Epic"; Naming, Branch: "All work on the Epic happens on it") give each Epic its own branch and `Step:` lines? Not answered by the code, a model or a ruling: row E04-1 in `docs/decisions/OPEN-DECISIONS.md`. Ruled by the human on 2026-11-22: option 2, this Epic is revised to hold their steps (the W4-9 row of `docs/state/WORK-ITEMS.md`). The row and its section are removed from `docs/decisions/OPEN-DECISIONS.md`.
+4. Added by the revision: which message does T-21 give on a system that lists neither feature? The draft keeps today's, "target does not implement prose_detector": T-21's row still needs `prose_detector` first, and contract §1 gives a skipped test the message that names the feature it lacks (`docs/contract/pod-contract.md:53-57`). Step 12 writes this into §4.
+5. Added by the revision: where does the disk disagree with the human's outline of steps 8 to 13? In three places, and the draft follows the disk in each. Step 10 also touches `scripts/model_fixture.py` and `tests/connector/test_model_golden.py`, because the replay test builds and checks every case of the golden file (Relies on). The CI total is therefore 357, not 354: L8 adds a case to each of three parametrized tests. The two tests of step 11 are guards, not written first: after step 10 the code already gives both literals (Relies on, the probe).
 
 ## Review
 
@@ -228,3 +380,5 @@ Notes, not blocking:
 - Step 5 defines "a tester's own system" for both teams in terms of Railway, which is how Team 15 hosts. Team 16 may host elsewhere. Their agreement (step 7) covers it, but the wording could say "the team's deployed URL".
 - Done line 3 needs more than ruling E04-1. The "Contract 2.5.0" section intro in `docs/decisions/OPEN-DECISIONS.md` also names E04, so it must go with the row.
 - `lint-imports` is not installed in this checkout, so Done line 10 was not run.
+
+Revised by the author on 2026-11-22, after the ruling on E04-1: the Status is `draft` again, and steps 8 to 13 are added for build order steps 5.7 and 5.6. The Goal, Relies on, Done criteria, Out of scope and Open questions follow them. Steps 1 to 7 and the three reviews above are unchanged. A new review follows.
