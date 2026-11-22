@@ -6,7 +6,8 @@ import jsonschema
 import yaml
 
 from Tester import pod_tests
-from Tester.pod_tests import LIMIT_REACHED, REQUIREMENTS_MAP, TESTS, read_requirements_map, requirement_tests,     run_suite
+from Tester.pod_tests import LIMIT_REACHED, REQUIREMENTS_MAP, TESTS, read_requirements_map, requirement_tests, \
+    run_suite
 
 IDS = [t.id for t in TESTS]
 
