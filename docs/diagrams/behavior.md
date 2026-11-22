@@ -9,7 +9,7 @@ A run has three kinds of ending. With a **verdict** the answer is 200 and says a
 ```mermaid
 stateDiagram-v2
     accTitle: Lifecycle of a repository, and the states of one analyze run
-    accDescr: A repository starts with no models. drifter init proposes them, a person reviews and commits them as the baseline, and each push starts a check. One check, as POST /system/analyze runs it, validates the request, waits for one of two slots, clones the repository, resolves the commits, detects the changed files, checks drift and saves the result. Validation can end in 400. Cloning and resolving can end in 404. Any step after the slot can end in 500, and so can saving. A saved result is answered with 200 and is aligned, drifted or without a verdict. An aligned check, a check with no verdict and an HTTP error all leave the baseline as it was. A drifted check waits for a person, who pushes a code fix or accepts the drift with drifter update.
+    accDescr: A repository starts with no models. drifter init proposes them, a person reviews and commits them as the baseline, and each push starts a check. One check, as POST /system/analyze runs it, validates the request, waits for one of two slots, clones the repository, resolves the commits, detects the changed files, checks drift and saves the result. The 80 s deadline starts when the request arrives, so the wait for a slot counts against it. Validation can end in 400. The wait for a slot ends in 500 if the deadline passes first. Cloning and resolving can end in 404. Any step after the slot can end in 500, and so can saving. A saved result is answered with 200 and is aligned, drifted or without a verdict. An aligned check, a check with no verdict and an HTTP error all leave the baseline as it was. A drifted check waits for a person, who pushes a code fix or accepts the drift with drifter update.
 
     state "No models" as NoModels
     state "Aligned, 200, saved" as Aligned
@@ -24,8 +24,8 @@ stateDiagram-v2
 
     state "One POST /system/analyze run" as Run {
         state "Validating the request" as Validating
-        state "Waiting for a slot, 2 at once" as Waiting
-        state "Cloning, 80 s deadline starts" as Cloning
+        state "Waiting for a slot, 2 at once, within the deadline" as Waiting
+        state "Cloning" as Cloning
         state "Resolving head and base" as Resolving
         state "Detecting changes" as Detecting
         state "Checking drift" as Drift
@@ -47,6 +47,7 @@ stateDiagram-v2
         Drift --> Saving: an answer, or a drift_error
         Saving --> Ok
         Saving --> E500: the file cannot be written
+        Waiting --> E500: the deadline passes before a slot is free
         Cloning --> E500: deadline or git failure
         Resolving --> E500: deadline or git failure
         Detecting --> E500: deadline or git failure
@@ -81,12 +82,12 @@ What one `POST /system/analyze` can answer. "Saved" means a run file exists and 
 | Bad request | 400 | `code` is `INVALID_REQUEST` | the body is not a JSON object, a field is missing or has the wrong type, the repository is not two names joined by a slash, or a SHA is not 7 to 40 hex digits | no |
 | Not found | 404 | `code` is `REPOSITORY_NOT_FOUND` | the clone exits with an error, whatever the cause: no such repository, a repository that is not public, or a network failure. The message always says the repository was not found or is not public. A clone cut off by a time limit is a 500 instead | no |
 | Not found | 404 | `code` is `COMMIT_NOT_FOUND` | the head or the base is not a commit of the repository, or a short SHA is ambiguous or on no branch or tag | no |
-| Failed | 500 | `code` is `ANALYSIS_FAILED` | a git call starts after the 80 s deadline or is cut off by it; one git call takes over 60 s; a batched download does not bring every file; any other unexpected failure | no |
+| Failed | 500 | `code` is `ANALYSIS_FAILED` | the 80 s deadline passes while the run waits for a slot; a git call starts after the deadline or is cut off by it; one git call takes over 60 s; a batched download does not bring every file; any other unexpected failure | no |
 | Failed | 500 | `code` is `STORAGE_FAILED` | the run file cannot be written | no |
 
 In every 200, `status` is `SUCCESS` unless the change limit is exceeded, and `issues` is `[]`. An HTTP error's body is only `code` and `message`.
 
-Three limits shape a run. At most 2 runs are past the slot at once; a third waits, with no limit on the wait. The 80 s deadline starts when the slot is free, and is checked each time git is called, so the work after the last git call, regenerating and comparing, is not cut off by it. One in-scope file may be at most 1 MB.
+Three limits shape a run. At most 2 runs are past the slot at once; a third waits for one, but only within its own deadline. The 80 s deadline starts when the request arrives, so the wait for a slot counts against it, and a wait that reaches it ends in 500 `ANALYSIS_FAILED`. After the wait the deadline is checked each time git is called, so the work after the last git call, regenerating and comparing, is not cut off by it. One in-scope file may be at most 1 MB. `/system/generate` and the console's `/models/view` wait for the same 2 slots under the same deadline, and `GET /system/health` runs apart from them, so it answers while runs wait.
 
 Reading a run again: `GET /system/analysis/{analysis_id}` answers 200 with the saved bytes, or 404 `ANALYSIS_NOT_FOUND` for an id that is unknown or malformed.
 
@@ -111,32 +112,33 @@ The CLI has no slot, no deadline, no change limit and no HTTP errors. `drifter i
 
 ## Premises, verified
 
-Every state, status code and limit above, checked against the code on 2026-11-21 at `21e7921`. Paths are under `Source/`.
+Every state, status code and limit above, checked against the code on 2026-11-21 at `21e7921`, and re-cited on 2026-11-22 after E05 moved the slot and the deadline. Paths are under `Source/`.
 
 | Premise | Source | Holds? |
 |---|---|---|
-| Every error code has one HTTP status: 400 for `INVALID_REQUEST`, 404 for the three not-found codes, 500 for `ANALYSIS_FAILED` and `STORAGE_FAILED`. | `GitHub_Connector/api.py:33-40`, `:71-74` | yes |
-| A body FastAPI rejects is answered 400 `INVALID_REQUEST`, never 422. | `GitHub_Connector/api.py:85-103` | yes |
-| The repository and each SHA are checked by pattern before any git call: 7 to 40 hex digits for a SHA. | `GitHub_Connector/analysis.py:32-46`, `:65` | yes |
-| At most 2 runs hold a slot; the others wait, and nothing limits the wait. | `GitHub_Connector/analysis.py:49-60`, `:66`; `GitHub_Connector/settings.py:43` | yes |
-| The deadline is 80 s and starts once the slot is held. | `GitHub_Connector/analysis.py:67`; `GitHub_Connector/settings.py:40` | yes |
+| Every error code has one HTTP status: 400 for `INVALID_REQUEST`, 404 for the three not-found codes, 500 for `ANALYSIS_FAILED` and `STORAGE_FAILED`. | `GitHub_Connector/api.py:32-39`, `:70-73` | yes |
+| A body FastAPI rejects is answered 400 `INVALID_REQUEST`, never 422. | `GitHub_Connector/api.py:84-102` | yes |
+| The repository and each SHA are checked by pattern before any git call: 7 to 40 hex digits for a SHA. | `GitHub_Connector/analysis.py:34-48`, `:88` | yes |
+| At most 2 runs hold a slot; the others wait for one only until their own deadline, and a wait that reaches it is 500 `ANALYSIS_FAILED`. `/system/generate` and `/models/view` wait for the same slots the same way. | `GitHub_Connector/analysis.py:51-62`, `:70-82`, `:89`, `:152`; `GitHub_Connector/api.py:178-181`; `GitHub_Connector/settings.py:43` | yes |
+| The deadline is 80 s and runs from arrival, the moment the route's function starts, so the wait for a slot counts against it. | `GitHub_Connector/analysis.py:65-67`, `:87`, `:150`; `GitHub_Connector/settings.py:40` | yes |
+| `GET /system/health` runs on the event loop, not in the thread pool where waiting checks sit, so it answers while they wait. | `GitHub_Connector/api.py:144-154` | yes |
 | The deadline is checked when a git call starts and caps that call; one git call is capped at 60 s. Both end in 500 `ANALYSIS_FAILED`. | `GitHub_Connector/fetch.py:171-182`, `:196-201`; `GitHub_Connector/settings.py:39` | yes |
-| Nothing checks the deadline outside a git call. | `GitHub_Connector/analysis.py:139-146`; `drifter/check.py:89-99` | yes |
+| Besides the wait for a slot, nothing checks the deadline outside a git call. | `GitHub_Connector/analysis.py:74`, `:162-169`; `drifter/check.py:89-99` | yes |
 | A clone that exits non-zero is 404 `REPOSITORY_NOT_FOUND`, whatever made it fail; the code does not tell a missing repository from a network failure. A clone that runs out of time is a 500. | `GitHub_Connector/fetch.py:280-291`, `:178-182` | yes |
 | A head or base that does not resolve to a commit is 404 `COMMIT_NOT_FOUND`. | `GitHub_Connector/fetch.py:268-269`, `:294-310` | yes |
-| Changes are detected after the commits resolve, before the drift check. | `GitHub_Connector/fetch.py:270-275`; `GitHub_Connector/analysis.py:73-83` | yes |
-| Over 2000 changed files sets `status` `ERROR` and `CHANGE_LIMIT_EXCEEDED` and empties the three lists; the result is still built and saved, with the drift answer made before the limit is judged. | `GitHub_Connector/analysis.py:83`, `:92-98`, `:100-118`; `docs/contract/mapping-v1.1.yaml:78` | yes |
-| `status` is `ERROR` only for the change limit. | `GitHub_Connector/schemas.py:31-34`; `GitHub_Connector/analysis.py:92-96` | yes |
-| A drift error is caught and becomes `drift` null with `drift_error`; it leaves `status` alone. | `GitHub_Connector/analysis.py:139-146` | yes |
+| Changes are detected after the commits resolve, before the drift check. | `GitHub_Connector/fetch.py:270-275`; `GitHub_Connector/analysis.py:96-106` | yes |
+| Over 2000 changed files sets `status` `ERROR` and `CHANGE_LIMIT_EXCEEDED` and empties the three lists; the result is still built and saved, with the drift answer made before the limit is judged. | `GitHub_Connector/analysis.py:106`, `:115-121`, `:123-141`; `docs/contract/mapping-v1.1.yaml:78` | yes |
+| `status` is `ERROR` only for the change limit. | `GitHub_Connector/schemas.py:31-34`; `GitHub_Connector/analysis.py:115-119` | yes |
+| A drift error is caught and becomes `drift` null with `drift_error`; it leaves `status` alone. | `GitHub_Connector/analysis.py:162-169` | yes |
 | The four no-verdict codes and where each is raised: `MODELS_NOT_FOUND`; `INVALID_MODELS`; `FILE_TOO_LARGE`; `PARSE_FAILED`. | `drifter/check.py:221-223`; `:352-412`; `:243-244`; `:246-249`, `:344-349` and `models/common.py:12-39` | yes |
-| A failed or incomplete download inside the drift check is an `AnalysisError`, which the drift check does not catch: 500, not no verdict. | `GitHub_Connector/fetch.py:93-95`, `:106-107`, `:125-129`; `GitHub_Connector/analysis.py:145` | yes |
-| Any other failure, a git call that exits non-zero included, is 500 `ANALYSIS_FAILED`. | `GitHub_Connector/fetch.py:183-184`; `GitHub_Connector/api.py:77-82` | yes |
+| A failed or incomplete download inside the drift check is an `AnalysisError`, which the drift check does not catch: 500, not no verdict. | `GitHub_Connector/fetch.py:93-95`, `:106-107`, `:125-129`; `GitHub_Connector/analysis.py:168` | yes |
+| Any other failure, a git call that exits non-zero included, is 500 `ANALYSIS_FAILED`. | `GitHub_Connector/fetch.py:183-184`; `GitHub_Connector/api.py:76-81` | yes |
 | `aligned` is true only when all three lists are empty. | `drifter/check.py:94-99` | yes |
-| `issues` is always `[]`. | `GitHub_Connector/analysis.py:109` | yes |
-| The run file is written once, after the clone is gone; a failed write is 500 `STORAGE_FAILED` and leaves no file. | `GitHub_Connector/analysis.py:117-120`; `GitHub_Connector/runs.py:32-44` | yes |
-| Every HTTP error is raised before the save, or by it, so none leaves a run file. | `GitHub_Connector/analysis.py:65`, `:72`, `:83`, `:118` | yes |
-| The 200 body is the saved bytes, and GET serves the file unchanged. | `GitHub_Connector/api.py:106-109`, `:118-126`; `GitHub_Connector/runs.py:17-24` | yes |
-| GET answers 404 `ANALYSIS_NOT_FOUND` for an unknown or malformed id. | `GitHub_Connector/api.py:121-125`; `GitHub_Connector/runs.py:14`, `:47-52` | yes |
+| `issues` is always `[]`. | `GitHub_Connector/analysis.py:132` | yes |
+| The run file is written once, after the clone is gone; a failed write is 500 `STORAGE_FAILED` and leaves no file. | `GitHub_Connector/analysis.py:140-143`; `GitHub_Connector/runs.py:32-44` | yes |
+| Every HTTP error is raised before the save, or by it, so none leaves a run file. | `GitHub_Connector/analysis.py:88`, `:89`, `:95`, `:106`, `:141` | yes |
+| The 200 body is the saved bytes, and GET serves the file unchanged. | `GitHub_Connector/api.py:105-108`, `:117-125`; `GitHub_Connector/runs.py:17-24` | yes |
+| GET answers 404 `ANALYSIS_NOT_FOUND` for an unknown or malformed id. | `GitHub_Connector/api.py:120-124`; `GitHub_Connector/runs.py:14`, `:47-52` | yes |
 | An HTTP error's body is `code` and `message`. | `GitHub_Connector/schemas.py:125-128`, `:157-168` | yes |
 | The CLI exits 0 when aligned, 1 on drift and 2 with no verdict. | `drifter/cli.py:49-54` | yes |
 | The CLI catches only a drift error; a failed git call is uncaught: a traceback and exit 1. | `drifter/cli.py:43-52`; `drifter/check.py:453-455`; `python -m drifter.cli check 0000000` ended in `CalledProcessError`, exit 1 | yes |

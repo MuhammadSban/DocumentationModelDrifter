@@ -98,21 +98,21 @@ Each row is one step. "Sees it" lists what is downstream of that step, so what t
 | Serialise and save | `GitHub_Connector.runs` | the result | one file per run | the bytes of the POST response and of every later GET. Runs already saved are served as they were written |
 | Canonical JSON | `models.common.write_model` | a model or the answer | text | the files `init` and `update` write, the CLI's output, `/system/generate` |
 
-`/models/view`, the console's page, reads through `Frontend.model_drift`, not through `read_sources`: it applies no 1 MB limit and none of the validation above (`docs/state/WORK-ITEMS.md`, W3-3).
+`/models/view`, the console's page, reads through `Frontend.model_drift`, not through `read_sources`: it applies no 1 MB limit and none of the validation above (`docs/state/WORK-ITEMS.md`, W3-3). It does take one of the 2 check slots under its own deadline before it clones, as `analyze` and `generate` do, so the page cannot swamp real checks.
 
 ## Premises, verified
 
-Every arrow, store and limit above, checked against the code on 2026-11-21 at `21e7921`. Paths are under `Source/`.
+Every arrow, store and limit above, checked against the code on 2026-11-21 at `21e7921`, and re-cited on 2026-11-22 after E05 moved the slot and the deadline. Paths are under `Source/`.
 
 | Premise | Source | Holds? |
 |---|---|---|
-| `POST /system/analyze` calls `analyze` and returns the bytes that were saved. | `GitHub_Connector/api.py:106-109` | yes |
-| `analyze` validates, takes a slot, then clones through `fetch`. | `GitHub_Connector/analysis.py:63-67`, `:72` | yes |
+| `POST /system/analyze` calls `analyze` and returns the bytes that were saved. | `GitHub_Connector/api.py:105-108` | yes |
+| `analyze` takes its deadline at arrival, validates, waits for a slot until that deadline, then clones through `fetch` under the same deadline. | `GitHub_Connector/analysis.py:65-90`, `:95` | yes |
 | The clone is blobless and without a checkout: commits and folder listings, no file contents. | `GitHub_Connector/fetch.py:280-286` | yes |
 | The clone is deleted when the request ends, whatever its ending. | `GitHub_Connector/fetch.py:265-277` | yes |
 | With no base given, the base is the head's first parent, on both ways in; a root commit has none. | `GitHub_Connector/fetch.py:269`, `:322-325`; `drifter/check.py:301-304` | yes |
-| Change detection is the clone's diff, classified by the mapping file; it does not call `drifter.check`. | `GitHub_Connector/fetch.py:272-274`, `:338-340`, `:371-373`; `GitHub_Connector/analysis.py:73-90`; `GitHub_Connector/rules.py:62-86`; `GitHub_Connector/settings.py:36` | yes |
-| The hosted way calls `read_sources`, then `answer`, with the clone as reader. | `GitHub_Connector/analysis.py:144` | yes |
+| Change detection is the clone's diff, classified by the mapping file; it does not call `drifter.check`. | `GitHub_Connector/fetch.py:272-274`, `:338-340`, `:371-373`; `GitHub_Connector/analysis.py:96-113`; `GitHub_Connector/rules.py:62-86`; `GitHub_Connector/settings.py:36` | yes |
+| The hosted way calls `read_sources`, then `answer`, with the clone as reader. | `GitHub_Connector/analysis.py:167` | yes |
 | The CLI calls `local_sources`, which is `read_sources` on a `LocalReader`, then `answer`. | `drifter/cli.py:49`; `drifter/check.py:211-213` | yes |
 | `drifter` imports nothing from `GitHub_Connector`, so the CLI has no change detection and no result store. | `drifter/cli.py:15-24`; `drifter/check.py:24-27`; the `core` contract of `.importlinter` | yes |
 | `read_sources` reads the 4 files in `/models` first, validates them, then reads the in-scope files that `scope.json` picks: two reads. | `drifter/check.py:220-232` | yes |
@@ -125,11 +125,12 @@ Every arrow, store and limit above, checked against the code on 2026-11-21 at `2
 | The commits judged are base..head, or the head alone for a root commit, on both ways in. | `GitHub_Connector/fetch.py:135-139`; `drifter/check.py:334-337` | yes |
 | The answer has four fields: `aligned`, `behavioral`, `ownership`, `structural`. | `drifter/check.py:94-99` | yes |
 | The CLI prints the answer and exits 0, 1 or 2; it saves nothing. | `drifter/cli.py:50-54`, `:81-84` | yes |
-| The hosted result joins the drift answer, or a drift error, with change detection. | `GitHub_Connector/analysis.py:100-116`, `:139-146` | yes |
-| A run is saved once, as one file named by its id, after the clone is deleted. | `GitHub_Connector/analysis.py:117-118`; `GitHub_Connector/runs.py:27-44` | yes |
+| The hosted result joins the drift answer, or a drift error, with change detection. | `GitHub_Connector/analysis.py:123-139`, `:162-169` | yes |
+| A run is saved once, as one file named by its id, after the clone is deleted. | `GitHub_Connector/analysis.py:140-141`; `GitHub_Connector/runs.py:27-44` | yes |
 | The result store is `runs_dir`: the Railway volume when one is mounted, otherwise a local `runs` folder. On Railway the app does not start without a volume. | `GitHub_Connector/settings.py:30`, `:50-54`, `:68-71` | yes |
-| The POST response and a later GET are the same bytes: one serialiser, and GET returns the file unchanged. | `GitHub_Connector/runs.py:17-24`, `:47-52`; `GitHub_Connector/api.py:118-126` | yes |
+| The POST response and a later GET are the same bytes: one serialiser, and GET returns the file unchanged. | `GitHub_Connector/runs.py:17-24`, `:47-52`; `GitHub_Connector/api.py:117-125` | yes |
 | `drifter init` writes four files, refuses with exit 1 when one exists and `--force` is absent, and builds all four before writing any. | `drifter/cli.py:57-65`, `:74-78`; `drifter/check.py:263-276` | yes |
 | `drifter update` writes structural and behavioral only, from the committed `scope.json`. | `drifter/cli.py:46-48`; `drifter/check.py:279-287` | yes |
-| `POST /system/generate` runs `generate_models` on a clone and saves nothing. | `GitHub_Connector/api.py:112-115`; `GitHub_Connector/analysis.py:124-136` | yes |
-| `/models/view` reads through `Frontend.model_drift`, with its own decoding and no size limit. | `GitHub_Connector/api.py:169-206`; `Frontend/model_drift.py:40-51` | yes |
+| `POST /system/generate` runs `generate_models` on a clone and saves nothing. | `GitHub_Connector/api.py:111-114`; `GitHub_Connector/analysis.py:147-159` | yes |
+| `/models/view` reads through `Frontend.model_drift`, with its own decoding and no size limit. | `GitHub_Connector/api.py:169-207`; `Frontend/model_drift.py:40-51` | yes |
+| `/models/view` waits for a check slot under its own deadline, through the same code as `analyze` and `generate`, before it clones. | `GitHub_Connector/api.py:178-181`; `GitHub_Connector/analysis.py:65-82` | yes |
