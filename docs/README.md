@@ -92,13 +92,16 @@ Live Epics, one folder each. Finished ones move to `closed/`; never build from o
 
 ## closed/
 
-Finished Epics: history. Read one only when the task asks for it, and never build from it.
+Finished Epics and dated records: history. Read one only when the task asks for it, and never build from it.
 
 - `closed/E00-docs-move/EPIC.md` — the example Epic: the docs move of W2-5 (step 0.2a), written after the fact. Read it to see a filled template.
 - `closed/E01-module-map/EPIC.md` — the closed Epic for W1-5 (step 0.6a): give the system's first diagram the name `diagrams/dependency.md`, extend it into the module map, and have CI check imports against it with `lint-imports`. Read it for how the module map and `.importlinter` came about; the standing model is `diagrams/dependency.md`.
 - `closed/E01-module-map/DESIGN.md` — that Epic's design: the four layers, the allowed calls, the public names, the five import contracts and the two imports that break the map today.
 - `closed/E02-system-models/EPIC.md` — the closed Epic for build order step 0.6b: add `diagrams/data-flow.md`, rename and extend `diagrams/behavior.md`, write the folder's README, review the kept models and delete the other diagram files. Read it for how the two models came about; the standing models are in `diagrams/`.
 - `closed/E02-system-models/DESIGN.md` — that Epic's design: what each model holds, where the content of each deleted file went, and where the code and the build order disagreed.
+- `closed/history/phase2-changes.md` — what changed from Phase 2 and v1. Read it only for course reports.
+- `closed/history/deviations-review-2026-11-05.md` — the review of the former `docs/deviations/` folder, document by document: verdicts, repeats and contradictions. It was the queue's appendix; read it for why an item in `state/WORK-ITEMS.md` exists.
+- `closed/history/contract-2.4.0-changes.md` — what changed from contract 2.3.0 to 2.4.0, what it means for each team's system and tester, and the matching spec changes. The contract wins where they differ.
 
 ## proposals/
 
@@ -130,9 +133,3 @@ Background: outside evidence and reviews. Read it for the reasoning behind a wor
 - `research/mage-alignment.html` — a visual explainer of MAGE's alignment checks.
 - `research/industry-architecture-research.md` — how other drift tools are built, and what that means here.
 - `research/architecture-review.html` — a review of the model and drifter code, findings A to F (the Wave 3 refactors).
-
-## history/
-
-- `history/phase2-changes.md` — history, not instructions: what changed from Phase 2 and v1. Read it only for course reports; never build from it.
-- `history/deviations-review-2026-11-05.md` — the review of the former `docs/deviations/` folder, document by document: verdicts, repeats and contradictions. It was the queue's appendix; read it for why an item in `state/WORK-ITEMS.md` exists.
-- `history/contract-2.4.0-changes.md` — what changed from contract 2.3.0 to 2.4.0, what it means for each team's system and tester, and the matching spec changes. Send it to Team 16 with the contract; the contract wins where they differ.
