@@ -18,6 +18,11 @@ RUN_LIMIT = 600.0
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "contract"
 
+# names the map from REQ-01 to REQ-07 to the criteria, the only source of coverage.model's pairs
+REQUIREMENTS_MAP = Path(__file__).resolve().parents[2] / "docs" / "base" / "requirements-to-tests.md"
+REQUIREMENTS_MAP_URL = ("https://github.com/MuhammadSban/DocumentationModelDrifter/blob/main/"
+                        "docs/base/requirements-to-tests.md")
+
 GOLDEN = json.loads((CONTRACT / "golden-outputs.json").read_text(encoding="utf-8"))
 REPOSITORY = GOLDEN["fixture_repo"]
 CASES = {case["case"]: case for case in GOLDEN["cases"]}
@@ -324,12 +329,13 @@ TESTS = [
 
 
 def run_suite(target_url: str, session_id: str, limit: float | None = None,
-              on_result: Callable[[dict], None] | None = None) -> dict:
+              on_result: Callable[[dict], None] | None = None, own: bool = False) -> dict:
     # runs every test once, in order, and returns the suite report of pod-tester.openapi.yml;
-    # on_result receives each TestResult entry as soon as it is decided, for a live view of the run
+    # on_result receives each TestResult entry as soon as it is decided, for a live view of the run;
+    # own adds coverage.model, which the course allows only when the tester tests its own team's system
     run = Run(target_url, RUN_LIMIT if limit is None else limit)
     features, health_failure = _features(run)
-    results, components, criteria = [], set(), set()
+    results, components, criteria, evaluated = [], set(), set(), set()
     for test in TESTS:
         result = _run_one(test, run, features, health_failure)
         results.append(result.entry(test.id))
@@ -338,14 +344,19 @@ def run_suite(target_url: str, session_id: str, limit: float | None = None,
         if result.answered and (result.outcome in ("pass", "fail") or result.source == "system"):
             components.update(test.components)
             criteria.update(test.criteria)
+        if result.outcome in ("pass", "fail"):
+            evaluated.add(test.id)
+    coverage = {
+        "code": _code_coverage(run, session_id),
+        "component": _measure(components, COMPONENTS, "components C1 to C7 exercised by a test the target "
+                              "answered (pod-contract.md section 5)"),
+        "system": _measure(criteria, CRITERIA, "criteria AC-01 to AC-10 exercised by a test the target "
+                           "answered (pod-contract.md section 5)"),
+    }
+    if own:
+        coverage["model"] = _model_coverage(evaluated)
     return {
-        "coverage": {
-            "code": _code_coverage(run, session_id),
-            "component": _measure(components, COMPONENTS, "components C1 to C7 exercised by a test the target "
-                                  "answered (pod-contract.md section 5)"),
-            "system": _measure(criteria, CRITERIA, "criteria AC-01 to AC-10 exercised by a test the target "
-                               "answered (pod-contract.md section 5)"),
-        },
+        "coverage": coverage,
         "results": results,
         "session_id": session_id,
         "target_url": run.target,
@@ -429,8 +440,43 @@ def _unavailable(reason: str) -> dict:
     return {"basis": f"code coverage unavailable: {reason}", "covered": None, "total": None}
 
 
+def _model_coverage(evaluated: set) -> dict:
+    # counts the map's requirements with a mapped test that ended pass or fail, each once (W4-8)
+    try:
+        version, requirements = read_requirements_map(REQUIREMENTS_MAP)
+    except (OSError, ValueError) as exc:
+        return {"basis": f"model coverage unavailable: {REQUIREMENTS_MAP.name} could not be read: {exc}",
+                "covered": None, "total": None}
+    tests = requirement_tests(requirements)
+    first, last = min(requirements), max(requirements)
+    return {"basis": f"design requirements {first} to {last} of {REQUIREMENTS_MAP.name} version {version}, each "
+                     f"covered when a test mapped to it ended pass or fail: {REQUIREMENTS_MAP_URL}",
+            "covered": sum(1 for ids in tests.values() if set(ids) & evaluated), "total": len(requirements)}
+
+
 def _measure(covered: set, every: tuple, basis: str) -> dict:
     return {"basis": basis, "covered": len(covered & set(every)), "total": len(every)}
+
+
+def read_requirements_map(path: Path = REQUIREMENTS_MAP) -> tuple[str, dict[str, tuple[str, ...]]]:
+    # reads the map file's version line and pairs table; raises OSError or ValueError when it cannot
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if not lines or not lines[0].startswith("Version: ") or not lines[0][len("Version: "):].strip():
+        raise ValueError(f"{path.name} does not open with a version line")
+    requirements: dict[str, list[str]] = {}
+    for line in lines:
+        cells = [c.strip() for c in line.split("|")[1:-1]]
+        if len(cells) == 2 and cells[0] in CRITERIA:
+            for requirement in cells[1].split(", "):
+                requirements.setdefault(requirement, []).append(cells[0])
+    if not requirements:
+        raise ValueError(f"{path.name} has no pairs table")
+    return lines[0][len("Version: "):].strip(), {r: tuple(c) for r, c in sorted(requirements.items())}
+
+
+def requirement_tests(requirements: dict[str, tuple[str, ...]]) -> dict[str, tuple[str, ...]]:
+    # derives each requirement's tests from TESTS: every test that lists one of its criteria
+    return {r: tuple(t.id for t in TESTS if set(t.criteria) & set(c)) for r, c in requirements.items()}
 
 
 def catalog() -> list[dict]:

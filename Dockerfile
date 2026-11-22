@@ -12,9 +12,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY Source/ Source/
-# ships the tests the /tester page runs and the golden answers the pod tests compare with
+# ships the tests the /tester page runs, the golden answers the pod tests compare with and the map coverage.model reads
 COPY tests/ tests/
 COPY docs/contract/ docs/contract/
+COPY docs/base/requirements-to-tests.md docs/base/requirements-to-tests.md
 
 # creates the unprivileged user and group the app runs as, both 10001
 RUN groupadd --gid 10001 drifter && useradd --create-home --uid 10001 --gid 10001 drifter \

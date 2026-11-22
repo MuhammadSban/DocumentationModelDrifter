@@ -313,7 +313,10 @@ with the facts in the models.
 AC-01 to AC-10 have the pod's numbers and meanings (v1.1 SPEC section 10, copied word for word in
 contract section 5). Each criterion first gives the pod's check, then "This system:" says how this
 system meets it; for this system "doc" means /models and a finding means a drift difference. AC-11
-is this system's own and counts as AC-02.
+is this system's own and counts as AC-02. The criterion-to-requirement pairs below come from
+docs/base/requirements-to-tests.md, the only source of them; its version line is the version of
+this list. Our tester reports coverage.model over REQ-01 to REQ-07 when it tests our own system
+only, counting a requirement once a test mapped to it ends pass or fail.
 
 - AC-01, REQ-01: Pod: changes and skipped equal golden, all cases (T-01 to T-07). This system: a
   short commit SHA also gives the same answer as the full SHA, and an unknown or ambiguous one
@@ -531,7 +534,7 @@ updated /models and see a green check; open the run's answer artifact and find, 
 history of /models, who accepted the change.
 
 Automated validation: AC-04 and AC-09 (also by inspection), and AC-06 for the Action's
-artifacts. Requirement coverage: REQ-03, REQ-04, REQ-06.
+artifacts. Requirement coverage: REQ-01, REQ-02, REQ-03, REQ-04, REQ-05, REQ-06, REQ-07.
 
 ### 6.3 Sequencing rationale
 

@@ -1,6 +1,13 @@
 # tests the pod test runner against the fake target: outcomes, skips, errors, coverage and the run limit
 
-from Tester.pod_tests import LIMIT_REACHED, TESTS, run_suite
+from pathlib import Path
+
+import jsonschema
+import yaml
+
+from Tester import pod_tests
+from Tester.pod_tests import LIMIT_REACHED, REQUIREMENTS_MAP, TESTS, read_requirements_map, requirement_tests, \
+    run_suite
 
 IDS = [t.id for t in TESTS]
 
@@ -16,6 +23,24 @@ def ids(first, last):
 
 def test_table_has_33_tests_in_order():
     assert IDS == [f"T-{i:02d}" for i in range(1, 34)]
+
+
+def test_map_reader_returns_the_version_and_seven_requirements_with_their_criteria():
+    version, requirements = read_requirements_map()
+    assert version == "1"
+    assert requirements == {
+        "REQ-01": ("AC-01",), "REQ-02": ("AC-02", "AC-03"), "REQ-03": ("AC-04", "AC-05"), "REQ-04": ("AC-06",),
+        "REQ-05": ("AC-07", "AC-08"), "REQ-06": ("AC-09",), "REQ-07": ("AC-03", "AC-10"),
+    }
+
+
+def test_map_table_equals_the_tests_derived_from_the_test_list():
+    rows = [line.split("|")[1:4] for line in REQUIREMENTS_MAP.read_text(encoding="utf-8").splitlines()
+            if line.startswith("| REQ-")]
+    table = {r.strip(): (tuple(c.strip().split(", ")), tuple(t.strip().split(", "))) for r, c, t in rows}
+    _, requirements = read_requirements_map()
+    derived = requirement_tests(requirements)
+    assert table == {r: (requirements[r], derived[r]) for r in requirements}
 
 
 def test_target_meeting_the_contract_passes_everything_it_runs(fake):
@@ -133,3 +158,60 @@ def test_t33_fails_naming_the_case_and_file_when_a_text_differs(fake):
     got = outcomes(run_suite(fake.url, "s"))
     assert got["T-33"] == {"message": "L0-generate: behavioral.json differs from the expected text",
                            "outcome": "fail", "test_id": "T-33"}
+
+
+def model_of(report):
+    return report["coverage"]["model"]
+
+
+def test_model_is_present_for_our_own_system_with_total_7_and_covered_at_most_total(fake):
+    model = model_of(run_suite(fake.url, "s1", own=True))
+    assert model["total"] == 7 and 0 <= model["covered"] <= model["total"]
+    assert "version 1" in model["basis"] and "requirements-to-tests.md" in model["basis"]
+
+
+def test_model_counts_a_requirement_with_no_evaluated_test_in_total(fake):
+    # keeps REQ-06 in total, though its only test, T-23, always skips
+    model = model_of(run_suite(fake.url, "s1", own=True))
+    assert (model["covered"], model["total"]) == (6, 7)
+
+
+def test_model_does_not_cover_a_requirement_whose_tests_ended_skip_or_error(fake):
+    # drops REQ-03 when T-18 to T-21 skip without prose_detector; T-24 to T-33 run, so REQ-02 stays
+    fake.features = ["model_drift"]
+    assert model_of(run_suite(fake.url, "s1", own=True))["covered"] == 5
+    # leaves out a 5xx, error with source system, which system coverage still counts; with every /analyze
+    # answering 500 only T-15 passes, and its AC-06 and AC-08 cover REQ-04 and REQ-05 (spec §4.1)
+    fake.features = None
+    fake.analyze_status = 500
+    report = run_suite(fake.url, "s2", own=True)
+    assert [r["test_id"] for r in report["results"] if r["outcome"] in ("pass", "fail")] == ["T-15"]
+    assert model_of(report)["covered"] == 2
+    assert report["coverage"]["system"]["covered"] == 8
+
+
+def test_model_counts_a_requirement_listed_by_two_evaluated_tests_once(fake):
+    # counts REQ-01 once, though seven of its tests, T-01 to T-07, pass
+    report = run_suite(fake.url, "s1", own=True)
+    assert {outcomes(report)[t]["outcome"] for t in ids("T-01", "T-07")} == {"pass"}
+    assert model_of(report)["covered"] == 6
+
+
+def test_model_key_is_absent_for_another_system(fake):
+    assert "model" not in run_suite(fake.url, "s1")["coverage"]
+    assert "model" not in run_suite(fake.url, "s2", own=False)["coverage"]
+
+
+def test_model_report_validates_against_the_pod_tester_openapi(fake):
+    spec = Path(pod_tests.CONTRACT, "pod-tester.openapi.yml").read_text(encoding="utf-8")
+    components = yaml.safe_load(spec)["components"]
+    report = run_suite(fake.url, "s1", own=True)
+    for name, value in (("SuiteReport", report), ("CoverageMeasure", model_of(report))):
+        jsonschema.validate(value, {"$ref": f"#/components/schemas/{name}", "components": components})
+
+
+def test_model_unreadable_map_gives_null_counts_and_a_basis_saying_why(fake, monkeypatch, tmp_path):
+    monkeypatch.setattr(pod_tests, "REQUIREMENTS_MAP", tmp_path / "missing.md")
+    model = model_of(run_suite(fake.url, "s1", own=True))
+    assert model["covered"] is None and model["total"] is None
+    assert "unavailable" in model["basis"] and "missing.md" in model["basis"]

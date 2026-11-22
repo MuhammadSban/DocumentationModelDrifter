@@ -11,6 +11,7 @@ Every file under `docs/` is listed below, with when to read it. Paths are relati
 ## base/
 
 - `base/specifications.md` — the top-level specification: purpose, requirements, acceptance criteria and the four-field answer. Read it before changing behavior, the API or the models. Q11 lists the decisions still open. Its §5 explains how this design meets the pod contract in `contract/`.
+- `base/requirements-to-tests.md` — the map from REQ-01 to REQ-07 to the criteria and tests that check them, with its version line. Our tester reads it for `coverage.model`. Read it when changing a requirement, a criterion's pairs or the test list.
 - `base/phase4.md` — the Phase 4 build plan: the alignment check against Team 16's package, the roadmap v1, v1.1 and v1.2 with owners and decisions D1 to D12, the contract test map, and the design questions Q1 to Q8 (decided, kept for their reasoning). A plan, not a source of truth: where it disagrees with the spec or the contract, they win.
 - `base/structure.md` — the structural model's format: the generator's input, node and edge kinds, the id scheme and an example. Read it before changing the structural generator. The spec wins where they disagree.
 - `base/behavioral.md` — the behavioral model's format, frozen as `generate_behavioral` writes it: state and transition kinds, the id scheme, the mining rules, what the miner leaves out, and an example. Read it before changing the behavioral generator. The spec wins where they disagree.
