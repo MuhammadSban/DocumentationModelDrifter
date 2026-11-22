@@ -325,3 +325,57 @@ Verified as cited, for the record: `docs/invariants/INVARIANTS.md:16-18` (INV-1,
 `docs/base/specifications.md:213`, `:261`; `docs/diagrams/models-folder.md:27`, `:35`
 ("open: JSON Schema"); `docs/diagrams/model-seam.md:11`, `:32` ("One check");
 `docs/state/WORK-ITEMS.md:108` (gap G4), `:185` (W3-1 deletes `_scope_rule`).
+
+REVISE · design-reviewer at 455d702 · 2026-11-22
+
+Second review, of the revision made in `455d702`; `EPIC.md` and `DESIGN.md` are byte-identical at
+HEAD (`a62a39e`), so this verdict covers both. All three of the first review's blocking findings
+are genuinely fixed, not merely mentioned, and every citation `455d702` touched holds on disk:
+`Source/Frontend/model_drift.py:40-52` is `snapshot` exactly, it is named in step 3 and its file,
+parameter and the two-snapshot case are in step 6 and in Done criterion 9;
+`Source/GitHub_Connector/api.py:198` and `:201` are the two `snapshot` calls and step 6 passes the
+same level to both; `generate_models(reader, verbosity=FULL)` is keyword with a default and
+`Source/GitHub_Connector/analysis.py:132` is `files = check.generate_models(cmp)`, needing no edit,
+with `tests/connector` now in step 4's check. The non-blocking four are fixed too: the stale
+`model_viewer.py:1-6` row now cites `:609` (`_script`), `:48` (`MERMAID`) and the module comment at
+`:5`, all three correct; the spec sentence does begin at `docs/base/specifications.md:263` and end
+at `:264`; `differences` at `Source/drifter/check.py:122` is inside the new range `:110-136`, which
+ends on its `return found`; and step 7 now names `docs/state/WORK-ITEMS.md:13`, which still reads
+"Drafted, waiting on the human … No code". **The drafting session's correction is right and the
+first review was wrong:** `analysis.py:132` sits in `generate()`, which `post_generate`
+(`Source/GitHub_Connector/api.py:112-115`) serves as `POST /system/generate`; `/system/analyze`
+reaches `check.answer`, not `generate_models`. The filled-copy check of `docs/templates/README.md`
+prints nothing for both files. Run here, not merely read: `PYTHONPATH=Source lint-imports` ends
+`Contracts: 5 kept, 0 broken.`, `pytest tests/frontend tests/structural tests/drifter -q` gives
+125 passed, `git status --porcelain tests/frontend` prints nothing, and `tests/frontend` holds the
+26 tests step 1 tracks. What blocks RATIFY is one generation site that both reviews missed:
+
+- **Blocking. There is a third generation site, so "two sites" and "one choke point" are both
+  still untrue.** `model_differences` does not pass through `_regenerate`: it takes the generator
+  out of `GENERATORS` and calls it itself (`Source/drifter/check.py:112` and `:116`). So the sites
+  are `_regenerate` (`:290`, for `init`, `update` and `POST /system/generate`), `model_differences`
+  (`:116`, for the check itself) and `snapshot` (`Source/Frontend/model_drift.py:51`). Fix the
+  claim in three places: the `DESIGN.md` heading "Two generation sites take the level, not one" and
+  its item 1, "`_regenerate` … which every path of the tool proper passes through: … and
+  `model_differences` for the check itself" (`DESIGN.md:52-61`); the premise row that repeats it
+  and is marked "yes" (`DESIGN.md:126`); and step 3's title, "through the one choke point". Step 3
+  does list `model_differences` among its edits, so the build is covered, but it says only that it
+  "reads" the level — say that it passes the level to the structural generator itself, as step 3
+  says of `_regenerate` and step 6 says of `snapshot`. Without that, the check regenerates at level
+  4 against a level-1 committed model and reports every dropped element as `REMOVED`.
+- **Non-blocking, but say it somewhere.** All three sites call their generator through
+  `GENERATORS`, typed `dict[str, Callable[[dict[str, str]], dict]]`
+  (`Source/drifter/check.py:103`), and behavioral keeps its one argument (step 2), so each site has
+  to single out the structural generator and that annotation stops being true of one entry. No
+  check catches it: CI runs `ruff`, not a type checker. Name the annotation in step 2's or step 3's
+  files, or say that the level is applied per generator at each site.
+- **Nit.** `DESIGN.md:128` cites `Source/Frontend/model_drift.py:80-88` for `_scope`, which runs to
+  `:89`; the premise itself holds.
+- **Unchanged from the first review, and still true.** Done criterion 3 can print nothing only
+  after the human moves rows E02-a to E02-c and `docs/decisions/OPEN-DECISIONS.md:19` into
+  `docs/decisions/RULED/`, which only they write (R1). Direction is settled and was not re-opened:
+  `docs/decisions/OPEN-DECISIONS.md:23-25` carry the human's word of 2026-11-22.
+- **Outside this verdict, for the human.** Code for this Epic is already on the branch while its
+  Status is `draft`: `a62a39e` committed step 1, and `Source/models/structural_model.py` carries an
+  uncommitted step 2. R7 starts code after RATIFY, from a live Epic (`CLAUDE.md`, R7;
+  `docs/epics/README.md`).
