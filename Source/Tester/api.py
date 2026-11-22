@@ -12,7 +12,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from Tester import client, pod_tests, unit_tests
+from Tester import client, own_system, pod_tests, unit_tests
 from Tester.client import NoReply
 
 # names Team 16's system base URL, shown on the page; empty hides it
@@ -84,7 +84,8 @@ async def test_run(request: Request):
     try:
         # appends each result to the session as it is decided, so GET /tester/progress can show the run live
         report = await run_in_threadpool(pod_tests.run_suite, session["target_url"], session_id,
-                                         on_result=session["results"].append)
+                                         on_result=session["results"].append,
+                                         own=own_system.is_own(session["target_url"]))
     except Exception as exc:
         session["state"] = "done"
         return _error(500, f"tester aborted: {type(exc).__name__}: {exc}")
