@@ -330,12 +330,14 @@ only, counting a requirement once a test mapped to it ends pass or fail.
   updated /models. The verdict is true. Checked automatically.
 - AC-04, REQ-03: Pod: every finding is PENDING_REVIEW (T-21). This system: what it flags also waits
   for a person; after a false verdict, the code and /models are unchanged and the tool has made no
-  commit. Checked automatically and by inspection.
-- AC-05, REQ-03: Pod: authorized review decisions, Phase 5 (T-22). This system: only a person
-  allowed to do so accepts flagged drift. Accepting means committing updated /models, so write
+  commit. Against this system T-21 runs its model version: /analyze for L2 twice, and both answers
+  must equal L2's expected answer. Checked automatically and by inspection.
+- AC-05, REQ-03: Pod: authorized review decisions (T-22: L5, the authorized change, must come back
+  aligned, and L6, the unauthorized change, with its one ownership violation). This system: only a
+  person allowed to do so accepts flagged drift. Accepting means committing updated /models, so write
   access to the repository is that permission. Committing updated /models after a false verdict
   makes the next check true, and the git history of /models gives the person who accepted it and
-  when. Checked automatically by Team 15's own tests.
+  when. Checked automatically by T-22 and by Team 15's own tests.
 - AC-06, REQ-04: Pod: two runs give distinct ids; GET returns each unchanged, including after a
   restart (c2; T-14 to T-16). This system: each Action run also uploads its answer as an artifact of
   that commit's run. The hosted service saves every /analyze result, and GET /analysis/{analysis_id}
@@ -348,10 +350,11 @@ only, counting a requirement once a test mapped to it ends pass or fail.
   message. A commit with no /models, or an in-scope file that cannot be parsed, gives no verdict,
   never true or false: drift is null with a drift_error code in the hosted service, and exit code 2
   in the CLI. Checked automatically.
-- AC-09, REQ-06: Pod: repository unchanged, no code executed, no credentials in logs (inspection,
-  Phase 5; T-23). This system: the repository is byte-identical before and after a check, none of
-  its code runs, and no credentials appear in responses or logs. Checked by automated tests and
-  inspection.
+- AC-09, REQ-06: Pod: repository unchanged, no code executed, no credentials in logs (T-23: L8, a
+  commit whose code would hang, fail or write a file if it were imported or run, must give its
+  expected answer; the credentials part is checked by inspection). This system: the repository is
+  byte-identical before and after a check, none of its code runs, and no credentials appear in
+  responses or logs. Checked by automated tests and inspection.
 - AC-10, REQ-07: Pod: five runs of c4 and of c1 give identical significant fields, including
   identical finding_ids (T-17). This system: five runs with the same repository, commit, /models and
   tool version also return byte-identical models and answers (Team 15's own tests), and generate at
@@ -365,9 +368,10 @@ only, counting a requirement once a test mapped to it ends pass or fail.
 
 Team 15 builds one small, controlled Git repository, kaan-kanadasi/doc-tracker-model-fixtures, with
 labelled commits and a manually defined expected verdict per model. Its expected answers are
-published in docs/contract/model-golden-outputs.json in two groups (contract section 3): L-pre's
+published in docs/contract/model-golden-outputs.json in three groups (contract section 3): L-pre's
 once the repository exists, L0 to L7's once the formats of all four model files are settled,
-because L0 commits all four. The repository stays fixed so results reproduce. Invalid requests
+because L0 commits all four, and the answers T-21's model version, T-22 and T-23 use (L2, L5, L6
+and L8) once L8 is pushed. The repository stays fixed so results reproduce. Invalid requests
 and unknown commits are tested by the pod's shared tests on Team 16's fixture
 (ParthGupta06/doc-tracker-fixtures).
 
@@ -386,13 +390,14 @@ Starting set of labelled cases (to be revised, see [Q11](#q11-open-decisions)):
 | L5 | L2's change plus updated /models in the same commit | true |
 | L6 | a non-owner edits an owned path | false: ownership, 1 violation |
 | L7 | a hand edit removes an inherits edge from structural.json that the code still makes | false: structural, 1 ADDED inherits |
+| L8 | the owner adds three files whose code would hang, raise or write a file if it were imported or run, plus updated /models in the same commit | true |
 
 Each count must be exactly 1, and every other list empty, so the fixture follows five rules. Its
 code sits under src/, so module ids carry no folder prefix (docs/base/structure.md). L3 removes
 an import of a module of the repository; an import of an external library is not in the model.
 L7's base class is a class of the repository; an external one gives no edge. L4 adds its state and
 transition without adding a module, class, function, method, import, inheritance or call, so the
-structural model does not change. Every commit L0 to L7 except L6 is made by an owner of every
+structural model does not change. Every commit L0 to L8 except L6 is made by an owner of every owned
 path it changes, under the ownership.json committed at L0, so only L6 gives a violation.
 
 ### 4.3 Independent evaluation
@@ -492,8 +497,9 @@ labelled cases of 4.2 against the hosted service and compare the whole drift obj
 /generate at L0 byte for byte, except ownership.json, which people correct by hand (3.2). Team 15's own tests check that drift is byte-identical across
 repeated runs. T-32 is published first, since it needs only L-pre (4.2).
 T-01 to T-23 check change detection, classification, saved results and errors.
-Against this system, T-18 to T-21 (prose findings) are skipped: its GET /system/health
+Against this system, T-18 to T-20 (prose findings) are skipped: its GET /system/health
 lists features ["model_drift"] and not prose_detector (deviation 1, contract section 1).
+T-21 runs its model version (L2, twice), and T-22 (L5 and L6) and T-23 (L8) run.
 
 ## Q6 Milestones for phases 4 and 5
 
@@ -745,5 +751,5 @@ Proposed 2026-11-22, agreed by Team 16 (recorded 2026-11-22).
   ids). The pattern syntax itself is settled in 3.2.
 - The Annex XI claim (1.1): whether to keep the specific Annex XI items or only the general
   Art. 53(1)(a) claim.
-- The labelled cases L-pre and L0 to L7 (4.2), to be revised in a separate pass. That pass should
+- The labelled cases L-pre and L0 to L8 (4.2), to be revised in a separate pass. That pass should
   also add a parse-failure case for PARSE_FAILED.
