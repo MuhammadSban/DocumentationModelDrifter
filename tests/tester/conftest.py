@@ -30,6 +30,7 @@ class FakeTarget:
         self.flip_aligned_case = None  # a model fixture case whose drift.aligned comes back flipped
         self.flip_aligned_from = 1  # the first answer of that case, counted from 1, that is flipped
         self.model_answers = {}  # how many answers each model fixture case has had
+        self.model_status = "SUCCESS"  # the status every model fixture answer carries
         self.setup_answer = (201, None)
         self.setup_calls = 0  # how many system setups reached the target
         self.saved = {}
@@ -76,7 +77,7 @@ class FakeTarget:
         if case["case"] == self.flip_aligned_case and self.model_answers[case["case"]] >= self.flip_aligned_from:
             expected["drift"]["aligned"] = not expected["drift"]["aligned"]
         return 200, {**expected, "analysis_id": uuid.uuid4().hex, "changes": [], "issues": [],
-                     "repository": MODEL_REPOSITORY, "status": "SUCCESS"}
+                     "repository": MODEL_REPOSITORY, "status": self.model_status}
 
     def generate(self, raw: bytes):
         # answers L0 with its expected /models texts, plus an ownership.json no tester compares

@@ -352,7 +352,8 @@ only, counting a requirement once a test mapped to it ends pass or fail.
   in the CLI. Checked automatically.
 - AC-09, REQ-06: Pod: repository unchanged, no code executed, no credentials in logs (T-23: L8, a
   commit whose code would hang, fail or write a file if it were imported or run, must give its
-  expected answer; the credentials part is checked by inspection). This system: the repository is
+  expected answer on a system with model_drift and a normal SUCCESS answer on any other; the
+  credentials part is checked by inspection). This system: the repository is
   byte-identical before and after a check, none of its code runs, and no credentials appear in
   responses or logs. Checked by automated tests and inspection.
 - AC-10, REQ-07: Pod: five runs of c4 and of c1 give identical significant fields, including

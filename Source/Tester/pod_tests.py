@@ -69,8 +69,9 @@ class PodTest:
     criteria: tuple[str, ...]
     check: Callable[[Run], str] | None = None
     feature: str | None = None
-    # names a second feature and the check that runs with it when the system lacks the first
-    fallback: tuple[str, Callable[[Run], str]] | None = None
+    # names a second feature and the check that runs with it when the system lacks the first; a second
+    # feature of None means the check runs on every system that lacks the first
+    fallback: tuple[str | None, Callable[[Run], str]] | None = None
     pending: bool = False
     skip: str | None = None
 
@@ -217,6 +218,20 @@ def twice(case: str) -> Callable[[Run], str]:
     return check
 
 
+def answered(case: str) -> Callable[[Run], str]:
+    # checks that a model fixture case gets a normal answer from a system that judges no drift: a 200
+    # with status SUCCESS inside the call limit shows the commit's code was not run (contract §4, T-23)
+    def check(run: Run) -> str:
+        try:
+            body = _body(run.send("POST", "/analyze", MODEL_CASES[case]["request"]))
+        except Fail as exc:
+            raise Fail(f"{case}: {exc}") from None
+        if body.get("status") != "SUCCESS":
+            raise Fail(f"{case}: status is {body.get('status')!r}, not SUCCESS")
+        return f"{case} was analyzed and answered SUCCESS"
+    return check
+
+
 def review_decisions(run: Run) -> str:
     # checks that an owner's change with /models updated is aligned (L5), and that a non-owner's edit of an
     # owned path is a violation (L6), each as the drift tests compare (contract §4, T-22)
@@ -331,7 +346,8 @@ TESTS = [
     _row("T-21", "New findings start PENDING_REVIEW", "C4 C5", "AC-04", pending_review,
          fallback=("model_drift", twice("L2")), **PROSE),
     _row("T-22", "Authorized and unauthorized review decisions", "C7", "AC-05", review_decisions, **DRIFT),
-    _row("T-23", "Read-only analysis, no repository code execution", "C2", "AC-09", drift("L8"), **DRIFT),
+    _row("T-23", "Read-only analysis, no repository code execution", "C2", "AC-09", drift("L8"),
+         fallback=(None, answered("L8")), **DRIFT),
     _row("T-24", "/analyze at L0: aligned: true, three empty lists", "C1 C2 C3 C4 C5", "AC-03", drift("L0"), **DRIFT),
     _row("T-25", "/analyze at L1: aligned: true", "C1 C2 C3 C4 C5", "AC-03", drift("L1"), **DRIFT),
     _row("T-26", "/analyze at L2: one structural ADDED", "C1 C2 C3 C4 C5", "AC-02", drift("L2"), **DRIFT),
@@ -398,7 +414,7 @@ def _run_one(test: PodTest, run: Run, features: list, health_failure: tuple | No
             source, message = health_failure
             return Result("error", f"features unknown, {message}", source, answered=False)
         if test.feature not in features:
-            if not test.fallback or test.fallback[0] not in features:
+            if not test.fallback or test.fallback[0] not in (None, *features):
                 return Result("skip", f"target does not implement {test.feature}", answered=False)
             check = test.fallback[1]
     try:
@@ -505,6 +521,8 @@ def requirement_tests(requirements: dict[str, tuple[str, ...]]) -> dict[str, tup
 
 def catalog() -> list[dict]:
     # lists the tests for the /tester page
+    # a test whose fallback runs on every system is listed without a feature, as it never skips for one
     return [{"components": list(t.components), "criteria": list(t.criteria),
-             "fallback": t.fallback[0] if t.fallback else None, "feature": t.feature, "id": t.id,
+             "fallback": t.fallback[0] if t.fallback else None,
+             "feature": None if t.fallback and t.fallback[0] is None else t.feature, "id": t.id,
              "pending": t.pending, "skip": t.skip, "title": t.title} for t in TESTS]
