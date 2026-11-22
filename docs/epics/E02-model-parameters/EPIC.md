@@ -528,3 +528,91 @@ prints nothing for both files. Run here, not merely read: `PYTHONPATH=Source lin
   Status is `draft`: `a62a39e` committed step 1, and `Source/models/structural_model.py` carries an
   uncommitted step 2. R7 starts code after RATIFY, from a live Epic (`CLAUDE.md`, R7;
   `docs/epics/README.md`).
+
+REVISE · design-reviewer at eae122b · 2026-11-22
+
+Third review, of the ten-step revision, at `eae122b`; HEAD moved twice while this review ran
+(`0b198e8` → `b569cc5` → `eae122b`), and the verdict covers `eae122b`. **Direction is not re-opened:**
+rows E02-a to E02-c carry the human's word (`docs/decisions/OPEN-DECISIONS.md:23-25`) and the human
+ratified by word. Steps 8, 9 and 10 are genuinely built, read from the code and not from the commit
+messages: `update --verbosity` exists with no default so the flag alone changes the level
+(`Source/drifter/cli.py:51-55`), `regenerate_models(reader, verbosity=None)` writes `scope.json`
+back only when a level is given (`Source/drifter/check.py:335-353`), `tests/connector/test_analyze_drift.py:223-262`
+covers `POST /system/analyze` at every level and pins the route against `drifter check` byte for
+byte, and step 10's seam is real: `PARAMETERS` (`Source/drifter/check.py:116`), `parameters_of`
+(`:121`), `_scope_rule` validating by looping over it and naming no parameter (`:456-463`), and
+`verbosity_of` one line over the reader (`:141-144`). Step 10 names no future parameter, here or in
+`docs/diagrams/model-seam.md:38-40`. Run here, not read: the whole suite gives 368 passed with only
+the pre-existing Apple-Git `test_fetch` failure, `ruff check` passes, `PYTHONPATH=Source lint-imports`
+ends `Contracts: 5 kept, 0 broken.`, and Done lines 2, 3, 5 to 12 each produce exactly the output
+the table now records (8 passed / 76 deselected, 5 passed / 79 deselected, 3 and 5, 1 and 3). The
+filled-copy check of `docs/templates/README.md` prints nothing for both files. The six open
+questions each end in a sourced answer and none needs a new row. What blocks RATIFY is one Done
+gap and two claims the last three commits made untrue:
+
+- **Blocking. No Done line runs the tests of steps 8 and 10, and the Epic now claims otherwise.**
+  Line 5 runs `tests/structural tests/behavioral tests/connector tests/drift tests/common`, which
+  is not `tests/drifter`; lines 7 and 8 are `-k` selections of `test_cli.py`. Collected here, line
+  8's selector picks `test_update_at_a_changed_level_redefines_the_baseline` (step 3's hand-edit
+  case) and not step 8's `test_update_with_a_level_changes_it_and_rebaselines_in_one_commit`
+  (`tests/drifter/test_cli.py:816`) or `test_update_without_a_level_leaves_the_scope_alone` (`:836`),
+  and step 10's two seam tests (`:746`, `:764`) are in `tests/drifter` as well. So the new paragraph
+  "step 8's behaviour is pinned by line 8's selector … step 10's by the two seam tests inside line
+  5" is untrue in two of its three clauses. Widen line 8's selector, or add `tests/drifter` to a
+  line, so a ten-step Epic's auditor runs what steps 8 and 10 built.
+- **Blocking. `DESIGN.md`'s "What is missing" still says the registry was deliberately not built.**
+  "**One parameter, not a set.** … a parameter registry would be the shape for the second and third
+  parameter, and designing it now would be designing for one example" (`DESIGN.md:180-182`) is what
+  step 10 then built: `PARAMETERS` is that registry (`Source/drifter/check.py:113-138`). A fresh
+  reader is told the opposite of the code. Reword the bullet to what is still missing (a
+  per-generator namespace, a schema, a second parameter) and say the declaration exists.
+- **Blocking. `DESIGN.md`'s second generation site now describes the wrong mechanism.** "It takes
+  the generator out of `GENERATORS` at `:112` and calls it at `:116` without going through
+  `_regenerate`" (`DESIGN.md:59-61`, and the premise row at `:142`) is no longer how
+  `model_differences` works: it calls `generate_one(name, sources.files, verbosity_of(...))`
+  (`Source/drifter/check.py:166`), which is what the design's own "what the three sites share"
+  paragraph requires. Say that, so the design and the code agree on the one site that matters most.
+- **Blocking as a set, mechanical to fix: the build moved almost every line `DESIGN.md` cites, and
+  `DESIGN.md` has not been re-anchored since `4a6f0d3`.** Current locations: `_regenerate` `:356`,
+  called at `:321` and `:349` (cited `:290`, `:267`, `:287`); `model_differences` `:158-169` and
+  `differences` `:172-186` (cited `:110-119`, `:110-136`); `_scope_rule` called at `:280` and `:342`,
+  defined at `:447` (cited `:230`, `:285`); `GENERATORS` `:107` (cited `:103`); `generate_models`
+  `:313-326` (cited `:263-270`); `init`'s flag `cli.py:43-47` and `_init` `:72-80` (cited
+  `cli.py:57-65`); `generate_structural` `structural_model.py:33` (cited `:15`); `snapshot`
+  `model_drift.py:40-56` with its generator call at `:54` (cited `:40-52`, `:51`) and `_scope`
+  `:84-93` (cited `:80-88`, `:80-89`); the two `snapshot` calls `api.py:212` and `:216` (cited
+  `:198`, `:201`) and `include_in_schema=False` `:170` (cited `:169`); `MERMAID`
+  `model_viewer.py:63`, `_script` `:756`, `main` `:793`, `_compared` `:137`, `_provenance` `:249`,
+  `app.css` read at `:66-67` (cited `:48`, `:609`, `:646`, `:87`, `:102`, `:52`).
+- **Blocking, same kind, inside `EPIC.md`.** Step 3 cites `Source/drifter/check.py:116` for
+  `model_differences`, which is now `PARAMETERS`; step 6 cites `Source/GitHub_Connector/api.py:198`
+  and `:201` for the two `snapshot` calls, now `:212` and `:216`; step 7 and open question 6 cite
+  `docs/base/specifications.md:263-264` for "Editing the scope without regenerating …", which step
+  7's own edit pushed to `:268-269`, while `:263-264` now hold the verbosity sentence. Done
+  criterion 2's `:261` still holds.
+- **Non-blocking. The queue has not caught up with steps 8 to 10.** `docs/state/WORK-ITEMS.md:13`
+  and `:240` both say "all seven steps", and `:240` still describes a level change as "a hand edit
+  plus `drifter update`", which step 8 replaced and which `docs/diagrams/models-folder.md:57` and
+  `docs/base/specifications.md:265` now contradict. `docs/README.md:97` still calls this "the draft
+  Epic … No code until it is ratified". The Epic outranks all three (`CLAUDE.md`, authority order),
+  so they are the lines to fix.
+- **Non-blocking. The seam's cost claim is a little better than the code.** "A second parameter is
+  therefore one row there, the generator argument it feeds, and that generator's own choice of how
+  to use it" (`docs/diagrams/model-seam.md:40`, and step 10 here) leaves out `generate_one`
+  (`Source/drifter/check.py:147-153`), which names `verbosity` and `"structural"` by hand, and the
+  three sites that pass it positionally. Reading and validating a parameter are genuinely
+  generalised, which is the expensive half; threading a second one is still four edits. Say which
+  half the seam covers.
+- **Non-blocking. One generation path the level cannot reach, by design but unnamed.**
+  `POST /system/generate` calls `check.generate_models(cmp)` with the reader alone
+  (`Source/GitHub_Connector/analysis.py:132`) and `generate_models` always writes `DEFAULT_SCOPE`
+  (`Source/drifter/check.py:320-325`), so the hosted `init` can only propose level 4 and a
+  verbosity field in the request would be a contract change (level 2). That is the right call;
+  `DESIGN.md`'s "What is missing" should name it beside the reporter.
+- **Nit.** Step 7's heading reads `Step 7/10` while its trailer and the headings of steps 1 to 6
+  read `/7`. The revision note explains the trailers, so nothing is wrong on disk; make the
+  headings agree with the trailers the commits carry (`Step: 1/7` … `Step: 7/7`, then `8/10` to
+  `10/10`, which is what `git log` shows).
+- **Unchanged and still true.** Done criterion 3 prints nothing only after the human moves rows
+  E02-a to E02-c and `docs/decisions/OPEN-DECISIONS.md:19` into `docs/decisions/RULED/`, which only
+  they write (R1). Criterion 4 sits after it.
