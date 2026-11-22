@@ -98,6 +98,30 @@ def test_5xx_is_a_system_error_that_still_counts_as_answered(fake):
     assert report["coverage"]["system"]["covered"] == 2  # only T-15 passes: AC-06 and AC-08
 
 
+def test_system_does_not_count_a_skipped_test(fake):
+    # leaves out AC-05 and AC-09, whose only tests, T-22 and T-23, skip
+    system = run_suite(fake.url, "s")["coverage"]["system"]
+    assert (system["covered"], system["total"]) == (8, 10)
+
+
+def test_system_does_not_count_an_error_from_communication(closed_url):
+    assert run_suite(closed_url, "s")["coverage"]["system"]["covered"] == 0
+
+
+def test_system_does_not_count_an_error_from_the_tester(fake):
+    # ends T-01 as error with source tester at the run limit, and skips the rest
+    fake.analyze_delay = 0.4
+    report = run_suite(fake.url, "s", limit=0.2)
+    assert (outcomes(report)["T-01"]["outcome"], outcomes(report)["T-01"]["source"]) == ("error", "tester")
+    assert report["coverage"]["system"]["covered"] == 0
+
+
+def test_system_does_not_count_an_error_when_health_fails(fake):
+    # counts only T-01 to T-17, which pass: AC-01, AC-06, AC-07, AC-08 and AC-10
+    fake.health_status = 500
+    assert run_suite(fake.url, "s")["coverage"]["system"]["covered"] == 5
+
+
 def test_golden_mismatch_fails_and_names_the_field(fake):
     fake.break_case = "c1-impl-only"
     got = outcomes(run_suite(fake.url, "s"))
