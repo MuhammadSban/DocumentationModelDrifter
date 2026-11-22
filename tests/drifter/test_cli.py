@@ -667,3 +667,97 @@ def test_the_package_installs_the_schema_validator_and_ships_the_schemas():
 
     assert "jsonschema" in pyproject["project"]["dependencies"]
     assert "*.schema.json" in pyproject["tool"]["setuptools"]["package-data"]["models"]
+
+
+# ------------------------------------------------------------- scope.json's verbosity level (E02)
+
+# two modules, one importing the other, so a level below MEMBERS has something to drop
+LADDER_CODE = {
+    "src/shop/models.py": "class Base:\n    def save(self):\n        pass\n",
+    "src/shop/orders.py": "from shop.models import Base\n\n\nclass Order(Base):\n    pass\n",
+}
+
+
+def _level_repo(path, level, code=None):
+    # commits code and a /models generated at one level, with that level declared in scope.json,
+    # which is what a repository looks like after init or update at that level
+    files = code or LADDER_CODE
+    scope = {**SCOPE, "verbosity": level}
+    models = {
+        "models/behavioral.json": {"schema_version": 1, "states": [], "transitions": []},
+        "models/ownership.json": NO_RULES,
+        "models/scope.json": scope,
+        "models/structural.json": generate_structural(files, level),
+    }
+    subprocess.run(["git", "init", "-q", "-b", "main", str(path)], check=True)
+    for name, text in {**files, **{k: write_model(v) for k, v in models.items()}}.items():
+        (path / name).parent.mkdir(parents=True, exist_ok=True)
+        (path / name).write_bytes(text.encode())
+    _commit(path, "first")
+    return path
+
+
+def test_a_check_at_a_lowered_level_is_aligned(tmp_path, monkeypatch, capsysbinary):
+    # the level the commit declares is the level the check regenerates at. Without that, the fresh
+    # model comes back at level 4 and every class and method the level dropped reads as REMOVED.
+    repo = _level_repo(tmp_path, 1)
+
+    code, out = _check(repo, monkeypatch, capsysbinary)
+
+    assert json.loads(out)["aligned"] is True
+    assert code == 0
+
+
+@pytest.mark.parametrize("level", [1, 2, 3, 4])
+def test_every_level_checks_aligned_against_its_own_models(tmp_path, monkeypatch, capsysbinary, level):
+    repo = _level_repo(tmp_path / str(level), level)
+
+    code, _ = _check(repo, monkeypatch, capsysbinary)
+
+    assert code == 0
+
+
+def test_a_lowered_level_still_sees_drift_in_what_it_keeps(tmp_path, monkeypatch, capsysbinary):
+    # the level trims what is described, it does not stop the check: a new module is still drift
+    repo = _level_repo(tmp_path, 1)
+    (repo / "src" / "shop" / "billing.py").write_bytes(b"from shop.models import Base\n")
+    _commit(repo, "add a module")
+
+    code, out = _check(repo, monkeypatch, capsysbinary)
+
+    added = [d["id"] for d in json.loads(out)["structural"] if d["change"] == "ADDED"]
+    assert "shop.billing" in added
+    assert code == 1
+
+
+@pytest.mark.parametrize("bad", [0, 5, True, "high", [1], {"level": 1}, None])
+def test_a_level_outside_the_ladder_gives_no_verdict(tmp_path, monkeypatch, capsysbinary, bad):
+    # an unreadable level is INVALID_MODELS, like any other unreadable scope.json, and never a pass
+    repo = _level_repo(tmp_path / str(hash(str(bad))), 1)
+    (repo / "models" / "scope.json").write_bytes(write_model({**SCOPE, "verbosity": bad}).encode())
+    _commit(repo, "break the level")
+
+    code, out = _check(repo, monkeypatch, capsysbinary)
+
+    assert json.loads(out)["drift_error"]["code"] == "INVALID_MODELS"
+    assert code == 2
+
+
+def test_update_at_a_changed_level_redefines_the_baseline(tmp_path, monkeypatch, capsysbinary):
+    # the human's semantic of 2026-11-22: a person edits the level and runs update, and what update
+    # writes is the new baseline, so the check straight after it reports nothing
+    repo = _level_repo(tmp_path, 4)
+    (repo / "models" / "scope.json").write_bytes(write_model({**SCOPE, "verbosity": 1}).encode())
+    _commit(repo, "lower the level")
+
+    drifted, _ = _check(repo, monkeypatch, capsysbinary)
+    updated, _ = _run(repo, monkeypatch, capsysbinary, "update")
+    _commit(repo, "regenerate at the new level")
+    aligned, out = _check(repo, monkeypatch, capsysbinary)
+
+    # before the update the models are still at level 4, which is drift by itself (spec 263-264)
+    assert drifted == 1
+    assert (updated, aligned) == (0, 0)
+    assert json.loads(out)["aligned"] is True
+    kinds = {n["kind"] for n in json.loads((repo / "models" / "structural.json").read_bytes())["nodes"]}
+    assert kinds == {"module"}

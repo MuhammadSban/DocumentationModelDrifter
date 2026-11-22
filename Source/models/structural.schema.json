@@ -8,7 +8,11 @@
     "schema_version": {"const": 1},
     "nodes": {
       "type": "array",
-      "items": {"oneOf": [{"$ref": "#/$defs/plainNode"}, {"$ref": "#/$defs/functionNode"}]}
+      "items": {"oneOf": [
+        {"$ref": "#/$defs/plainNode"},
+        {"$ref": "#/$defs/functionNode"},
+        {"$ref": "#/$defs/memberNode"}
+      ]}
     },
     "edges": {
       "type": "array",
@@ -37,6 +41,17 @@
         "id": {"type": "string"},
         "kind": {"enum": ["function", "method"]},
         "params": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "memberNode": {
+      "comment": "a function or method at verbosity 3, which names what exists without its signature; verbosity 4 writes functionNode, and a node carrying some of the three attributes but not all matches neither",
+      "type": "object",
+      "required": ["file", "id", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {"type": "string"},
+        "id": {"type": "string"},
+        "kind": {"enum": ["function", "method"]}
       }
     },
     "edge": {

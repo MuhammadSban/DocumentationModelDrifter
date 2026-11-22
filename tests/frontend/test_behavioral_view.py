@@ -2,8 +2,6 @@
 
 import re
 
-import pytest
-
 from Frontend.model_loader import BEHAVIORAL_FILE, behavioral_from_dict
 from Frontend.model_viewer import _behavioral
 from models.behavioral_model import generate_behavioral
