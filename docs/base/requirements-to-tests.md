@@ -35,4 +35,4 @@ The tests are those that list one of the requirement's criteria in `contract/pod
 | REQ-06 | AC-09 | T-23 |
 | REQ-07 | AC-03, AC-10 | T-17, T-20, T-24, T-25, T-29, T-33 |
 
-A requirement is covered only when one of its tests ended pass or fail. On our system T-21, T-22 and T-23 skip today, so REQ-03 and REQ-06 stay uncovered until W4-5 and W4-10 (`state/WORK-ITEMS.md`).
+A requirement is covered only when one of its tests ended pass or fail. On our system T-18 to T-20 skip, T-21 runs its model version and T-22 and T-23 run, so all seven requirements can be covered.

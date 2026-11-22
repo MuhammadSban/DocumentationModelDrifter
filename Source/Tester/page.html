@@ -220,7 +220,7 @@
   <section class="panel" id="pod" aria-labelledby="pod-title">
     <div class="panel-head">
       <h2 id="pod-title">Pod tests</h2>
-      <span class="note">Contract 2.4.0, <code>docs/contract/pod-contract.md</code> §4</span>
+      <span class="note">Contract 2.5.0, <code>docs/contract/pod-contract.md</code> §4</span>
     </div>
     <form class="target" id="target-form" novalidate>
       <span>Target</span>
@@ -406,6 +406,7 @@ function setStatus(text, mode = "", ...extra) {
 function plannedLabel(test) {
   if (test.skip) return `skips: ${test.skip}`;
   if (test.pending) return "skips until the expected answers are published";
+  if (test.feature && test.fallback) return `runs only when /health lists ${test.feature} or ${test.fallback}`;
   if (test.feature) return `runs only when /health lists ${test.feature}`;
   return "";
 }

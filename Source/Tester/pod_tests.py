@@ -69,6 +69,8 @@ class PodTest:
     criteria: tuple[str, ...]
     check: Callable[[Run], str] | None = None
     feature: str | None = None
+    # names a second feature and the check that runs with it when the system lacks the first
+    fallback: tuple[str, Callable[[Run], str]] | None = None
     pending: bool = False
     skip: str | None = None
 
@@ -206,6 +208,23 @@ def drift(case: str) -> Callable[[Run], str]:
     return check
 
 
+def twice(case: str) -> Callable[[Run], str]:
+    # checks that two requests for a model fixture case each give its expected answer (contract §4, T-21)
+    def check(run: Run) -> str:
+        for _ in range(2):
+            drift(case)(run)
+        return f"{case}: two answers match the expected answer"
+    return check
+
+
+def review_decisions(run: Run) -> str:
+    # checks that an owner's change with /models updated is aligned (L5), and that a non-owner's edit of an
+    # owned path is a violation (L6), each as the drift tests compare (contract §4, T-22)
+    for case in ("L5", "L6"):
+        drift(case)(run)
+    return "L5 and L6 match the expected answers"
+
+
 def generated(case: str) -> Callable[[Run], str]:
     # checks the /models texts /generate returns against model-golden-outputs.json, each byte for byte;
     # ownership.json is never compared, as people correct it by hand (contract §4)
@@ -309,9 +328,10 @@ TESTS = [
     _row("T-18", "Missing mapped documentation finding", "C4", "AC-02", issues("c8-missing-doc"), **PROSE),
     _row("T-19", "Unchanged mapped documentation finding", "C4", "AC-02", issues("c1-impl-only"), **PROSE),
     _row("T-20", "Code and documentation updated together", "C4", "AC-03", issues("c7-code-and-doc"), **PROSE),
-    _row("T-21", "New findings start PENDING_REVIEW", "C4 C5", "AC-04", pending_review, **PROSE),
-    _row("T-22", "Authorized and unauthorized review decisions", "C7", "AC-05", skip="Phase 5"),
-    _row("T-23", "Read-only analysis, no repository code execution", "C2", "AC-09", skip="checked by inspection"),
+    _row("T-21", "New findings start PENDING_REVIEW", "C4 C5", "AC-04", pending_review,
+         fallback=("model_drift", twice("L2")), **PROSE),
+    _row("T-22", "Authorized and unauthorized review decisions", "C7", "AC-05", review_decisions, **DRIFT),
+    _row("T-23", "Read-only analysis, no repository code execution", "C2", "AC-09", drift("L8"), **DRIFT),
     _row("T-24", "/analyze at L0: aligned: true, three empty lists", "C1 C2 C3 C4 C5", "AC-03", drift("L0"), **DRIFT),
     _row("T-25", "/analyze at L1: aligned: true", "C1 C2 C3 C4 C5", "AC-03", drift("L1"), **DRIFT),
     _row("T-26", "/analyze at L2: one structural ADDED", "C1 C2 C3 C4 C5", "AC-02", drift("L2"), **DRIFT),
@@ -343,15 +363,16 @@ def run_suite(target_url: str, session_id: str, limit: float | None = None,
             on_result(results[-1])
         if result.answered and (result.outcome in ("pass", "fail") or result.source == "system"):
             components.update(test.components)
-            criteria.update(test.criteria)
         if result.outcome in ("pass", "fail"):
+            criteria.update(test.criteria)
             evaluated.add(test.id)
     coverage = {
         "code": _code_coverage(run, session_id),
         "component": _measure(components, COMPONENTS, "components C1 to C7 exercised by a test the target "
                               "answered (pod-contract.md section 5)"),
-        "system": _measure(criteria, CRITERIA, "criteria AC-01 to AC-10 exercised by a test the target "
-                           "answered (pod-contract.md section 5)"),
+        "system": _measure(criteria, CRITERIA, "criteria AC-01 to AC-10 (pod-contract.md section 5), each counted "
+                           "once, from tests that ended pass or fail, with AC-11 counted as AC-02 "
+                           "(specifications.md section 4.1)"),
     }
     if own:
         coverage["model"] = _model_coverage(evaluated)
@@ -364,21 +385,24 @@ def run_suite(target_url: str, session_id: str, limit: float | None = None,
 
 
 def _run_one(test: PodTest, run: Run, features: list, health_failure: tuple | None) -> Result:
-    # decides a test's outcome: limit, fixed skip, pending, missing feature, then its check
+    # decides a test's outcome: limit, fixed skip, pending, missing feature, then its check or its fallback's
     if run.left() <= 0:
         return Result("skip", LIMIT_REACHED, answered=False)
     if test.skip:
         return Result("skip", test.skip, answered=False)
     if test.pending:
         return Result("skip", PENDING, answered=False)
+    check = test.check
     if test.feature:
         if health_failure:
             source, message = health_failure
             return Result("error", f"features unknown, {message}", source, answered=False)
         if test.feature not in features:
-            return Result("skip", f"target does not implement {test.feature}", answered=False)
+            if not test.fallback or test.fallback[0] not in features:
+                return Result("skip", f"target does not implement {test.feature}", answered=False)
+            check = test.fallback[1]
     try:
-        return Result("pass", test.check(run))
+        return Result("pass", check(run))
     except Fail as exc:
         return Result("fail", str(exc))
     except TargetError as exc:
@@ -481,5 +505,6 @@ def requirement_tests(requirements: dict[str, tuple[str, ...]]) -> dict[str, tup
 
 def catalog() -> list[dict]:
     # lists the tests for the /tester page
-    return [{"components": list(t.components), "criteria": list(t.criteria), "feature": t.feature, "id": t.id,
+    return [{"components": list(t.components), "criteria": list(t.criteria),
+             "fallback": t.fallback[0] if t.fallback else None, "feature": t.feature, "id": t.id,
              "pending": t.pending, "skip": t.skip, "title": t.title} for t in TESTS]

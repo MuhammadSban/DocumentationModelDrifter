@@ -199,6 +199,22 @@
         },
         "drift_error": null
       }
+    },
+    {
+      "case": "L8",
+      "request": {
+        "repository": "kaan-kanadasi/doc-tracker-model-fixtures",
+        "commit_id": "c8058c2e8a52b5b1e86710e0821b94437fc438e1"
+      },
+      "expected": {
+        "drift": {
+          "aligned": true,
+          "behavioral": [],
+          "ownership": [],
+          "structural": []
+        },
+        "drift_error": null
+      }
     }
   ]
 }
