@@ -203,23 +203,30 @@ answer, and the rest become rows in `docs/decisions/OPEN-DECISIONS.md`.
 
 1. **Answered by the human, 2026-11-22: approved, build it now.** Is this work approved at all, and
    where does it sit in the queue? It is a direction change with no build-order step, and the Next
-   action is step 0.6b. Row E02-a in `docs/decisions/OPEN-DECISIONS.md` records the word; only the
+   action is step 0.6b. Row E02-a in `docs/decisions/OPEN-DECISIONS.md:23` records the word; only the
    human writes `docs/decisions/RULED/`, so the row stays until they move it, and Done criterion 3
    waits for that.
 2. **Answered by the human, 2026-11-22, by approving the recommendation.** Does the ladder answer
    N3, or pre-empt it? E02 lands as the opt-in and N3's question of the default grain stays open:
    the default grain does not move, no `schema_version` is bumped and no committed model changes,
-   so nothing N3 decides is foreclosed. Row E02-b records it.
+   so nothing N3 decides is foreclosed. Row E02-b records it (`docs/decisions/OPEN-DECISIONS.md:24`).
 3. **Answered by the human, 2026-11-22, by approving the recommendation.** Must the W0-7 ruling
    cover verbosity before this lands? No: E02 lands with the gap named in INV-2 and graded
    DEFERRED, and the W0-7 ruling covers `scope.json` and `verbosity` together, since W0-7 already
-   owes `scope.json` the same fix. Row E02-c records it.
-4. Does the panel remember one level for every repository, or one per repository? One level for
-   every repository is what step 6 builds, being the smaller thing. Settled by the human in the
-   panel's first use, or left as it is.
+   owes `scope.json` the same fix. Row E02-c records it (`docs/decisions/OPEN-DECISIONS.md:25`).
+4. Does the panel remember one level for every repository, or one per repository? **Settled by the
+   design on disk: one level for every repository, one `localStorage` key, per origin** — the
+   design states it and names the cost (`DESIGN.md`, "The panel's memory is per origin", and the
+   per-reader preview row beside it). The memory writes to no repository and to no model
+   (`Source/Frontend/model_drift.py:40-52` regenerates from the commit's files only), so the
+   choice is reversible in one line and needs no row of its own. Left as step 6 builds it.
 5. Does the previewed level belong on a shared link, so that two readers of one screenshot see the
-   same page? The level is in the page's own URL, which a reader of the framed console does not
-   see or copy. Left out of this Epic.
+   same page? **Settled by the code: no, not in this Epic.** The console frames the page in an
+   iframe (`Source/Frontend/index.html:256`, and the URL it builds at `:691`), so the level lives
+   in the frame's own query string, which a reader of the console neither sees nor copies. The
+   note on the page is what a screenshot carries instead (`DESIGN.md`, "Two distinct things").
+   A shareable link would be a change to `Source/Frontend/index.html`, which step 6 and Done
+   criterion 9 both hold unchanged.
 6. **Answered by the human, 2026-11-22.** Should `drifter check` warn when a push lowers the level,
    instead of reporting every dropped element as drift? No: the level is chosen before the first
    model is generated, and a change to it redefines the baseline. `drifter update` regenerates from
@@ -228,7 +235,64 @@ answer, and the rest become rows in `docs/decisions/OPEN-DECISIONS.md`.
 
 ## Review
 
-Not yet reviewed. The design reviewer runs as a fresh subagent, never in the session that drafted
-this Epic, and writes RATIFY or REVISE here with its findings. Status stays `draft` until it does,
-and no step above may start. The human's answers to open questions 1 to 3 are needed before a
-review can settle anything: all three are direction and none can be read off the disk.
+REVISE · design-reviewer at d0b4cef · 2026-11-22
+
+Direction is settled: rows E02-a, E02-b and E02-c all carry the human's word of 2026-11-22
+(`docs/decisions/OPEN-DECISIONS.md:23-25`), and the Epic's text matches what those rows approve.
+Both of the human's corrections are reflected: the panel is on the viewer page and
+`Source/Frontend/index.html` is held unchanged (step 6, Done criterion 9), and a verbosity change
+happens before the first model and redefines the baseline (step 4, Done criterion 8, `DESIGN.md`
+"The level is chosen before the first model exists"). The filled-copy check of
+`docs/templates/README.md` prints nothing for both files. Open questions 4 and 5 are now settled
+from the disk; none needs a row in `docs/decisions/OPEN-DECISIONS.md`. Seventeen of the twenty
+premise rows hold as cited. What blocks RATIFY is three missed generation and caller paths, found
+by checking the premises against the code:
+
+- **Blocking. The "one choke point" premise does not hold.** A second generation site exists:
+  `snapshot()` loops over `GENERATORS` itself and never calls `_regenerate`
+  (`Source/Frontend/model_drift.py:40-52`, imported at `:17` under the `.importlinter` ignore line
+  `Frontend.model_drift -> drifter.check`, `.importlinter:47`). Neither `EPIC.md` nor `DESIGN.md`
+  mentions it. Correct the premise row (`DESIGN.md:105`) to name both sites.
+- **Blocking. Step 6 cannot pass as written: its Files omit `Source/Frontend/model_drift.py`.**
+  `models_view` does not regenerate through `check._regenerate`; it calls
+  `model_drift.snapshot(cmp, cmp.head)` and `model_drift.snapshot(cmp, cmp.base)`
+  (`Source/GitHub_Connector/api.py:198` and `:201`), and `snapshot` takes no level. The level must
+  reach both calls, or the drift chips compare level 4 against the previewed level instead of
+  "that level with itself" (`DESIGN.md`, "Two distinct things"). Add the file and the parameter to
+  step 6, and say that both snapshots take the same level.
+- **Blocking. Step 4 omits the `/system/analyze` caller of `generate_models`.** It writes
+  `generate_models(reader, verbosity)`, but `Source/GitHub_Connector/analysis.py:132` calls
+  `check.generate_models(cmp)` with one argument. Either make the parameter keyword-with-default,
+  as step 2 does for the generators, or list `analysis.py` among step 4's files.
+- **Stale citation.** `DESIGN.md:113` cites `Source/Frontend/model_viewer.py:1-6` for "runs no
+  script but Mermaid today"; line 5 says "no server, no scripts, no network", which `_script()`
+  (`Source/Frontend/model_viewer.py:609`) and `MERMAID` (`:48`) already make untrue. Cite
+  `_script` instead, and add that comment line to step 6's Files, since the panel's memory makes
+  it wronger still.
+- **Off-by-one citations.** The spec sentence "Editing the scope without regenerating the models
+  shows up as drift by itself" begins at `docs/base/specifications.md:263`, not `:264`
+  (`DESIGN.md:104`, step 7, open question 6). `differences` is defined at
+  `Source/drifter/check.py:122`, outside the range `:110-119` cited for it (`DESIGN.md:102`).
+- **Step 7 misses one queue line.** `docs/state/WORK-ITEMS.md:13` still reads "Drafted, waiting on
+  the human … No code", which RATIFY makes untrue; step 7 names only the N7 row (`:240`) and the
+  W0-7 row.
+- **Note, not a defect.** Done criterion 3 can only print nothing after the human moves rows
+  E02-a to E02-c and the detail line `docs/decisions/OPEN-DECISIONS.md:19` into
+  `docs/decisions/RULED/`, which only they write (R1). The Epic says so, and criterion 4 sits
+  after it.
+- **Not run here.** `pytest` and `lint-imports` are not installed in this machine's interpreter,
+  so every `pytest …` line and `PYTHONPATH=Source lint-imports` was checked for form, not
+  executed: every test path named exists, `tests/frontend` holds the 26 tests step 1 tracks
+  (14 in `test_models_view.py`, 12 in `test_behavioral_view.py`), and `.importlinter` defines the
+  five contracts Done criterion 11 expects.
+
+Verified as cited, for the record: `docs/invariants/INVARIANTS.md:16-18` (INV-1, INV-2, INV-3);
+`Source/drifter/check.py:79-83`, `:110-119`, `:225-235`, `:263-270`, `:279-287`, `:290`;
+`Source/drifter/cli.py:4-5`, `:57-65`; `Source/models/structural_model.py:1-2`, `:15`;
+`Source/models/behavioral_model.py:17`; 29 call sites outside the two generator definitions;
+`Source/GitHub_Connector/api.py:169` (`include_in_schema=False`);
+`Source/Frontend/model_viewer.py:52` (`app.css` is the page's style, so step 6's file is right),
+`:87`, `:102`, `:646` (`main`, the standalone render); `docs/base/structure.md:4`;
+`docs/base/specifications.md:213`, `:261`; `docs/diagrams/models-folder.md:27`, `:35`
+("open: JSON Schema"); `docs/diagrams/model-seam.md:11`, `:32` ("One check");
+`docs/state/WORK-ITEMS.md:108` (gap G4), `:185` (W3-1 deletes `_scope_rule`).
