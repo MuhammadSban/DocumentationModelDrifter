@@ -10,7 +10,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 # caps one call to the target, contract §6
 CALL_TIMEOUT = 90.0
@@ -22,6 +22,7 @@ class Reply:
     status: int
     body: object
     text: str
+    new_url: str | None = None  # names a 3xx's Location, made absolute; the tester never follows it
 
 
 class NoReply(Exception):
@@ -56,6 +57,16 @@ def check_target(url: str) -> None:
             raise Refused(f"{host} resolves to {address}, which is not a public address the hosted tester calls")
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    # follows no redirect on any host, so a 3xx comes back as the answer and no unchecked URL is called
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+# sends every call through the handler above
+OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def call(method: str, url: str, payload: object = None, raw: bytes | None = None,
          timeout: float | None = None) -> Reply:
     # sends one request, JSON-encoding payload unless raw bytes are given; any HTTP status is a Reply.
@@ -65,11 +76,14 @@ def call(method: str, url: str, payload: object = None, raw: bytes | None = None
     headers = {"Content-Type": "application/json"} if data is not None else {}
     request = urllib.request.Request(url, data=data, method=method, headers=headers)
     start = time.monotonic()
+    new_url = None
     try:
-        with urllib.request.urlopen(request, timeout=CALL_TIMEOUT if timeout is None else timeout) as resp:
+        with OPENER.open(request, timeout=CALL_TIMEOUT if timeout is None else timeout) as resp:
             status, text = resp.status, resp.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as err:
         status, text = err.code, err.read().decode("utf-8", "replace")
+        location = err.headers.get("Location") if 300 <= status < 400 and err.headers else None
+        new_url = urljoin(url, location) if location else None
     except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as err:
         _log(method, url, "no-reply", start)
         raise NoReply(str(getattr(err, "reason", err))) from None
@@ -78,7 +92,7 @@ def call(method: str, url: str, payload: object = None, raw: bytes | None = None
         body = json.loads(text)
     except ValueError:
         body = None
-    return Reply(status, body, text)
+    return Reply(status, body, text, new_url)
 
 
 def _log(method: str, url: str, status: int | str, start: float) -> None:

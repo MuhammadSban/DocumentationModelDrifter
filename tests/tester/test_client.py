@@ -20,7 +20,7 @@ class FakeResponse(io.BytesIO):
 
 
 def test_each_call_logs_its_method_url_status_and_time(monkeypatch, capsys):
-    monkeypatch.setattr(client.urllib.request, "urlopen", lambda *a, **k: FakeResponse(b"{}"))
+    monkeypatch.setattr(client.OPENER, "open", lambda *a, **k: FakeResponse(b"{}"))
 
     client.call("POST", "https://host/system/analyze", {"x": 1})
 
@@ -33,7 +33,7 @@ def test_an_http_error_logs_its_status(monkeypatch, capsys):
     def http_error(*args, **kwargs):
         raise client.urllib.error.HTTPError("https://host/x", 404, "Not Found", {}, io.BytesIO(b"{}"))
 
-    monkeypatch.setattr(client.urllib.request, "urlopen", http_error)
+    monkeypatch.setattr(client.OPENER, "open", http_error)
 
     assert client.call("GET", "https://host/x").status == 404
     assert capsys.readouterr().out.startswith("tester call GET https://host/x 404 ")
@@ -43,7 +43,7 @@ def test_a_call_with_no_reply_logs_no_reply(monkeypatch, capsys):
     def refused(*args, **kwargs):
         raise client.urllib.error.URLError("refused")
 
-    monkeypatch.setattr(client.urllib.request, "urlopen", refused)
+    monkeypatch.setattr(client.OPENER, "open", refused)
 
     with pytest.raises(client.NoReply):
         client.call("GET", "https://host/x")
@@ -127,3 +127,27 @@ def test_guard_lets_a_local_run_reach_localhost(monkeypatch, local_server):
     target = local_server()
     assert client.call("GET", target.url + "/health").status == 200
     assert target.hits == 1
+
+
+@pytest.fixture
+def redirecting(local_server, monkeypatch):
+    # gives a target whose every answer is a 302 to a second local server
+    monkeypatch.delenv("RAILWAY_PROJECT_ID", raising=False)
+    first, second = local_server(), local_server()
+    first.status = 302
+    first.headers = {"Location": second.url + "/test/setup"}
+    return first, second
+
+
+def test_redirect_is_refused_and_names_the_new_url(redirecting):
+    first, second = redirecting
+    reply = client.call("POST", first.url + "/test/setup", {"session_id": "s", "setup": {}})
+    assert reply.status == 302
+    assert reply.new_url == second.url + "/test/setup"
+
+
+def test_redirect_target_is_never_called(redirecting):
+    first, second = redirecting
+    client.call("GET", first.url + "/health")
+    assert first.hits == 1
+    assert second.hits == 0
