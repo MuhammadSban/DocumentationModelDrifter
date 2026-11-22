@@ -4,7 +4,9 @@
 
 Read this first after a memory loss. It wins over what an agent remembers. Direction is in `STRATEGY.md`; status is only here.
 
-- **Next: W4-8, model coverage (build order steps C.1 to C.3), chosen by the human on 2026-11-22.** Epic `docs/epics/E03-model-coverage/EPIC.md`, in draft. Group 0 of the build order is done.
+- **Next: W4-9, contract 2.5.0 (build order steps C.4 and C.5), chosen by the human on 2026-11-22.** It has no Epic yet. Group 0 of the build order is done.
+- **Done 2026-11-22: W4-8 (steps C.1 to C.3), model coverage.** Our tester reports `coverage.model` over REQ-01 to REQ-07 when it tests our own system; the auditor passed every Done line at `025c9a4` and the human accepted (PR #51; Epic `docs/closed/E03-model-coverage/EPIC.md`).
+- **Left over from E03, for a small follow-up PR:** an end-to-end test that `test_run` passes the own-system answer to `run_suite`, and the tester page showing `coverage.model`.
 - **Left over from E02, for a small follow-up PR:** the init commands in the root `README.md`, the "left out" list of the deleted `file-fetch.md` in `docs/state/tracker-gaps.md`, and two calls of the human's: the Python version on INV-1, and the spec's bot-commit line.
 - **Done 2026-11-21: build order step 0.6b, the data-flow and behavior models.** It has no W-row. `docs/diagrams/` holds five models and their README; the auditor passed every Done line at `d595739` and the human accepted (PR #50; Epic `docs/closed/E02-system-models/EPIC.md`).
 - **Done 2026-11-21: W1-5 (step 0.6a), the module map and its import check.** `lint-imports` checks five import contracts on every PR and every push to `main` (PR #48; Epic `docs/closed/E01-module-map/EPIC.md`; proof in the W1-5 row).
