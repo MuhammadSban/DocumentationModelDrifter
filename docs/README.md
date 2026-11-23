@@ -108,9 +108,9 @@ Finished Epics and dated records: history. Read one only when the task asks for 
 
 ## proposals/
 
-Phase 5 proposals. Not agreed and not built: nothing here changes the code, the contract or the spec until the team accepts it. Read one when its work item starts.
+Phase 5 proposals. Not agreed and not built, except where a file says an Epic applied part of it: nothing here changes the code, the contract or the spec until the team accepts it. Read one when its work item starts.
 
-- `proposals/docker/docker.md` — a `.dockerignore`, a Dockerfile ordered for layer caching, and when to split the containers (W1-2, W1-3, W3-6).
+- `proposals/docker/docker.md` — a `.dockerignore` and a Dockerfile ordered for layer caching, both built by E06 (W1-2, W1-3), and when to split the containers (W3-6).
 - `proposals/init/init.md` — which `/models` files a person may edit after `drifter init`, the self-grant hole, and `drifter validate` (W0-6, W0-7, W3-8).
 - `proposals/ownership/owner-approval.md` — whether an edit by a non-owner is still a violation when an owner approved it (W0-7, W4-7).
 - `proposals/language-engine/README.md` — the multi-language engine in short, and the order to read the folder in (W5-1 to W5-3). Start here.

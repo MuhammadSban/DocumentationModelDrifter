@@ -1,0 +1,15 @@
+# keeps git, env files and caches out of the build context, at any depth
+**/.git
+**/.env*
+**/__pycache__
+**/*.pyc
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
+**/.import_linter_cache
+
+# keeps agent files and the docs out, except the two paths the image copies
+.claude
+docs
+!docs/contract
+!docs/base/requirements-to-tests.md

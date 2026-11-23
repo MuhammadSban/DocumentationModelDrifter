@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # matches the Dockerfile, python:3.12
+      # matches the Dockerfile, python:3.12.16
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.12.16"
       - run: pip install -r requirements.txt -r requirements-dev.txt
       - run: pytest
       - run: ruff check

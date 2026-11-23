@@ -1,0 +1,10 @@
+# names the image's packages; requirements.txt is locked from it by:
+# uv pip compile requirements.in --universal --python-version 3.12 --generate-hashes -o requirements.txt
+fastapi
+uvicorn
+pydantic-settings
+pyyaml
+coverage
+pytest
+jsonschema
+httpx

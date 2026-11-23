@@ -1,6 +1,6 @@
 # Docker build: a .dockerignore and better layer caching
 
-Questions: should the repo add a `.dockerignore` and reorder the `Dockerfile` so builds reuse more cached layers? And should the backend, frontend and database run in separate containers, now or in Phase 5? Written 2026-11-04. A proposal, not yet applied.
+Questions: should the repo add a `.dockerignore` and reorder the `Dockerfile` so builds reuse more cached layers? And should the backend, frontend and database run in separate containers, now or in Phase 5? Written 2026-11-04. R1 and R2 are applied by Epic E06 (2026-11-22), which also locks the packages with hashes and names Python 3.12.16; the container split below is still a proposal.
 
 ## Short answer
 
@@ -8,17 +8,17 @@ Yes, both. They are small, standard practice, and change nothing about how the a
 
 ## Why the change is needed
 
-### 1. There is no `.dockerignore`
+### 1. There was no `.dockerignore`
 
-The `Dockerfile` copies only named paths (`requirements.txt`, `Source/`, `tests/`, `docs/contract/`), so most of the repo never reaches the image. Railway builds from a git checkout, so files ignored by git never reach its build either. The gaps are:
+The `Dockerfile` copies only named paths (`requirements.txt`, `docs/contract/`, `docs/base/requirements-to-tests.md`, `tests/`, `Source/`), so most of the repo never reaches the image. Railway builds from a git checkout, so files ignored by git never reach its build either. The gaps were:
 
-- **Local builds send everything.** `docker build .` first uploads the whole folder to Docker, including `.git` (about 14 MB), `.mypy_cache` and `docs/`. That is slower, and wasted.
-- **Stray files can enter the image on a local build.** `__pycache__` and `.pytest_cache` inside `Source/` or `tests/` are copied in. A `.env` or key file dropped into `Source/` would be too.
+- **Local builds sent caches.** BuildKit sends only the paths the `COPY` lines name, so `.git` and the root `.mypy_cache` stayed out, but `Source/.mypy_cache` (about 19 MB) went in. Measured on 2026-11-22, each from a fresh copy of the checkout: the `transferring context` line read 21.64 MB before the ignore file and 541.74 kB after.
+- **Stray files could enter the image on a local build.** `__pycache__` and `.pytest_cache` inside `Source/` or `tests/` were copied in. A `.env` or key file dropped into `Source/` would have been too.
 - **A future `COPY . .` would copy secrets and `.git`.** The ignore file guards against that change.
 
-### 2. One layer is rebuilt on every code change
+### 2. One layer was rebuilt on every code change
 
-Docker reuses a cached layer only while every step above it is unchanged. The user-creation step comes after the code is copied today:
+Docker reuses a cached layer only while every step above it is unchanged. Before E06, the user-creation step came after the code was copied:
 
 ```
 COPY Source/ ...        <- changes on almost every commit
@@ -27,7 +27,7 @@ COPY docs/contract/ ...
 RUN groupadd ... useradd ... mkdir /app/runs   <- never changes, but rebuilt every time
 ```
 
-So every commit reruns `groupadd`, `useradd` and `mkdir`. The cost is small (a second or two), but the order is wrong, and the image gets a new layer it did not need.
+So every commit reran `groupadd`, `useradd` and `mkdir`. The cost is small (a second or two), but the order is wrong, and the image gets a new layer it did not need.
 
 What is already right: `requirements.txt` is copied and installed before the code, so the slow `pip install` layer is reused unless dependencies change.
 
@@ -35,28 +35,40 @@ What is already right: `requirements.txt` is copied and installed before the cod
 
 ### R1. Add `.dockerignore` at the repo root
 
+As built by E06. Patterns match at any depth (`**/`), since a root-only `.mypy_cache` line misses `Source/.mypy_cache`; `docs` is left out except the two paths the image copies.
+
 ```
-# keeps the build context to what the Dockerfile copies, and secrets out of the image
-.git
+# keeps git, env files and caches out of the build context, at any depth
+**/.git
+**/.env*
 **/__pycache__
 **/*.pyc
-.pytest_cache
-.mypy_cache
-.env*
-docs/diagrams/*.png
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
+**/.import_linter_cache
+
+# keeps agent files and the docs out, except the two paths the image copies
+.claude
+docs
+!docs/contract
+!docs/base/requirements-to-tests.md
 ```
 
 ### R2. Order the `Dockerfile` from least to most often changed
 
+As built by E06:
+
 ```
-FROM python:3.12-slim-trixie
+FROM python:3.12.16-slim-trixie
 RUN apt-get ... git ca-certificates ...            # changes almost never
 RUN groupadd ... useradd ... mkdir -p /app/runs    # moved up: never changes
 WORKDIR /app
 ENV DRIFTER_RUNS_DIR=/app/runs ...                 # moved up with it
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt # changes when dependencies change
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt # changes when dependencies change
 COPY docs/contract/ docs/contract/                 # changes on a contract version bump
+COPY docs/base/requirements-to-tests.md docs/base/requirements-to-tests.md
 COPY tests/ tests/
 COPY Source/ Source/                               # changes most often, so last
 EXPOSE 8000
@@ -69,7 +81,7 @@ Only the order changes. The steps and the final image contents stay the same, an
 
 1. `docker build -t drifter .` twice. The second build shows every step as `CACHED`.
 2. Change one line in `Source/` and rebuild. Every step above `COPY Source/` shows `CACHED`, including `useradd` and `pip install`.
-3. The `transferring context` line in the build output drops from about 15 MB to under 2 MB.
+3. The `transferring context` line in the build output is under 2 MB. E06 measured it from a fresh copy: 21.64 MB before the ignore file, 541.74 kB after.
 4. `docker run -p 8000:8000 drifter`, then `GET /system/health` answers, and `docker run drifter ls -a /app` shows no `__pycache__` or `.env`.
 5. Deploy to Railway and confirm `/system/health` still reports `storage: volume`.
 
