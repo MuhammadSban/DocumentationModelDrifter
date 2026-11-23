@@ -85,9 +85,21 @@ header {
 .split[hidden] { display:none; }
 /* the models are framed, not injected: this console styles .dot, .row and .sub for its watchlist
    rows, which are the classes the ownership map draws itself with */
-#models { width:100%; height:calc(100vh - 48px); border:none; display:block; background:var(--bg-canvas); }
+/* the models tab: the verbosity slider on top, the framed page filling the rest */
+#modelsview { height:calc(100vh - 48px); display:flex; flex-direction:column; }
+#models { width:100%; flex:1; min-height:0; border:none; display:block; background:var(--bg-canvas); }
 #modelsempty { height:calc(100vh - 48px); display:grid; place-items:center; }
-#models[hidden], #modelsempty[hidden] { display:none; }
+#modelsview[hidden], #modelsempty[hidden] { display:none; }
+/* one control for how much of the code the models describe, left of the page it changes */
+#modelsbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; flex:none;
+             padding:9px 16px; background:var(--bg-panel); border-bottom:1px solid var(--border-default); }
+#modelsbar label { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--fg-muted); }
+#verbosity { width:190px; accent-color:var(--accent); }
+#verbosityname { font-size:13px; min-width:66px; }
+#verbositywhat { font-size:12px; color:var(--fg-muted); }
+/* says when the slider is previewing a level the repository has not committed */
+#verbositynote { font-size:12px; color:var(--text-muted); margin-left:auto; }
+#verbositynote.preview { color:var(--work); }
 aside { width:320px; flex-shrink:0; background:var(--bg-panel); border-right:1px solid var(--border-default); display:flex; flex-direction:column; }
 main { flex:1; min-width:0; overflow-y:auto; }
 
@@ -253,7 +265,18 @@ footer.meta .sel { user-select:all; }
   <main id="detail"></main>
 </div>
 
-<iframe id="models" title="Models of the selected repository" hidden></iframe>
+<div id="modelsview" hidden>
+  <div id="modelsbar">
+    <label for="verbosity">Verbosity</label>
+    <input id="verbosity" type="range" min="1" max="4" step="1" value="4"
+           aria-describedby="verbositywhat" list="vsteps">
+    <datalist id="vsteps"><option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option></datalist>
+    <b id="verbosityname">Full</b>
+    <span id="verbositywhat">adds every signature</span>
+    <span id="verbositynote"></span>
+  </div>
+  <iframe id="models" title="Models of the selected repository"></iframe>
+</div>
 <div id="modelsempty" hidden><div class="empty"><p>Pick a repository on the <b>watchlist</b> tab to see its models.</p></div></div>
 
 <script>
@@ -278,6 +301,8 @@ const STORE = "drifter.watchlist.v1";
 /* ---- state. results live in memory only; never persisted ---- */
 let repos = [];          // {repo, branch, base, paused, state, code, msg, count, since, checked, runId}
 let selected = null;
+let verbosity = null;      // the level this console asks for; null means "as the repository committed it"
+let committedLevel = null; // the level the framed page reports having drawn from /models
 let result = null;       // AnalysisResult | {expired:true} | null
 let apiBase = "";        // "" means same origin, i.e. through tools/ui.py
 let rate = { remaining: 60, reset: 0 };
@@ -288,7 +313,7 @@ let timer = null, ticker = null;
 function save() {
   try {
     localStorage.setItem(STORE, JSON.stringify({
-      api: apiBase, interval: iv(), paused,
+      api: apiBase, interval: iv(), paused, verbosity,
       repos: repos.map(r => ({ repo:r.repo, branch:r.branch, base:r.base, paused:r.paused, runId:r.runId }))
     }));
   } catch (e) { /* private window or blocked storage: run in-memory */ }
@@ -301,6 +326,8 @@ function load() {
     const d = JSON.parse(raw);
     apiBase = d.api || "";
     paused = !!d.paused;
+    // only a level this ladder holds; anything else falls back to the committed one
+    verbosity = LEVELS[d.verbosity] ? Number(d.verbosity) : null;
     if (d.interval) $("#interval").value = String(d.interval);
     repos = (d.repos || []).map(r => ({
       repo:r.repo, branch:r.branch || null, base:r.base, paused:!!r.paused, runId:r.runId || null,
@@ -681,16 +708,49 @@ function setView(next) {
 /* points the frame at the selected repository's models. The server regenerates the structural
    model from the code at that commit and marks drift against the commit before it, so this
    view costs one clone per repository looked at. */
+/* the verbosity ladder, named as the models page names it. The slider previews a level: it changes
+   what this console draws and nothing in the repository, which is what drifter update --verbosity
+   does. */
+const LEVELS = {
+  1: ["Overview", "the packages and the imports between them"],
+  2: ["Types", "adds the classes, and what extends what"],
+  3: ["Members", "adds the functions and methods each one offers"],
+  4: ["Full", "adds every signature"]
+};
+
 function renderModels() {
   const frame = $("#models");
   const r = repos.find(x => x.repo === selected);
   const show = view === "models" && !!r;
-  frame.hidden = !show;
+  $("#modelsview").hidden = !show;
   $("#modelsempty").hidden = view !== "models" || !!r;
   if (!show) { frame.removeAttribute("src"); return; }
+  // panel=off: this console carries the control, so the framed page draws its note without
+  // repeating the stops. No verbosity means the page draws the level the repository commits, so
+  // an untouched slider never forces a level on a repository that chose its own.
   const want = api("/models/view?repository=" + encodeURIComponent(r.repo) +
-                   "&commit_id=" + encodeURIComponent(r.base));
+                   "&commit_id=" + encodeURIComponent(r.base) + "&panel=off" +
+                   (verbosity === null ? "" : "&verbosity=" + verbosity));
   if (frame.getAttribute("src") !== want) frame.setAttribute("src", want);
+}
+
+/* names the level beside the slider, so the number is never the only thing that says what it is.
+   verbosity null means "as the repository committed it", which is what the page shows when this
+   console sends no level; committedLevel is what the page reports back once it has drawn. */
+function renderVerbosity() {
+  const shown = verbosity === null ? (committedLevel || 4) : verbosity;
+  const [name, what] = LEVELS[shown] || LEVELS[4];
+  $("#verbosity").value = String(shown);
+  $("#verbosityname").textContent = name;
+  $("#verbositywhat").textContent = what;
+  const note = $("#verbositynote");
+  // only a level this console asked for, differing from the one the repository commits, is a
+  // preview. Until the page reports its level we claim nothing.
+  const previewing = verbosity !== null && committedLevel !== null && verbosity !== committedLevel;
+  note.textContent = previewing
+    ? "previewing — drifter check uses level " + committedLevel + ", the one committed"
+    : "";
+  note.classList.toggle("preview", previewing);
 }
 
 /* =========================================================
@@ -772,6 +832,21 @@ $("#poll").onclick = () => { if (!paused) sweep(); };
 $("#tab-watch").onclick = () => setView("watch");
 $("#tab-models").onclick = () => setView("models");
 
+/* the verbosity slider: input names the level while dragging, change reloads the frame at it, so
+   one drag across four stops is one reload and not four */
+$("#verbosity").oninput = () => { verbosity = Number($("#verbosity").value); renderVerbosity(); };
+$("#verbosity").onchange = () => { verbosity = Number($("#verbosity").value); save(); renderModels(); };
+
+/* the framed page says which level it drew and which the repository commits, so the slider can
+   start where the repository is and the bar can tell a preview from the committed level. Same
+   machine, two integers, no secret: the page posts to whoever framed it. */
+addEventListener("message", (e) => {
+  const d = e.data;
+  if (!d || d.drifter !== "level") return;
+  committedLevel = Number(d.committed) || null;
+  renderVerbosity();
+});
+
 $("#rows").onkeydown = e => {
   if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Enter") return;
   e.preventDefault();
@@ -787,6 +862,7 @@ $("#api").value = apiBase || location.origin;
 if (!apiBase) apiBase = "";
 schedule();
 ticker = setInterval(() => { if (repos.some(r => r.state === "analyzing" || r.state === "watching")) renderList(); }, 1000);
+renderVerbosity();
 render();
 if (new URLSearchParams(location.search).has("demo")) demo();
 else if (repos.length && !paused) sweep();
