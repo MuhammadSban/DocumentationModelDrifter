@@ -7,7 +7,7 @@ Epic: `docs/epics/E07-who-writes-models/EPIC.md`
 Nothing new is built. This is who writes each file of `/models` today, stated in a second model:
 
 - `structural.json` and `behavioral.json` are written only by `drifter init` and `drifter update`. `drifter check` and `POST /system/analyze` regenerate them in memory and never write them. `POST /system/generate` returns them and does not save them.
-- `ownership.json` and `scope.json` are written once by `drifter init`. After that, a person edits them by hand, in a reviewed commit. `drifter update` reads `scope.json` and leaves `ownership.json` untouched.
+- `ownership.json` and `scope.json` are written once by `drifter init`. After that, a person edits them by hand. `data-flow.md` draws that person as "A person, in a reviewed commit"; that is the intended rule, and nothing enforces the review while INV-2 is DEFERRED. `drifter update` reads `scope.json` and leaves `ownership.json` untouched.
 - A person does not edit the two generated files by hand. A hand edit that does not match the code is listed on every check. At the default volatility, 1 (Exact), it is drift. At a higher volatility it is drift only once the model carries more changes than that level tolerates.
 
 `docs/diagrams/data-flow.md` draws the writers as dotted arrows into `/models` and holds this as the table "## Who writes /models" (`:71-79`). After this Epic, `docs/diagrams/models-folder.md`, the model of the folder itself, holds the same table under the same heading, at the end of the file. Neither drawing changes. The one change to `data-flow.md` is the qualifier on its last row, which PR #61 (volatility) made necessary.
@@ -31,4 +31,4 @@ Every fact the structure rests on, checked against the disk before it is written
 |---|---|---|
 | E07-1 | The two models hold the same table of writers | Done line 7 of the Epic: `git grep -h -A8 "^## Who writes /models" -- docs/diagrams/data-flow.md docs/diagrams/models-folder.md \| tr -d '\r' \| grep -vx -- "--" \| sort \| uniq -u` → prints nothing |
 | E07-2 | A hand edit to `behavioral.json` that removes a state the code still makes is drift at the default volatility | `python -m pytest tests/drifter/test_cli.py -q -k hand_edit_to_behavioral` → `1 passed` |
-| INV-2 | No author can change the ownership or scope rules to pass their own change. This Epic restates who edits those files and changes nothing about it | not changed: row stays DEFERRED in `docs/invariants/INVARIANTS.md`; `git diff --stat main...HEAD -- docs/invariants/` → empty |
+| INV-2 | No author can change the ownership or scope rules to pass their own change. This Epic restates who edits those files and changes nothing about it | not changed: row stays DEFERRED in `docs/invariants/INVARIANTS.md`; `git fetch`, then `git diff --stat origin/main...HEAD -- docs/invariants/` → empty |
