@@ -626,3 +626,57 @@ gap and two claims the last three commits made untrue:
 - **Unchanged and still true.** Done criterion 3 prints nothing only after the human moves rows
   E02-a to E02-c and `docs/decisions/OPEN-DECISIONS.md:19` into `docs/decisions/RULED/`, which only
   they write (R1). Criterion 4 sits after it.
+
+REVISE · design-reviewer at fd70387 · 2026-11-22
+
+Fourth review, of `fd70387`, which fixes the third review's findings in docs only; no file under
+`Source/` or `tests/` has changed since the third review ran, so every run recorded there still
+stands. **All five blocking findings are genuinely addressed, and the citation fix is better than
+what was asked for:** code references in `DESIGN.md` and in the drafter's parts of `EPIC.md` are now
+file plus symbol, which cannot rot with a line number, and line numbers are kept only where a
+reader counts rows (`docs/invariants/INVARIANTS.md:16` and `:17` are INV-1 and INV-2, as cited).
+Every symbol the rewritten premise table names exists on disk: `_regenerate`, `model_differences`,
+`generate_one`, `generate_models`, `regenerate_models`, `read_sources`, `Sources`, `_scope_rule`,
+`GENERATORS` and `PARAMETERS` in `Source/drifter/check.py`; `snapshot` and `_scope` in
+`Source/Frontend/model_drift.py`; `models_view` with its `include_in_schema=False` in
+`Source/GitHub_Connector/api.py`; `generate`, which holds `check.generate_models(cmp)`, in
+`Source/GitHub_Connector/analysis.py`; `_init` in `Source/drifter/cli.py`; `_script`, `MERMAID`,
+`main`, `_provenance` and `_compared` in `Source/Frontend/model_viewer.py`; and
+`test_update_with_a_level_changes_it_and_rebaselines_in_one_commit`. No premise changed meaning in
+the rewrite, and two are now more accurate for being in the past tense (the old `GENERATORS`
+annotation, and the 29 invocations). Done line 5 now runs `tests/drifter`, so steps 8 and 10 are
+pinned; run here, line 8 gives exactly `7 passed, 77 deselected`, the new line 13 gives exactly
+`2 passed, 82 deselected`, and line 5's command gives 254 passed with only the known Apple-Git
+`test_fetch` failure. The filled-copy check prints nothing for both files, step 7's heading now
+matches its trailer, and the headings of steps 8 to 10 match the trailers `git log` shows. What
+blocks RATIFY is three lines, each a one-line fix, and nothing else:
+
+- **Blocking. The Done-run table was not re-run with the lines it now has.** Row 8 records
+  `Pass, 5 passed, 79 deselected`, which is the old selector's output; the new line 8 gives
+  `7 passed, 77 deselected`. There is no row 13, so the one line that pins step 10 has no recorded
+  result. And the correction paragraph says "The counts in the table below are from the run after
+  that correction" while the table sits **above** it and holds the counts from before. A reader of
+  that table still cannot tell that steps 8 and 10 were run, which is the defect the paragraph was
+  written to close. Refresh row 8, add row 13, and point the sentence at the table above it.
+- **Blocking. One spec citation was left behind at the old line.** `DESIGN.md`, in the prose above
+  the premise table, still cites `docs/base/specifications.md:263-264` for "Editing the scope
+  without regenerating the models shows up as drift by itself". That sentence is now at `:268-269`;
+  `:263-264` hold the verbosity sentence step 7 inserted. The premise row for the same fact was
+  correctly changed to `§3.2, Scope` — make the prose match it.
+- **Blocking. Step 6's Files still cite the pre-build line numbers.** "passes the **same** level to
+  both `snapshot` calls, at `:198` and `:201`" — those calls are now in `models_view` at `:212` and
+  `:216`. Name them by symbol, as the design's premise row now does. (The module comment cited at
+  `:5` is still the right line, and `Source/Frontend/index.html:256` and `:691` in open question 5
+  both still hold.)
+- **Non-blocking.** The revision note and open question 4 still cite
+  `Source/Frontend/model_drift.py:40-52` for `snapshot`, which now runs to `:56`, so the range stops
+  just before the `generate_one` line it is cited for. Drop the range.
+- **Addressed, for the record.** The seam now says which half is general and spells the cost of a
+  second parameter as a row plus a line in `generate_one` plus its generator argument plus three
+  call sites (`docs/diagrams/model-seam.md`, "Adding the next parameter"); `DESIGN.md`'s "What is
+  missing" names what step 10 built, what is still verbosity's own, and the hosted `init`'s level-4
+  limit; `docs/state/WORK-ITEMS.md:13` and `:240` and `docs/README.md` say ten steps and name
+  `drifter update --verbosity`.
+- **Unchanged and still true.** Done criterion 3 prints nothing only after the human moves rows
+  E02-a to E02-c and `docs/decisions/OPEN-DECISIONS.md:19` into `docs/decisions/RULED/`, which only
+  they write (R1). Criterion 4 sits after it. Direction was not re-opened.
