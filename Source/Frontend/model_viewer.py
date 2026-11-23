@@ -129,7 +129,7 @@ def fragment(
     # renders the models alone, without a page around them, so the console can put them inside
     # its own shell: the parameters panel, then one panel per model, in the order a reader meets them
     sections = [
-        _structural(models.structural, verdict),
+        _structural(models.structural, verdict, drawn_level),
         _behavioral(models.behavioral, verdict),
         _ownership(models.ownership, models.scope, verdict, derived=derived),
     ]
@@ -302,15 +302,24 @@ def _chip(model: str, verdict: Verdict | None) -> str:
     return '<span class="chip ok">same as previous commit</span>'
 
 
-def _structural(model: StructuralModel | None, verdict: Verdict | None = None) -> str:
+def _structural(
+    model: StructuralModel | None, verdict: Verdict | None = None, level: int = FULL
+) -> str:
     # shows the code as two models, each answering one question and holding only what that
     # question needs (docs/agents/modeling.md): which parts depend on which, and which types
     # extend which. Everything the question does not need is counted, never drawn, so a diagram
     # carries a shape instead of a grid of facts.
+    #
+    # The level leads the counts, because the packages diagram is the same at every one of them:
+    # it is drawn from module nodes and imports edges, which no level drops. Without the level
+    # said plainly, the top of this panel looks identical at Overview and at Full, and a reader
+    # concludes the setting does nothing.
     if model is None:
         return _missing("Structural", STRUCTURAL_FILE)
     kinds = Counter(node.kind for node in model.nodes)
+    name = LEVEL_NAMES.get(level, (str(level), ""))[0]
     meta = [
+        f"verbosity <b>{level} of {len(LEVEL_NAMES)}, {escape(name)}</b>",
         f"schema_version <b>{escape(str(model.schema_version))}</b>",
         *(
             f"<b>{kinds[kind]}</b> {_plural(kinds[kind], kind)}"
@@ -319,10 +328,11 @@ def _structural(model: StructuralModel | None, verdict: Verdict | None = None) -
         ),
         f"<b>{len(model.edges)}</b> {_plural(len(model.edges), 'edge')}",
     ]
-    return _panel("Structural", meta, _components(model) + _classes(model), _chip("structural", verdict))
+    body = _components(model, level) + _classes(model)
+    return _panel("Structural", meta, body, _chip("structural", verdict))
 
 
-def _components(model: StructuralModel) -> str:
+def _components(model: StructuralModel, level: int = FULL) -> str:
     # the component model, split so that each picture runs down the page instead of across it:
     # one diagram of the packages and the imports between them, then one small diagram per
     # package of the imports inside it. A layered layout turns fan-out into width, so one
@@ -345,6 +355,18 @@ def _components(model: StructuralModel) -> str:
             None,
             f"No module imports another module of this repository, so there is nothing to draw. "
             f"All {len(folder)} {_plural(len(folder), 'module')} stand alone.",
+        )
+    if level == OVERVIEW:
+        # Overview answers which parts depend on which and stops there: one picture of the
+        # packages, and a line saying what the levels above add rather than drawing it
+        inside_count = len({m for pairs in inside.values() for pair in pairs for m in pair})
+        return _packages(across, folder) + _figure(
+            "Modules in each package",
+            "Inside one package, which module depends on which?",
+            None,
+            f"Not drawn at Overview. {inside_count} "
+            f"{_plural(inside_count, 'module')} import another module of their own folder; "
+            "raise verbosity to Types to see them, and the classes with them.",
         )
     return _packages(across, folder) + _insides(inside, folder, drawn)
 
