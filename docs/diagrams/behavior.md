@@ -75,8 +75,8 @@ What one `POST /system/analyze` can answer. "Saved" means a run file exists and 
 
 | Ending | HTTP | What tells it apart | When | Saved |
 |---|---|---|---|---|
-| Aligned | 200 | `drift.aligned` is `true`; the three lists are empty; `drift_error` is null | the regenerated models match the committed ones and no commit breaks an ownership rule | yes |
-| Drift | 200 | `drift.aligned` is `false`; `structural`, `behavioral` and `ownership` list each difference | any of the three lists is not empty | yes |
+| Aligned | 200 | `drift.aligned` is `true`; `drift_error` is null. At volatility 1, the default, the three lists are empty; above it `structural` and `behavioral` may each list up to the level's tolerance (3, 9 or 29), and `ownership` is empty: an ownership violation is never tolerated | no model carries more differences than `scope.json`'s volatility tolerates, none at the default, and no commit breaks an ownership rule | yes |
+| Drift | 200 | `drift.aligned` is `false`; `structural`, `behavioral` and `ownership` list each difference | a model carries more differences than `scope.json`'s volatility tolerates (any at the default, 1), or a commit breaks an ownership rule | yes |
 | No verdict | 200 | `drift` is null; `drift_error.code` is `MODELS_NOT_FOUND`, `INVALID_MODELS`, `FILE_TOO_LARGE` or `PARSE_FAILED`, with a message that names the file | a file in `/models` is missing or invalid; an in-scope file is over 1 MB, not UTF-8 or does not parse | yes |
 | Over the change limit | 200 | `status` is `ERROR`; `error.code` is `CHANGE_LIMIT_EXCEEDED`; `changes`, `skipped` and `unmapped` are empty | more than 2000 files changed between base and head. It is not a fourth verdict: `drift` or `drift_error` is filled as in one of the three rows above | yes |
 | Bad request | 400 | `code` is `INVALID_REQUEST` | the body is not a JSON object, a field is missing or has the wrong type, the repository is not two names joined by a slash, or a SHA is not 7 to 40 hex digits | no |
@@ -102,7 +102,7 @@ Reading a run again: `GET /system/analysis/{analysis_id}` answers 200 with the s
 | No verdict | 2 | `drift` null and the `drift_error` |
 | git fails: an unknown commit, or a folder that is no checkout | 1 | a Python traceback, no JSON. The same exit code as drift; row CLI-1 of `docs/decisions/OPEN-DECISIONS.md` asks whether that is a defect |
 
-The CLI has no slot, no deadline, no change limit and no HTTP errors. `drifter init` and `drifter update` end the same way on a no-verdict code: they print the `drift_error`, write nothing and exit 2 (`Source/drifter/cli.py:43-52`).
+The CLI has no slot, no deadline, no change limit and no HTTP errors. `drifter init` and `drifter update` end the same way on a no-verdict code: they print the `drift_error`, write nothing and exit 2 (`Source/drifter/cli.py:57-67`).
 
 ## The lifecycle's own transitions
 
@@ -112,36 +112,36 @@ The CLI has no slot, no deadline, no change limit and no HTTP errors. `drifter i
 
 ## Premises, verified
 
-Every state, status code and limit above, checked against the code on 2026-11-21 at `21e7921`, and re-cited on 2026-11-22 after E05 moved the slot and the deadline. Paths are under `Source/`.
+Every state, status code and limit above, checked against the code on 2026-11-21 at `21e7921`, and re-cited on 2026-11-22 after E05 moved the slot and the deadline. Re-cited again on 2026-11-22 at `0829935`, after PR #54 to #64 moved `api.py`, `check.py` and `cli.py`; rows that cite only other files are as E05 left them, since those files have not changed. Paths are under `Source/`.
 
 | Premise | Source | Holds? |
 |---|---|---|
-| Every error code has one HTTP status: 400 for `INVALID_REQUEST`, 404 for the three not-found codes, 500 for `ANALYSIS_FAILED` and `STORAGE_FAILED`. | `GitHub_Connector/api.py:32-39`, `:70-73` | yes |
-| A body FastAPI rejects is answered 400 `INVALID_REQUEST`, never 422. | `GitHub_Connector/api.py:84-102` | yes |
+| Every error code has one HTTP status: 400 for `INVALID_REQUEST`, 404 for the three not-found codes, 500 for `ANALYSIS_FAILED` and `STORAGE_FAILED`. | `GitHub_Connector/api.py:33-40`, `:71-74` | yes |
+| A body FastAPI rejects is answered 400 `INVALID_REQUEST`, never 422. | `GitHub_Connector/api.py:85-103` | yes |
 | The repository and each SHA are checked by pattern before any git call: 7 to 40 hex digits for a SHA. | `GitHub_Connector/analysis.py:34-48`, `:88` | yes |
-| At most 2 runs hold a slot; the others wait for one only until their own deadline, and a wait that reaches it is 500 `ANALYSIS_FAILED`. `/system/generate` and `/models/view` wait for the same slots the same way. | `GitHub_Connector/analysis.py:51-62`, `:70-82`, `:89`, `:152`; `GitHub_Connector/api.py:178-181`; `GitHub_Connector/settings.py:43` | yes |
+| At most 2 runs hold a slot; the others wait for one only until their own deadline, and a wait that reaches it is 500 `ANALYSIS_FAILED`. `/system/generate` and `/models/view` wait for the same slots the same way. | `GitHub_Connector/analysis.py:51-62`, `:70-82`, `:89`, `:152`; `GitHub_Connector/api.py:192`; `GitHub_Connector/settings.py:43` | yes |
 | The deadline is 80 s and runs from arrival, the moment the route's function starts, so the wait for a slot counts against it. | `GitHub_Connector/analysis.py:65-67`, `:87`, `:150`; `GitHub_Connector/settings.py:40` | yes |
-| `GET /system/health` runs on the event loop, not in the thread pool where waiting checks sit, so it answers while they wait. | `GitHub_Connector/api.py:144-154` | yes |
+| `GET /system/health` runs on the event loop, not in the thread pool where waiting checks sit, so it answers while they wait. | `GitHub_Connector/api.py:145-155` | yes |
 | The deadline is checked when a git call starts and caps that call; one git call is capped at 60 s. Both end in 500 `ANALYSIS_FAILED`. | `GitHub_Connector/fetch.py:171-182`, `:196-201`; `GitHub_Connector/settings.py:39` | yes |
-| Besides the wait for a slot, nothing checks the deadline outside a git call. | `GitHub_Connector/analysis.py:74`, `:162-169`; `drifter/check.py:89-99` | yes |
+| Besides the wait for a slot, nothing checks the deadline outside a git call. | `GitHub_Connector/analysis.py:74`, `:162-169`; `drifter/check.py:91-107` | yes |
 | A clone that exits non-zero is 404 `REPOSITORY_NOT_FOUND`, whatever made it fail; the code does not tell a missing repository from a network failure. A clone that runs out of time is a 500. | `GitHub_Connector/fetch.py:280-291`, `:178-182` | yes |
 | A head or base that does not resolve to a commit is 404 `COMMIT_NOT_FOUND`. | `GitHub_Connector/fetch.py:268-269`, `:294-310` | yes |
 | Changes are detected after the commits resolve, before the drift check. | `GitHub_Connector/fetch.py:270-275`; `GitHub_Connector/analysis.py:96-106` | yes |
 | Over 2000 changed files sets `status` `ERROR` and `CHANGE_LIMIT_EXCEEDED` and empties the three lists; the result is still built and saved, with the drift answer made before the limit is judged. | `GitHub_Connector/analysis.py:106`, `:115-121`, `:123-141`; `docs/contract/mapping-v1.1.yaml:78` | yes |
 | `status` is `ERROR` only for the change limit. | `GitHub_Connector/schemas.py:31-34`; `GitHub_Connector/analysis.py:115-119` | yes |
 | A drift error is caught and becomes `drift` null with `drift_error`; it leaves `status` alone. | `GitHub_Connector/analysis.py:162-169` | yes |
-| The four no-verdict codes and where each is raised: `MODELS_NOT_FOUND`; `INVALID_MODELS`; `FILE_TOO_LARGE`; `PARSE_FAILED`. | `drifter/check.py:221-223`; `:352-412`; `:243-244`; `:246-249`, `:344-349` and `models/common.py:12-39` | yes |
+| The four no-verdict codes and where each is raised: `MODELS_NOT_FOUND`; `INVALID_MODELS`; `FILE_TOO_LARGE`; `PARSE_FAILED`. | `drifter/check.py:297-299`, `:365-366`; `:444-512`; `:319-320`; `:321-325`, `:436-441` and `models/common.py:12-39` | yes |
 | A failed or incomplete download inside the drift check is an `AnalysisError`, which the drift check does not catch: 500, not no verdict. | `GitHub_Connector/fetch.py:93-95`, `:106-107`, `:125-129`; `GitHub_Connector/analysis.py:168` | yes |
-| Any other failure, a git call that exits non-zero included, is 500 `ANALYSIS_FAILED`. | `GitHub_Connector/fetch.py:183-184`; `GitHub_Connector/api.py:76-81` | yes |
-| `aligned` is true only when all three lists are empty. | `drifter/check.py:94-99` | yes |
+| Any other failure, a git call that exits non-zero included, is 500 `ANALYSIS_FAILED`. | `GitHub_Connector/fetch.py:183-184`; `GitHub_Connector/api.py:77-82` | yes |
+| `aligned` is true only when no model carries more differences than `scope.json`'s volatility tolerates and the ownership list is empty; at the default, 1, that is all three lists empty. | `drifter/check.py:91-107`, `:127-144` | yes |
 | `issues` is always `[]`. | `GitHub_Connector/analysis.py:132` | yes |
 | The run file is written once, after the clone is gone; a failed write is 500 `STORAGE_FAILED` and leaves no file. | `GitHub_Connector/analysis.py:140-143`; `GitHub_Connector/runs.py:32-44` | yes |
 | Every HTTP error is raised before the save, or by it, so none leaves a run file. | `GitHub_Connector/analysis.py:88`, `:89`, `:95`, `:106`, `:141` | yes |
-| The 200 body is the saved bytes, and GET serves the file unchanged. | `GitHub_Connector/api.py:105-108`, `:117-125`; `GitHub_Connector/runs.py:17-24` | yes |
-| GET answers 404 `ANALYSIS_NOT_FOUND` for an unknown or malformed id. | `GitHub_Connector/api.py:120-124`; `GitHub_Connector/runs.py:14`, `:47-52` | yes |
+| The 200 body is the saved bytes, and GET serves the file unchanged. | `GitHub_Connector/api.py:106-109`, `:118-126`; `GitHub_Connector/runs.py:17-24` | yes |
+| GET answers 404 `ANALYSIS_NOT_FOUND` for an unknown or malformed id. | `GitHub_Connector/api.py:121-125`; `GitHub_Connector/runs.py:14`, `:47-52` | yes |
 | An HTTP error's body is `code` and `message`. | `GitHub_Connector/schemas.py:125-128`, `:157-168` | yes |
-| The CLI exits 0 when aligned, 1 on drift and 2 with no verdict. | `drifter/cli.py:49-54` | yes |
-| The CLI catches only a drift error; a failed git call is uncaught: a traceback and exit 1. | `drifter/cli.py:43-52`; `drifter/check.py:453-455`; `python -m drifter.cli check 0000000` ended in `CalledProcessError`, exit 1 | yes |
-| `drifter init` refuses with exit 1 when a file exists and `--force` is absent. | `drifter/cli.py:57-65` | yes |
-| `drifter update` rewrites structural and behavioral only. | `drifter/cli.py:46-48`; `drifter/check.py:279-287` | yes |
-| An ownership violation is judged per commit in base..head, so regenerating `/models` does not clear it. | `drifter/check.py:167-190`; `GitHub_Connector/fetch.py:135-139` | yes |
+| The CLI exits 0 when aligned, 1 on drift and 2 with no verdict. | `drifter/cli.py:64-69` | yes |
+| The CLI catches only a drift error; a failed git call is uncaught: a traceback and exit 1. | `drifter/cli.py:57-67`; `drifter/check.py:553-555`; `python -m drifter.cli check 0000000` ended in `CalledProcessError`, exit 1 | yes |
+| `drifter init` refuses with exit 1 when a file exists and `--force` is absent. | `drifter/cli.py:72-80` | yes |
+| `drifter update` rewrites structural and behavioral, and writes `scope.json` too only when `--verbosity` gives a new level. | `drifter/cli.py:60-63`; `drifter/check.py:361-379` | yes |
+| An ownership violation is judged per commit in base..head, so regenerating `/models` does not clear it. | `drifter/check.py:243-266`; `GitHub_Connector/fetch.py:135-139` | yes |
