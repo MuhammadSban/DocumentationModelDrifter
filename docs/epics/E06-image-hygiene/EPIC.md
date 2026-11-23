@@ -91,7 +91,7 @@ Lines 5, 7, 8, 10, 11 and 17 need Docker Desktop running, and lines 5 to 11 and 
 
 Baseline, the same for every Epic:
 
-1. CI green: `gh run list --commit $(git rev-parse HEAD) --limit 1 --json conclusion --jq ".[0].conclusion"` → `success`. CI runs on the pushed HEAD of `E06-image-hygiene`; each push is on the human's word.
+1. CI green: `gh run list --commit $(git rev-parse HEAD) --event push --limit 1 --json conclusion --jq ".[0].conclusion"` → `success`. CI runs on the pushed HEAD of `E06-image-hygiene`; each push is on the human's word. `--event push` reads the push run on HEAD, never the pull_request run, which tests the merge with `main`.
 2. Spec lines updated: `git diff --stat main...HEAD -- docs/base/specifications.md` → prints nothing: this Epic changes no behavior, and spec §2.2 already asks for the pin
 3. No open row for this Epic: `git grep -n "E06" -- docs/decisions/OPEN-DECISIONS.md` → prints nothing
 4. The human accepts. The one line that is the human's word and not a command: it comes after lines 1 to 3 and the Epic's own lines pass.
@@ -106,7 +106,7 @@ This Epic's own:
 10. A change in `Source/` reuses every layer above it: `T=$(mktemp -d) && git archive HEAD | tar -x -C "$T" && docker build -q "$T" && echo "# e06 $(date +%s%N)" >> "$T/Source/drifter/__init__.py" && docker build --progress=plain "$T" 2>&1 | grep -E "^#[0-9]+ (\[|CACHED)"` → every step from the apt install to `COPY tests/ tests/` is followed by a `CACHED` line, and `COPY Source/ Source/` is not. The appended line differs on every run: a fixed text makes the changed `Source/` the same each time, so a second run finds that layer in Docker's build cache and `COPY Source/` reads `CACHED`
 11. A wrong hash fails the build: `T=$(mktemp -d) && git archive HEAD | tar -x -C "$T" && sed -i "s/sha256:[0-9a-f]\{8\}/sha256:00000000/g" "$T/requirements.txt" && docker build --progress=plain "$T" 2>&1 | grep -c "DO NOT MATCH THE HASHES"` → a number above 0. The change is made in the temporary copy; `git status --short` in the checkout prints nothing afterwards.
 12. One exact Python in both files: `grep -n "3\.12\.[0-9]" Dockerfile .github/workflows/ci.yml` → the `FROM python:3.12.16-slim-trixie` line of the `Dockerfile` and the `python-version: "3.12.16"` line of `ci.yml`, with its comment; no line names another patch
-13. The whole suite passes in CI: `gh run view $(gh run list --commit $(git rev-parse HEAD) --limit 1 --json databaseId --jq ".[0].databaseId") --log | grep -E "[0-9]+ passed"` → the line holds `362 passed` and no `failed` (358 at `ff79932`, plus 4). `361 passed, 1 skipped` also counts: `tests/connector/test_golden.py` skips when the runner cannot reach the fixture repository (INV-1).
+13. The whole suite passes in CI: `gh run view $(gh run list --commit $(git rev-parse HEAD) --event push --limit 1 --json databaseId --jq ".[0].databaseId") --log | grep -E "[0-9]+ passed"` → the line holds `362 passed` and no `failed` (358 at `ff79932`, plus 4). `361 passed, 1 skipped` also counts: `tests/connector/test_golden.py` skips when the runner cannot reach the fixture repository (INV-1).
 14. The new tests pass: `python -m pytest tests/image/test_image.py -q` → the summary line starts with `4 passed` and has no `failed`
 15. The old claims are gone from the proposal: `LC_ALL=C.UTF-8 grep -Pzo -e 'not\s+yet\s+applied|about\s+14\s+MB|about\s+15\s+MB' docs/proposals/docker/docker.md` → prints nothing and exits 1. Without a UTF-8 locale, `grep -P` exits 2 with an error on stderr and prints nothing on stdout, so the exit status is part of the result. The grep reads the file as one record (`-z`) and `\s+` matches a line break. Run on the file at `ff79932` it prints all three phrases.
 16. The image installs with hash checking on: `grep -c "^RUN .*--require-hashes" Dockerfile` → `1`. Only `RUN` lines count, so a comment that names the flag cannot change the figure.
@@ -134,6 +134,8 @@ The human decided the calls in the W1-2 row (`docs/state/WORK-ITEMS.md:143`). Th
 - Does a first build from a fresh folder print the whole context's size on its `transferring context` line? Checked in step 1, where the size before must come out near the 59.77 MB summed from the files; if Docker sends only the paths the `COPY` lines name, the builder writes that in the log, and step 5 writes it beside the two sizes in the W1-2 row. Review: no file, model or ruling answers it; it is BuildKit's behavior, not the human's call. If BuildKit sends only the `COPY` paths, the size before is near 21 MB (`Source/` with its 19.86 MB `.mypy_cache`, `tests/`, `docs/contract/`), not 59.77 MB; the step already says what to write then.
 
 ## Review
+
+Revised after the verdict below, on the auditor's finding at `b91e137`: once PR #59 opened, `--limit 1` in Done lines 1 and 13 picked the pull_request run 45097476388, which tests the merge with `main` and gave `448 passed`, not the push run 45093126779 with `362 passed`. Both lines now pass `--event push` to `gh run list`; line 13's expected output is unchanged. On `b91e137` the new command picks run 45093126779. The next reviewer writes its verdict above this paragraph.
 
 RATIFY · design-reviewer at de1a166 · 2026-11-22 (reported, not written by the reviewer)
 
