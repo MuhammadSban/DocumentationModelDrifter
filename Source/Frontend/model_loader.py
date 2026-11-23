@@ -7,6 +7,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from models.structural_model import FULL, KEPT_KINDS
+
 # names the files the generators write into a repository's /models folder
 STRUCTURAL_FILE = "structural.json"
 BEHAVIORAL_FILE = "behavioral.json"
@@ -100,9 +102,12 @@ class OwnershipModel:
 
 @dataclass(frozen=True)
 class Scope:
-    # which paths count as the code the models describe, as include and exclude patterns (spec 3.2)
+    # which paths count as the code the models describe, as include and exclude patterns, and the
+    # generation parameters the repository declares (spec 3.2). verbosity is how much of the code
+    # the structural model describes, FULL where the file declares none.
     include: tuple[str, ...]
     exclude: tuple[str, ...]
+    verbosity: int = FULL
 
 
 @dataclass(frozen=True)
@@ -200,7 +205,19 @@ def scope_from_dict(data: dict, label: str | Path) -> Scope:
     return Scope(
         include=tuple(_field(data, "include", label)),
         exclude=tuple(_field(data, "exclude", label)),
+        verbosity=_level(data.get("verbosity")),
     )
+
+
+def _level(value: object) -> int:
+    # reads a declared verbosity level, FULL where it is absent or outside this build's ladder.
+    # Total rather than raising, unlike the required fields above: this value only labels the page
+    # with the level it is drawing, so a level of 7 should mislabel nothing and fail nothing. The
+    # check refuses such a value outright, which is where refusing belongs (drifter/check.py,
+    # _scope_rule).
+    if isinstance(value, bool) or not isinstance(value, int) or value not in KEPT_KINDS:
+        return FULL
+    return value
 
 
 def _read(path: str | Path) -> dict:
