@@ -13,7 +13,7 @@ FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef)
 
 # how much of the code the model describes, set by scope.json's verbosity key. Each level keeps
 # everything the level below it keeps, so a level is a subset of the one above; FULL is what this
-# generator has always written, and is the default (docs/epics/E02-model-parameters/DESIGN.md).
+# generator has always written, and is the default (docs/closed/E02-model-parameters/DESIGN.md).
 OVERVIEW, TYPES, MEMBERS, FULL = 1, 2, 3, 4
 
 # names the node kinds each level keeps. Edges follow from the nodes rather than from a table of

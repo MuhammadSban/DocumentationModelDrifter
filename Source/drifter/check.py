@@ -31,7 +31,7 @@ MODEL_FILES = ("behavioral.json", "ownership.json", "scope.json", "structural.js
 
 # defaults drifter init writes into scope.json (spec 3.2). No verbosity key: an absent one means
 # FULL, so init's bytes are what they were before the level existed, and only a repository that
-# asks for another level carries it (docs/epics/E02-model-parameters/EPIC.md, step 4)
+# asks for another level carries it (docs/closed/E02-model-parameters/EPIC.md, step 4)
 DEFAULT_SCOPE = {"exclude": ["tests/**"], "include": ["**/*.py"]}
 
 # caps one in-scope file, over this there is no verdict (spec 5.2)

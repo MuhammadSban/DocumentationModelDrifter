@@ -1,6 +1,14 @@
 # E02: Model generation parameters, and verbosity as the first one
 
-Status: ratified · Owner: Kaan
+Status: closed · Owner: Kaan
+
+**Closed on 2026-11-22 by the human's word, with two Done lines not met.** Line 1, CI green, was
+never evaluated: nothing is pushed and `gh` is not installed, so no run exists. Line 3, no open row
+for E02, still prints four lines, because only the human writes `docs/decisions/RULED/` (R1) and
+rows E02-a to E02-c are still in `docs/decisions/OPEN-DECISIONS.md`. The human was told both before
+accepting and asked for the close anyway. Both are recorded in full under Audit, and neither is a
+claim that the work beneath them was checked: lines 2 and 5 to 13 were, twice, by the builder and
+then by the auditor.
 
 W-row: N7 in `docs/state/WORK-ITEMS.md` · Branch: `E02-model-parameters`
 
@@ -104,7 +112,12 @@ argument and the seam gains the argument on one generator only, as `DESIGN.md` s
   level from `sources.models["scope.json"]`, which `read_sources` has already parsed;
   `regenerate_models` reads the level from the scope it already reads; `DEFAULT_SCOPE` carries
   `verbosity`; `_scope_rule` rejects anything that is not an integer from 1 to 4 with
-  `INVALID_MODELS`); `tests/drifter/test_cli.py` (a committed `scope.json` at level 1 gives a
+  `INVALID_MODELS`); `Source/models/structural.schema.json` (a third node variant, `memberNode`,
+  for a function or method named without its signature, which level 3 writes and which matched
+  neither existing variant; added while building this step, see step 5's Result);
+  `tests/frontend/test_behavioral_view.py` (one unused `pytest` import removed: step 1 tracked this
+  file, which put it in front of `ruff` for the first time and turned CI's lint step red);
+  `tests/drifter/test_cli.py` (a committed `scope.json` at level 1 gives a
   structural model of modules and imports only, and a `check` against it is aligned rather than
   reporting every dropped element as `REMOVED`; a level of 0, of 5, of `true` and of "high" each
   give `INVALID_MODELS`; `update` at a changed level rewrites the models and a `check` straight
@@ -180,7 +193,9 @@ and no committed model moves.
 
 - Files: `Source/Frontend/model_drift.py` (`snapshot(reader, commit, verbosity=None)` passes the
   level to the structural generator, reading the commit's own `scope.json` through `_scope` when
-  none is given); `Source/GitHub_Connector/api.py` (`models_view` gains
+  none is given); `Source/drifter/check.py` (`verbosity_of` answers the default for a level this
+  ladder does not hold, so the page can read a scope nothing has validated rather than fail on a
+  level of 7); `Source/GitHub_Connector/api.py` (`models_view` gains
   `verbosity: int | None = None`, validated 1 to 4, passes the **same** level to both of its
   `snapshot` calls, at the head and at the base, and hands `render` the route the page was served from so the panel's
   form has somewhere to submit, plus the committed level so the page can name both);
@@ -229,7 +244,10 @@ change and Team 16 agrees to nothing.
   models when a level is given, and only the two models otherwise); `tests/drifter/test_cli.py`
   (`update --verbosity 1` on a level-4 repository writes the key and regenerates at it, and a
   `check` on the single commit that carries both is aligned; `update` with no flag still leaves
-  `scope.json` byte-identical)
+  `scope.json` byte-identical); `docs/diagrams/models-folder.md` (loses the paragraph that
+  described the two-commit dance, which the flag replaces); `docs/base/specifications.md` and
+  `docs/diagrams/model-seam.md` (both point at the flag, as R2 and R6 require); this `EPIC.md` (the
+  third revision note)
 - Check: `pytest tests/drifter -q` → passes
 - Trailer: `Step: 8/10`
 
@@ -394,6 +412,55 @@ Every line below was then re-run, each with the command the criterion now carrie
 
 The whole suite, which is wider than line 5, gives `368 passed` with the same single failure.
 `ruff check` passes, which is not a Done line but is half of what CI runs.
+
+## Audit
+
+`auditor at e0dd084 · 2026-11-22`, run from a session that did not build this Epic, per
+`docs/epics/README.md`. It re-ran every line rather than reading the table above.
+
+**Lines 2 and 5 to 13 pass. Line 1 is not runnable here. Line 3 fails, and only the human can
+close it. Line 4 is the human's word.** Every count the table above records was reproduced exactly;
+the auditor reports no difference anywhere. The working tree was clean before and after. It also
+confirmed the `test_fetch` failure independently, by running that one test in a throwaway worktree
+at `main`, where it fails the same way: local git is `2.39.5 (Apple Git-154)`, and
+`git cat-file --batch` exits 128 on a blobless clone instead of giving the `AnalysisError` the test
+expects. So it is this machine's git, not this Epic.
+
+**Line 1, CI green: not runnable, and so never evaluated.** `gh` is not installed and nothing has
+been pushed, so no run exists on this commit. Making it runnable needs `gh` installed and
+authenticated and the branch pushed. **This Epic therefore closes without CI having seen a single
+one of its commits**, which R3 cares about: nothing deploys red, and nothing here has been proved
+green either. The first push of this branch is where that is settled.
+
+**Line 3, no open row for E02: fails, by design.** The grep prints four lines, rows E02-a to E02-c
+and their section's detail line at `docs/decisions/OPEN-DECISIONS.md:19`. They carry the human's
+approval of 2026-11-22, but only the human writes `docs/decisions/RULED/` (R1), so no agent can
+close this line. It passes when the human moves those four lines into a ruling.
+
+### What the audit found beyond the criteria: three steps touched files their Files list does not name
+
+Recorded here rather than quietly corrected, because a Files list is what a reader checks a step
+against. Every divergence is additive and none contradicts a step's check.
+
+- **Step 3 (`e0dfdfe`).** Two files beyond its list. `Source/models/structural.schema.json`, the
+  `memberNode` variant, which step 5's Result paragraph discloses but step 3's own Files list does
+  not, where a reader looks for it. And `tests/frontend/test_behavioral_view.py`, one unused
+  `pytest` import removed, **disclosed nowhere in this Epic until now**: tracking that file in step
+  1 put it in front of `ruff` for the first time and turned CI's lint step red, so the import had
+  to go for step 3's own check to pass.
+- **Step 6 (`a5c5558`).** One file beyond its list, `Source/drifter/check.py`, which gained
+  `verbosity_of`'s total fallback so the page can read a scope nothing has validated.
+- **Step 8 (`80caaeb`).** Three files beyond its list: `docs/base/specifications.md` and
+  `docs/diagrams/model-seam.md`, both pointed at `update --verbosity` as R2 and R6 require, and
+  this `EPIC.md` for the revision note. `docs/diagrams/models-folder.md` is also touched and the
+  step's prose does announce it.
+
+**And "one commit per step" is not literally true of steps 7 and 10.** Five commits repeat a
+trailer: `Step: 7/7` on `7eb7653`, `5652a83` and `49609e0`, and `Step: 10/10` on `0b198e8`,
+`b569cc5`, `eae122b`, `fd70387` and `1ad757f`. All of the extras are docs-only follow-ups, the
+Done-run records and the fixes for reviews three and four. The rule exists so that a step's check
+and its commit line up, and each of these commits ran the step's check; it would read more honestly
+as one commit per step plus its corrections.
 
 ### Driven by hand, 2026-11-22
 

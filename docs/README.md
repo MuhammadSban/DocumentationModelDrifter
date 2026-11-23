@@ -94,8 +94,6 @@ Blank forms. Copy one into place and fill only the copy.
 Live Epics, one folder each. Finished ones move to `closed/`; never build from one.
 
 - `epics/README.md` — how an Epic is named, how it and its W-row name each other, its branch, its lifecycle from draft to closed, and when a change needs no Epic. Read it before drafting, reviewing, building or closing an Epic.
-- `epics/E02-model-parameters/EPIC.md` — the Epic for N7, built and awaiting the human's rulings: a `verbosity` key in `scope.json` that decides how much of the code the structural model describes, and a panel on the models page itself that previews any level. All ten steps are committed on its branch; it waits on rows E02-a to E02-c being moved to `RULED/`.
-- `epics/E02-model-parameters/DESIGN.md` — that Epic's design: the four-level ladder, why a generation parameter lives in committed `/models`, how a level change redefines the baseline, why the panel needs no script to work, and what a complete solution would add.
 
 ## closed/
 
@@ -104,6 +102,8 @@ Finished Epics: history. Read one only when the task asks for it, and never buil
 - `closed/E00-docs-move/EPIC.md` — the example Epic: the docs move of W2-5 (step 0.2a), written after the fact. Read it to see a filled template.
 - `closed/E01-module-map/EPIC.md` — the closed Epic for W1-5 (step 0.6a): give the system's first diagram the name `diagrams/dependency.md`, extend it into the module map, and have CI check imports against it with `lint-imports`. Read it for how the module map and `.importlinter` came about; the standing model is `diagrams/dependency.md`.
 - `closed/E01-module-map/DESIGN.md` — that Epic's design: the four layers, the allowed calls, the public names, the five import contracts and the two imports that break the map today.
+- `closed/E02-model-parameters/EPIC.md` — the closed Epic for N7: a `verbosity` key in `scope.json` deciding how much of the code the structural model describes, from 1, the packages and their imports, to 4, every signature; `drifter init --verbosity` and `drifter update --verbosity`; and a parameters panel on the models page that previews any level. Closed with Done lines 1 and 3 not met, which its header and its Audit section record.
+- `closed/E02-model-parameters/DESIGN.md` — that Epic's design: the four-level ladder, why a generation parameter lives in committed `/models`, the three generation sites the level reaches, why the panel needs no script to work, and what a complete solution would add.
 
 ## proposals/
 
