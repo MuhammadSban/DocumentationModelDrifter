@@ -8,9 +8,11 @@ import re
 import warnings
 from functools import lru_cache
 
+JAVASCRIPT_EXTENSIONS = (".js", ".mjs", ".cjs", ".jsx")
+
 
 class ParseFailed(Exception):
-    # reports an in-scope file that is not valid Python, the spec's PARSE_FAILED (3.2, 5.2)
+    # reports invalid in-scope source, the spec's PARSE_FAILED (3.2, 5.2)
     code = "PARSE_FAILED"
 
     def __init__(self, path: str, line: int | None, reason: str):
@@ -25,8 +27,15 @@ def parse_files(files: dict[str, str]) -> dict[str, ast.Module]:
     # parses every file (repo-relative path -> text) before any model is built, so one bad file
     # fails the whole check; returns the trees by path, in path order
     trees = {}
+    javascript = False
     for path in sorted(files):
         try:
+            if path.endswith(JAVASCRIPT_EXTENSIONS):
+                from models.javascript_model import parse_javascript
+
+                trees[path] = parse_javascript(path, files[path])
+                javascript = True
+                continue
             # silences SyntaxWarning, a warning is not a parse failure
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -36,6 +45,10 @@ def parse_files(files: dict[str, str]) -> dict[str, ast.Module]:
         except ValueError as exc:
             # catches source ast cannot read at all, such as a null byte
             raise ParseFailed(path, None, str(exc)) from None
+    if javascript:
+        from models.javascript_model import lower_javascript
+
+        trees.update(lower_javascript(trees))
     return trees
 
 
