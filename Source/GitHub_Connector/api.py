@@ -184,6 +184,7 @@ def models_view(
     # verbosity previews the models at one level of the ladder without committing it; absent, the
     # page shows the level the repository itself declares. A level outside the ladder is a 422 from
     # Query, before any clone, so the panel can never ask for a level no generator has.
+    deadline = arrival_deadline()
     validate(AnalysisRequest(repository=repository, commit_id=commit_id))
     # takes a check slot like analyze, so the page cannot swamp real checks
     with slot_until(deadline), fetch(repository, commit_id, None, deadline) as cmp:
