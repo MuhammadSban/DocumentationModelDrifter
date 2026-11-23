@@ -119,9 +119,9 @@ baseline. Validation is inline because `scope.json` has no schema yet; if W3-1 l
 step adds the key to `scope.schema.json` instead and the check command is unchanged.
 
 There is no single choke point, and this step no longer claims one. The core generates a model in
-two places, `_regenerate` and `model_differences` (`Source/drifter/check.py:116`, which never calls
-`_regenerate`), and the console's page in a third, `snapshot`
-(`Source/Frontend/model_drift.py:40-52`), which step 6 covers. `model_differences` is the site that
+two places, `_regenerate` and `model_differences` (in `Source/drifter/check.py`, which never calls
+`_regenerate`), and the console's page in a third, `snapshot` (in
+`Source/Frontend/model_drift.py`), which step 6 covers. `model_differences` is the site that
 matters most: miss it and `drifter check` regenerates at level 4 against a level-1 committed model
 and reports every element the level drops as `REMOVED`, which is why this step's tests assert an
 aligned check at level 1 and not only a trimmed model.
@@ -205,7 +205,7 @@ with no JavaScript; only the memory needs the page's first script, which `DESIGN
 property knowingly spent. The route stays out of the OpenAPI document, so this is not a contract
 change and Team 16 agrees to nothing.
 
-### Step 7/10: Update the models, the spec and the docs map
+### Step 7/7: Update the models, the spec and the docs map
 
 - Files: `docs/diagrams/model-seam.md` (the generator contract line, and one sentence that a
   parameter is committed in `/models` and never passed from a request); `docs/diagrams/models-folder.md`
@@ -288,7 +288,7 @@ Baseline, the same for every Epic:
 This Epic's own:
 
 5. Level 4 is today's bytes, so no committed model and no golden moves:
-   `pytest tests/structural tests/behavioral tests/connector tests/drift tests/common -q` → passes,
+   `pytest tests/structural tests/behavioral tests/connector tests/drift tests/common tests/drifter -q` → passes,
    and `git diff --stat main...HEAD -- docs/contract/` → prints nothing
 6. The ladder is a ladder: `pytest tests/structural/test_verbosity.py -q` → passes, its subset case
    asserting that every element at one level is present at the level above
@@ -297,10 +297,11 @@ This Epic's own:
    more, levels 0, 5, `true`, `null`, a list, an object and "high" each giving `INVALID_MODELS`
    through the check, and `init` refusing one before it writes anything
 8. The level is set before the first model and a change to it redefines the baseline:
-   `pytest tests/drifter/test_cli.py -q -k "init_sets_the_level or redefines_the_baseline or default_level"`
-   → 5 passed, its cases being `init --verbosity` at each of levels 1 to 3 followed by an aligned
-   `check`, a hand-edited level followed by `update` and an aligned `check`, and `init` at the
-   default writing byte-identical files whether or not the level is asked for
+   `pytest tests/drifter/test_cli.py -q -k "init_sets_the_level or baseline or default_level or leaves_the_scope_alone"`
+   → 7 passed, its cases being `init --verbosity` at each of levels 1 to 3 followed by an aligned
+   `check`; `init` at the default writing byte-identical files whether or not the level is asked
+   for; a hand-edited level followed by a plain `update`, which takes two commits; and
+   `update --verbosity`, which takes one and which a plain `update` leaves `scope.json` alone for
 9. The page carries the panel and names both levels:
    `pytest tests/frontend -q` → passes, including the 422 case, the note case, the standalone case
    and the case that proves both snapshots take the previewed level, and
@@ -314,6 +315,10 @@ This Epic's own:
 12. The hole is named, not opened: `git grep -n "verbosity" -- docs/invariants/INVARIANTS.md docs/state/WORK-ITEMS.md`
     → INV-2's row and the W0-7 row both print, so the ruling that closes `scope.json` is on record as
     having to close verbosity with it
+13. The parameter seam holds, so the next parameter plugs into it instead of editing the validator:
+    `pytest tests/drifter/test_cli.py -q -k "declared_parameter or the_declaration_covers"` →
+    2 passed, one walking every row of `PARAMETERS` through the reader and the validator, the other
+    pinning that verbosity's allowed values are the generator's own ladder
 
 ## Open questions
 
@@ -350,7 +355,7 @@ answer, and the rest become rows in `docs/decisions/OPEN-DECISIONS.md`.
    instead of reporting every dropped element as drift? No: the level is chosen before the first
    model is generated, and a change to it redefines the baseline. `drifter update` regenerates from
    the committed scope, so the new models are the baseline and nothing is reported. The one case
-   left, an edit without a regeneration, is already covered by `docs/base/specifications.md:263-264`.
+   left, an edit without a regeneration, is already covered by `docs/base/specifications.md` §3.2, Scope.
 
 ## Done, as run by the drafting session
 
@@ -374,9 +379,14 @@ session that did not build the Epic.
 | 11. Imports follow the map | Pass, `Contracts: 5 kept, 0 broken.` |
 | 12. The hole is named | Pass, 1 and 3. |
 
-Re-run in full after step 10, at the commit that corrected the page's advice. The counts above are
-that run's. Steps 8 to 10 add no Done line: step 8's behaviour is pinned by line 8's selector, step
-9's by line 5's whole-suite run, and step 10's by the two seam tests inside line 5.
+**Corrected after the third review, which found this paragraph untrue.** It claimed steps 8 to 10
+needed no Done line of their own. Two of its three clauses were wrong: line 5 ran
+`tests/structural tests/behavioral tests/connector tests/drift tests/common` and so never ran
+`tests/drifter` at all, and line 8's selector matched step 3's hand-edit case but neither of step
+8's own tests. Steps 8 and 10 were pinned by nothing while the Epic said they were pinned. Line 5
+now runs `tests/drifter` too, line 8's selector reaches `update --verbosity` and the plain-`update`
+case, and step 10 has its own line, 13. Step 9's connector tests were genuinely inside line 5 all
+along. The counts in the table below are from the run after that correction.
 
 `ruff check` passes, which is not a Done line but is half of what CI runs. Lines 7 and 8 were
 corrected here on the same day: their `-k verbosity` selectors matched no test, the test names
@@ -392,7 +402,7 @@ throwaway repository of two modules, a class, an inheriting class and an async m
   true`, exit 0.
 - The level raised to 4 by hand and committed without regenerating: five `ADDED` differences, exit
   1, which is the spec's "editing the scope without regenerating the models shows up as drift by
-  itself" (`docs/base/specifications.md:263-264`). Then `drifter update`, commit, `drifter check`:
+  itself" (`docs/base/specifications.md` §3.2, Scope). Then `drifter update`, commit, `drifter check`:
   `aligned: true`, exit 0. That is the re-baseline.
 - The service started with the Dockerfile's `uvicorn` line: `GET /system/health` 200,
   `storage: ephemeral`. `GET /models/view` with no level drew level 4 and the note "which is the

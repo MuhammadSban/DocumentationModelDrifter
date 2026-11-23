@@ -45,8 +45,8 @@ commits did work, the first of them deliberately red; the flag replaced them wit
 Either way the models `update` writes **are** the new baseline. Nothing reports the elements the old
 level held and the new one does not: there is no comparison between two levels anywhere, because
 the check never compares two commits' models. It regenerates at one commit and sets the result
-against the model committed at that same commit (`model_differences` and `differences`,
-`Source/drifter/check.py:110-136`, and "One check" in `docs/diagrams/model-seam.md`).
+against the model committed at that same commit (`model_differences` and `differences` in
+`Source/drifter/check.py`, and "One check" in `docs/diagrams/model-seam.md`).
 
 Both sides of that comparison therefore read their level from the same committed `scope.json`, and
 can never disagree about it. The one case left is a person who edits the level and does not
@@ -59,15 +59,15 @@ Verbosity is part of the scope, so the sentence covers it as written.
 Corrected twice: the first review found the second site, the second review found the third. There
 is no choke point. A model is generated in three places, and the level reaches all three.
 
-1. **`_regenerate(files, verbosity)`**, `Source/drifter/check.py:290`, for `generate_models`
+1. **`_regenerate(files, verbosity)`** in `Source/drifter/check.py`, for `generate_models`
    (`drifter init` and `POST /system/generate`) and `regenerate_models` (`drifter update`).
-2. **`model_differences`**, `Source/drifter/check.py:110-119`, for the check itself. It takes the
-   generator out of `GENERATORS` at `:112` and calls it at `:116` without going through
-   `_regenerate`. It reads the level from `sources.models["scope.json"]`, which `read_sources` has
-   already parsed and validated (`Source/drifter/check.py:230`), so `Sources` gains no field. This
-   is the site that matters most: miss it and the check regenerates at level 4 against a level-1
-   committed model and reports every element the level drops as `REMOVED`.
-3. **`snapshot(reader, commit, verbosity)`**, `Source/Frontend/model_drift.py:40-52`, which the
+2. **`model_differences`** in `Source/drifter/check.py`, for the check itself. It calls
+   `generate_one` directly, without going through `_regenerate`, and reads the level from
+   `sources.models["scope.json"]`, which `read_sources` has already parsed and validated with
+   `_scope_rule`, so `Sources` gains no field. This is the site that matters most: miss it and the
+   check regenerates at level 4 against a level-1 committed model and reports every element the
+   level drops as `REMOVED`.
+3. **`snapshot(reader, commit, verbosity)`** in `Source/Frontend/model_drift.py`, which the
    console's models page uses for its naive chip. It loops over `GENERATORS` itself and never calls
    `_regenerate` either. That duplication is known and is not this Epic's to repair:
    `.importlinter:47` carries the ignore line `Frontend.model_drift -> drifter.check` with the
@@ -83,10 +83,10 @@ longer share one signature and `ruff` is not a type checker that would have caug
 annotation going stale.
 
 `snapshot` already reads the commit's own `scope.json` to choose its files (`_scope`,
-`Source/Frontend/model_drift.py:80-89`), so the committed level is there to be read when no level
+`_scope` in the same file), so the committed level is there to be read when no level
 is given. A level passed in is the panel's preview and overrides it.
 
-`Source/GitHub_Connector/api.py:198` and `:201` call `snapshot` twice, at the head and at the base,
+`models_view` in `Source/GitHub_Connector/api.py` calls `snapshot` twice, at the head and at the base,
 and the chip is the comparison of the two. Both calls take the same level, or the chip would set
 the previewed level against level 4 and report drift that is only the preview. This is what makes
 the page's claim true that the chips compare the drawn level with itself.
@@ -136,26 +136,26 @@ Every fact the structure rests on, checked against the disk before it is written
 |---|---|---|
 | INV-1 already counts `/models` among the inputs that fix the bytes, so a parameter inside it needs no rewording | `docs/invariants/INVARIANTS.md:16`, INV-1 | yes |
 | INV-2 already covers the scope rules, so a parameter inside `scope.json` inherits the W0-7 hole and its fix rather than opening a new one | `docs/invariants/INVARIANTS.md:17`, INV-2 | yes |
-| The check never compares two commits' models: it regenerates at one commit and sets that against the model committed at the same commit, so two levels are never diffed against each other | `Source/drifter/check.py:110-136`, `model_differences` and `differences`; "One check" in `docs/diagrams/model-seam.md` | yes |
+| The check never compares two commits' models: it regenerates at one commit and sets that against the model committed at the same commit, so two levels are never diffed against each other | `model_differences` and `differences` in `Source/drifter/check.py`; "One check" in `docs/diagrams/model-seam.md` | yes |
 | **Corrected in step 8, by driving the installed command.** `drifter update` reads the scope committed at the commit, not the working tree, so on its own it is **not** the re-baseline a level change needs: it regenerates at the old level and leaves the repository in drift. `update --verbosity` writes the level and the models together, which is one commit. | `Source/drifter/cli.py`, the module comment and `update`'s `--verbosity`; `Source/drifter/check.py`, `regenerate_models`; driven by hand on 2026-11-22 and pinned by `test_update_with_a_level_changes_it_and_rebaselines_in_one_commit` | no, as first written; yes as corrected |
-| The spec already states the semantic for editing the scope without regenerating, and verbosity is part of the scope | `docs/base/specifications.md:263-264` | yes |
-| **Corrected twice, by the first and second reviews. There is no choke point: three sites generate a model and the level must reach all three.** `_regenerate` serves init, update and `POST /system/generate`; `model_differences` calls the generator itself for the check; the console's page has its own loop over `GENERATORS` | `Source/drifter/check.py:290`, `_regenerate`, called at `:267` and `:287`; `Source/drifter/check.py:112` and `:116`, `model_differences`, which never calls `_regenerate`; `Source/Frontend/model_drift.py:51`, inside `snapshot` | yes, as corrected |
-| Only structural has a ladder, so one function decides which generator takes a level and the three sites do not each repeat it | `generate_one` beside `GENERATORS`, added by this Epic; behavioral keeps every element at every level while N2 is unruled | by construction |
-| The `GENERATORS` annotation stops being true of one entry once structural takes a level, and nothing would catch it: CI runs `ruff`, not a type checker | `Source/drifter/check.py:103`, `dict[str, Callable[[dict[str, str]], dict]]`; `.github/workflows/ci.yml` runs `pytest`, `ruff check` and `lint-imports` only | yes, so step 3 retypes it |
-| The console's page regenerates through `snapshot` twice, at the head and at the base, so both calls must take the same level or the chip compares the preview with level 4 | `Source/GitHub_Connector/api.py:198` and `:201` | yes |
-| `snapshot` already reads the commit's own `scope.json`, so the committed level is there to read when the panel passes none | `Source/Frontend/model_drift.py:44` and `:80-88`, `_scope` | yes |
-| `model_drift`'s duplicate reading is known and owned by another row, so E02 passes the level and does not unify the two sites | `.importlinter:47`, the ignore line `Frontend.model_drift -> drifter.check` and its comment "removed by W3-3"; W3-3's row in `docs/state/WORK-ITEMS.md` | yes |
-| **Corrected after the first review.** `generate_models` has a second caller that passes one argument, so its new parameter is keyword with a default and `analysis.py` needs no edit | `Source/GitHub_Connector/analysis.py:132`, `check.generate_models(cmp)` | yes, as corrected |
-| The check already has the committed scope parsed and validated where the generators run, so `Sources` needs no new field | `Source/drifter/check.py:79-83` and `:230`, `_scope_rule(models["scope.json"])` | yes |
-| `drifter init` writes `scope.json` itself, so a flag can set the level before the first generation | `Source/drifter/check.py:263-270`, `generate_models`, and `Source/drifter/cli.py:57-65` | yes |
-| `generate_structural(files)` and `generate_behavioral(files)` take one argument today | `Source/models/structural_model.py:15`, `Source/models/behavioral_model.py:17` | yes |
-| 29 invocations would break on a positional parameter, which is why the new one is keyword with a default | `grep -rn "generate_structural(\|generate_behavioral(" Source tests` gives 29 outside the two definitions | yes |
-| The structural model already carries exactly the four node kinds and two edge kinds the ladder cuts on | `Source/models/structural_model.py:1-2`; the `structural.json` box of `docs/diagrams/models-folder.md` | yes |
-| `scope.json` has no JSON Schema yet, so a new key is validated where `_scope_rule` validates the rest | `Source/drifter/check.py:230`, `:285`; `docs/diagrams/models-folder.md` lists "open: JSON Schema"; W3-1 is the row that adds it, and W3-1 deletes `_scope_rule` in favour of the schema | yes |
-| `GET /models/view` is the console's own route, kept out of the OpenAPI document, so a new query parameter is not a contract change and needs no agreement from Team 16 | `Source/GitHub_Connector/api.py:169`, `include_in_schema=False` | yes |
-| The viewer page runs no script but Mermaid today, so the panel's memory ends that property; its function does not need to | `Source/Frontend/model_viewer.py:609`, `_script`, and `:48`, `MERMAID`. Its module comment at `:5` says "no server, no scripts, no network", which those two already make untrue and the panel's memory makes wronger; step 6 rewords it | yes |
-| The page is rendered standalone with no server, where a form has nowhere to submit | `Source/Frontend/model_viewer.py:646`, `main`, and the CLI line of its module comment at `:3` | yes |
-| The viewer page already carries notes that separate what a page shows from what it proves, in the style this panel's note follows | `Source/Frontend/model_viewer.py:102`, `_provenance`, and `:87`, `_compared` | yes |
+| The spec already states the semantic for editing the scope without regenerating, and verbosity is part of the scope | "Editing the scope without regenerating the models shows up as drift by itself", `docs/base/specifications.md` §3.2, Scope | yes |
+| **Corrected twice, by the first and second reviews. There is no choke point: three sites generate a model and the level must reach all three.** `_regenerate` serves init, update and `POST /system/generate`; `model_differences` calls `generate_one` itself for the check, never `_regenerate`; the console's page has its own loop over `GENERATORS` | `_regenerate`, `model_differences` and `generate_one` in `Source/drifter/check.py`; `snapshot` in `Source/Frontend/model_drift.py` | yes, as corrected |
+| Only structural has a ladder, so one function decides which generator takes a level and the three sites do not each repeat it | `generate_one` beside `GENERATORS` in `Source/drifter/check.py`, added by this Epic; behavioral keeps every element at every level while N2 is unruled | by construction |
+| The `GENERATORS` annotation stops being true of one entry once structural takes a level, and nothing would catch it: CI runs `ruff`, not a type checker | the `GENERATORS` declaration in `Source/drifter/check.py`, which was `dict[str, Callable[[dict[str, str]], dict]]`; `.github/workflows/ci.yml` runs `pytest`, `ruff check` and `lint-imports` only | yes, so step 3 retypes it |
+| The console's page regenerates through `snapshot` twice, at the head and at the base, so both calls must take the same level or the chip compares the preview with level 4 | the two `model_drift.snapshot` calls in `models_view`, `Source/GitHub_Connector/api.py` | yes |
+| `snapshot` already reads the commit's own `scope.json`, so the committed level is there to read when the panel passes none | `snapshot` and `_scope` in `Source/Frontend/model_drift.py` | yes |
+| `model_drift`'s duplicate reading is known and owned by another row, so E02 passes the level and does not unify the two sites | the ignore line `Frontend.model_drift -> drifter.check` in `.importlinter` and its comment "removed by W3-3"; W3-3's row in `docs/state/WORK-ITEMS.md` | yes |
+| **Corrected after the first review.** `generate_models` has a second caller that passes one argument, so its new parameter is keyword with a default and `analysis.py` needs no edit | `check.generate_models(cmp)` inside `generate`, `Source/GitHub_Connector/analysis.py` | yes, as corrected |
+| The check already has the committed scope parsed and validated where the generators run, so `Sources` needs no new field | the `Sources` dataclass and `read_sources`, which calls `_scope_rule(models["scope.json"])`, in `Source/drifter/check.py` | yes |
+| `drifter init` writes `scope.json` itself, so a flag can set the level before the first generation | `generate_models` in `Source/drifter/check.py` and `_init` in `Source/drifter/cli.py` | yes |
+| `generate_structural(files)` and `generate_behavioral(files)` took one argument before this Epic | the two definitions in `Source/models/structural_model.py` and `Source/models/behavioral_model.py` | yes |
+| 29 invocations would break on a positional parameter, which is why the new one is keyword with a default | `grep -rn "generate_structural(\|generate_behavioral(" Source tests` gave 29 outside the two definitions | yes |
+| The structural model already carries exactly the four node kinds and two edge kinds the ladder cuts on | the module comment of `Source/models/structural_model.py`; the `structural.json` box of `docs/diagrams/models-folder.md` | yes |
+| `scope.json` has no JSON Schema yet, so a new key is validated where `_scope_rule` validates the rest | `_scope_rule` in `Source/drifter/check.py`; `docs/diagrams/models-folder.md` lists "open: JSON Schema"; W3-1 is the row that adds it, and W3-1 deletes `_scope_rule` in favour of the schema | yes |
+| `GET /models/view` is the console's own route, kept out of the OpenAPI document, so a new query parameter is not a contract change and needs no agreement from Team 16 | the `include_in_schema=False` on `models_view`, `Source/GitHub_Connector/api.py` | yes |
+| The viewer page runs no script but Mermaid today, so the panel's memory ends that property; its function does not need to | `_script` and `MERMAID` in `Source/Frontend/model_viewer.py`. Its module comment said "no server, no scripts, no network", which those two already made untrue and the panel's memory makes wronger; step 6 rewords it | yes |
+| The page is rendered standalone with no server, where a form has nowhere to submit | `main` in `Source/Frontend/model_viewer.py`, and the CLI line of its module comment | yes |
+| The viewer page already carries notes that separate what a page shows from what it proves, in the style this panel's note follows | `_provenance` and `_compared` in `Source/Frontend/model_viewer.py` | yes |
 | `docs/base/structure.md:4` and `docs/base/specifications.md:261` both become untrue and are fixed in the same PR under R2 | `grep -n` on both files | yes |
 | `docs/base/specifications.md:213`, "four files", stays true, because verbosity is a key and not a fifth file | `docs/base/specifications.md:213` | yes |
 | Lowering the level hides drift in everything it drops, which is gap G4 of W0-7 in a new place and not a new kind of hole | `docs/state/WORK-ITEMS.md`, W0-7 detail, gap G4 | yes |
@@ -176,9 +176,13 @@ Named here, not built, so that leaving them out is the human's decision and not 
 - **Behavioral has no ladder.** Every level emits every state and transition. A behavioral ladder
   needs a grain for machines, and row N2 has not been ruled on.
 - **Ownership has none either**, and should not: it is checked, never regenerated.
-- **One parameter, not a set.** `scope.json` gains one key. A general parameter block, a
-  per-generator namespace or a parameter registry would be the shape for the second and third
-  parameter, and designing it now would be designing for one example.
+- **~~One parameter, not a set.~~ Built in step 10, by the human's ask of 2026-11-22.** `PARAMETERS`
+  in `Source/drifter/check.py` declares each key with its default and allowed values, and
+  `parameters_of` and `_scope_rule` both work from it. What is still verbosity's own: `generate_one`
+  names `verbosity` and `"structural"` by hand, and the three sites pass the level positionally, so
+  a second parameter is a row plus those edits, not a row alone. The reading and validating half,
+  which is the expensive one, is genuinely general. A per-generator namespace and a parameter block
+  inside `scope.json` are still not built, and nothing here names a parameter to come.
 - **A level change is a large diff, even though it is not drift.** `drifter update` rewrites
   `structural.json` whole, so the PR that lowers the level carries every dropped element as a
   deleted line. That is a reviewer's problem and not the check's, and nothing here shrinks it.
@@ -191,3 +195,8 @@ Named here, not built, so that leaving them out is the human's decision and not 
   points the console at a different API starts again from the committed level.
 - **No verbosity in the reporter.** W4-3 renders the answer to annotations and a job summary; it
   will not say which level produced it.
+- **The hosted `init` can only propose level 4.** `POST /system/generate` calls `generate_models`
+  with the reader alone (`generate` in `Source/GitHub_Connector/analysis.py`) and `generate_models`
+  writes `DEFAULT_SCOPE`, which carries no key. Taking a level there would be a request field on a
+  contract route, so it needs Team 16's agreement and is not this Epic's. `drifter init
+  --verbosity` is the way to start below 4.
