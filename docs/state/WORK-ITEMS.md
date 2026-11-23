@@ -2,6 +2,8 @@
 
 ## Next action
 
+- **W5-3-JS, local work authorized:** the user requested Python behavioral improvements and standalone JavaScript extraction feeding the existing models, and explicitly asked for these changes in the copied real clone. Track this limited implementation in `docs/epics/E08-javascript-extraction/EPIC.md`; no remote push or broader language-engine decisions are included. Preserve the current team code at 0829935, including E07, volatility and dependency locks.
+
 Read this first after a memory loss. It wins over what an agent remembers. Direction is in `STRATEGY.md`; status is only here.
 
 - **Done 2026-11-22: W1-2 and W1-3 (build order step 2.1), Epic E06.** The auditor passed every Done line at `51f6c64` and the human accepted (PR #59; Epic `docs/closed/E06-image-hygiene/EPIC.md`). Still open after the merge: the Railway check (`storage: volume`), in the W1-3 row.
