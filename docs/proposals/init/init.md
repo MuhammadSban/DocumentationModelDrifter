@@ -27,7 +27,7 @@ Two problems in today's code need fixing first. The bigger one: **someone who is
 
 They are generated from the code. If one is wrong, fix the code. If the code changed on purpose, run `drifter update`, which rewrites both.
 
-A hand edit here mostly cannot hide anything. The check regenerates both models from the code, so any edit that does not match the code shows up as drift on the next push (spec case L7, `specifications.md:384`). The only edit that removes drift is one that equals what `drifter update` writes, and that is a normal way to accept drift.
+A hand edit here mostly cannot hide anything. The check regenerates both models from the code, so any edit that does not match the code is listed on the next push, and is drift at the default volatility, 1 (Exact); at a higher volatility, only once the model carries more changes than that level tolerates (spec case L7, `specifications.md:408`). The only edit that removes drift is one that equals what `drifter update` writes, and that is a normal way to accept drift.
 
 ## Problem 1: a person can make themselves an owner in the same push
 
