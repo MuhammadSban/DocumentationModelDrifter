@@ -172,6 +172,7 @@ def models_view(
     repository: str,
     commit_id: str,
     verbosity: Annotated[int | None, Query(ge=1, le=4)] = None,
+    volatility: Annotated[int | None, Query(ge=1, le=4)] = None,
     panel: str | None = None,
 ) -> Response:
     # renders one commit's models as the page the console's Models view frames: the structural
@@ -205,6 +206,10 @@ def models_view(
         parsed.setdefault(SCOPE_FILE, check.DEFAULT_SCOPE)
         # the level this repository commits, which the page names beside the one it is drawing
         committed_level = check.verbosity_of(parsed[SCOPE_FILE])
+        # how many changed elements still count as aligned: the repository's own, unless the
+        # console is previewing another
+        committed_volatility = check.parameters_of(parsed[SCOPE_FILE])["volatility"]
+        tolerance = check.TOLERATED.get(volatility or committed_volatility, 0)
         changed: dict[str, bool] = {}
         note = None
         try:
@@ -215,7 +220,7 @@ def models_view(
             parsed.update(fresh)
             if cmp.base is not None:
                 changed = model_drift.drifted(
-                    model_drift.snapshot(cmp, cmp.base, verbosity), fresh
+                    model_drift.snapshot(cmp, cmp.base, verbosity), fresh, tolerance
                 )
         except model_drift.SnapshotFailed as exc:
             note = str(exc)
@@ -233,6 +238,8 @@ def models_view(
         # the console frames this page under a verbosity slider of its own and asks for panel=off,
         # so the page keeps its note and leaves the stops to the one control the reader can see
         panel=panel != "off",
+        drawn_volatility=volatility or committed_volatility,
+        committed_volatility=committed_volatility,
     )
     return Response(page, media_type="text/html")
 

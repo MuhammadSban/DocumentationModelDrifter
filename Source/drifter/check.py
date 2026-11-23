@@ -89,12 +89,18 @@ class Sources:
 
 
 def answer(sources: Sources) -> dict:
-    # returns the contract's DriftAnswer: aligned is true only when all three lists are empty
+    # returns the contract's DriftAnswer. aligned is true when no model carries more changed
+    # elements than scope.json's volatility tolerates and no ownership rule is broken. At EXACT,
+    # the default, that tolerates nothing and the answer is what it has always been: aligned only
+    # when all three lists are empty. The lists always hold every difference found, whatever the
+    # level, so a tolerated change is reported and simply does not turn the verdict.
     structural = model_differences("structural", sources)
     behavioral = model_differences("behavioral", sources)
     ownership = check_ownership(sources.models["ownership.json"], sources.commits)
+    tolerance = tolerance_of(sources.models["scope.json"])
+    drifted = len(structural) > tolerance or len(behavioral) > tolerance
     return {
-        "aligned": not (structural or behavioral or ownership),
+        "aligned": not (drifted or ownership),
         "behavioral": behavioral,
         "ownership": ownership,
         "structural": structural,
@@ -113,9 +119,29 @@ GENERATORS: dict[str, Callable[..., dict]] = {
 # the generation parameters scope.json may hold: a key, its default, and the values it allows.
 # Verbosity is the only one. A second parameter is one row here plus the generator argument it
 # feeds; nothing else in this module names a parameter by name.
+# how strict the check is about drift, set by scope.json's volatility key. EXACT is the default and
+# is what this check has always done: one changed element is drift. A higher level lets a model
+# carry a few changes before the verdict turns: the differences are still reported in full, so
+# nothing is hidden from a reader, only the one boolean is softened. Ownership is never tolerated;
+# a violation is not drift.
+EXACT, LIGHT, MODERATE, LOOSE = 1, 2, 3, 4
+
+# the most changed elements one model may carry and still count as aligned, so the four levels read
+# as "fewer than 1, 4, 10 and 30 changed elements". MODERATE is the ten the human asked for.
+TOLERATED = {EXACT: 0, LIGHT: 3, MODERATE: 9, LOOSE: 29}
+
 PARAMETERS: dict[str, tuple[object, tuple]] = {
     "verbosity": (FULL, tuple(sorted(KEPT_KINDS))),
+    "volatility": (EXACT, tuple(sorted(TOLERATED))),
 }
+
+
+def tolerance_of(scope: dict) -> int:
+    # how many changed elements a model may carry and still count as aligned. EXACT tolerates none,
+    # which is what every repository gets unless it declares otherwise, so the answer is what it
+    # always was.
+    level = parameters_of(scope)["volatility"]
+    return TOLERATED.get(level if isinstance(level, int) else EXACT, 0)
 
 
 def parameters_of(scope: dict) -> dict:

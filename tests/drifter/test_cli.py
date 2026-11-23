@@ -761,11 +761,100 @@ def test_every_declared_parameter_is_read_validated_and_defaulted(tmp_path):
         assert check.parameters_of({key: "not a value this build allows"})[key] == default
 
 
-def test_the_declaration_covers_verbosity_and_the_generator_agrees():
-    # verbosity is the one parameter today, and its allowed values are the generator's own ladder
-    assert set(check.PARAMETERS) == {"verbosity"}
+def test_the_declaration_covers_both_parameters_and_their_owners_agree():
+    # verbosity's allowed values are the generator's own ladder, volatility's are the tolerance
+    # table's, so neither can name a level its owner does not hold
+    assert set(check.PARAMETERS) == {"verbosity", "volatility"}
     assert check.PARAMETERS["verbosity"] == (4, (1, 2, 3, 4))
     assert sorted(KEPT_KINDS) == list(check.PARAMETERS["verbosity"][1])
+    assert check.PARAMETERS["volatility"] == (check.EXACT, (1, 2, 3, 4))
+    assert sorted(check.TOLERATED) == list(check.PARAMETERS["volatility"][1])
+    # the default tolerates nothing, which is what keeps every committed answer where it was
+    assert check.TOLERATED[check.EXACT] == 0
+
+
+# ------------------------------------------------- scope.json's volatility: how strict drift is
+
+# five functions, so a commit can add a known number of elements and cross a tolerance
+VOLATILE_CODE = {"src/app.py": "".join(f"def f{n}(x):\n    return x\n\n\n" for n in range(5))}
+
+
+def _volatility_repo(path, level=None):
+    # a repository aligned at its own level, with volatility declared where one is given
+    scope = dict(SCOPE) if level is None else {**SCOPE, "volatility": level}
+    models = {
+        "models/behavioral.json": {"schema_version": 1, "states": [], "transitions": []},
+        "models/ownership.json": NO_RULES,
+        "models/scope.json": scope,
+        "models/structural.json": generate_structural(VOLATILE_CODE),
+    }
+    subprocess.run(["git", "init", "-q", "-b", "main", str(path)], check=True)
+    for name, text in {**VOLATILE_CODE, **{k: write_model(v) for k, v in models.items()}}.items():
+        (path / name).parent.mkdir(parents=True, exist_ok=True)
+        (path / name).write_bytes(text.encode())
+    _commit(path, "first")
+    return path
+
+
+def _add_functions(repo, count, start=100):
+    # adds count functions, which is count ADDED elements and nothing else
+    extra = "".join(f"def g{n}(x):\n    return x\n\n\n" for n in range(start, start + count))
+    (repo / "src" / "app.py").write_bytes((VOLATILE_CODE["src/app.py"] + extra).encode())
+    _commit(repo, f"add {count}")
+
+
+@pytest.mark.parametrize("level, added, aligned", [
+    (None, 1, False),   # no level declared is EXACT, so one change is drift, as it always was
+    (1, 1, False),      # EXACT tolerates nothing
+    (2, 3, True),       # LIGHT tolerates three
+    (2, 4, False),      # and not a fourth
+    (3, 9, True),       # MODERATE is the human's "fewer than ten"
+    (3, 10, False),     # ten is not fewer than ten
+    (4, 29, True),      # LOOSE tolerates twenty-nine
+])
+def test_volatility_decides_how_many_changes_count_as_drift(
+    tmp_path, monkeypatch, capsysbinary, level, added, aligned
+):
+    repo = _volatility_repo(tmp_path / f"v{level}-{added}", level)
+    _add_functions(repo, added)
+
+    code, out = _check(repo, monkeypatch, capsysbinary)
+
+    body = json.loads(out)
+    assert body["aligned"] is aligned
+    assert code == (0 if aligned else 1)
+    # tolerated or not, every difference is still reported: the verdict softens, the list does not
+    assert len(body["structural"]) == added
+
+
+def test_a_tolerated_change_is_still_an_ownership_violation(tmp_path, monkeypatch, capsysbinary):
+    # volatility is about drift, not about who may change what, so it never excuses a violation
+    owned = {"rules": [{"owners": ["ana@x.com"], "pattern": "src/app.py"}], "schema_version": 1}
+    repo = _volatility_repo(tmp_path, 4)
+    (repo / "models" / "ownership.json").write_bytes(write_model(owned).encode())
+    _commit(repo, "own it")
+    extra = VOLATILE_CODE["src/app.py"] + "def late(x):\n    return x\n"
+    (repo / "src" / "app.py").write_bytes(extra.encode())
+    _commit(repo, "a stranger edits", author="bob@x.com")
+
+    code, out = _check(repo, monkeypatch, capsysbinary)
+
+    body = json.loads(out)
+    assert body["ownership"], "the violation must still be reported"
+    assert body["aligned"] is False
+    assert code == 1
+
+
+@pytest.mark.parametrize("bad", [0, 5, True, "loose", None])
+def test_a_volatility_outside_the_ladder_gives_no_verdict(tmp_path, monkeypatch, capsysbinary, bad):
+    repo = _volatility_repo(tmp_path / str(hash(str(bad))))
+    (repo / "models" / "scope.json").write_bytes(write_model({**SCOPE, "volatility": bad}).encode())
+    _commit(repo, "break the level")
+
+    code, out = _check(repo, monkeypatch, capsysbinary)
+
+    assert json.loads(out)["drift_error"]["code"] == "INVALID_MODELS"
+    assert code == 2
 
 
 @pytest.mark.parametrize("level", [1, 2, 3])
