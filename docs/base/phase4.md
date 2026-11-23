@@ -129,7 +129,7 @@ Spec: issue #12. Status as of 2026-11-01, after #13 closed and Muhammad's push o
 | D8 | Model owners start now; behavioral first. |
 | D9 | The seam in `docs/diagrams/model-seam.md`. |
 | D10 | Kaan writes the ownership checker and the commit log; `CommitRecord` is the shared type. |
-| D11 | A fresh blobless clone per check, one batched blob fetch, reads with lazy fetching off (`docs/diagrams/file-fetch.md`). Measured: fixture 1 to 3 s, pytest 9 to 13 s, Django 38 to 41 s per check; reading blob by blob took 163 to 221 s on pytest. |
+| D11 | A fresh blobless clone per check, one batched blob fetch, reads with lazy fetching off (`docs/diagrams/data-flow.md`). Measured on a home connection with git 2.50: fixture 1 to 3 s, pytest 9 to 13 s, Django 38 to 41 s per check; reading blob by blob took 163 to 221 s on pytest and read only 81 files of Django in 90 s; a full clone took 26 s on pytest and 155 s on Django. |
 | D12 | CLI as in v1.1. |
 
 ## Contract test map
@@ -169,7 +169,7 @@ Decided 2026-11-01 as recommended, with the exceptions in D5 and D11 above; kept
 
 **The decision.** Structural and behavioral generators both read Python source. Either the core reads, checks and parses each file once and hands the plugins the result, or each plugin opens and parses files itself.
 
-**Why it matters.** The spec fixes three failures that must happen before any model is built: a file over 1 MB gives FILE_TOO_LARGE, a binary or non-UTF-8 file gives PARSE_FAILED, and a syntax error gives PARSE_FAILED with the file and line (spec §5.2, one-check diagram). It also says no file may be skipped, because a skipped file would show up as fake REMOVED drift (spec §3.3). If each plugin parses, both must raise the same error, in the same order, with the same message, or repeatability (AC-10) and the CLI's exit code 2 become inconsistent.
+**Why it matters.** The spec fixes three failures that must happen before any model is built: a file over 1 MB gives FILE_TOO_LARGE, a binary or non-UTF-8 file gives PARSE_FAILED, and a syntax error gives PARSE_FAILED with the file and line (spec §5.2, `docs/diagrams/behavior.md`). It also says no file may be skipped, because a skipped file would show up as fake REMOVED drift (spec §3.3). If each plugin parses, both must raise the same error, in the same order, with the same message, or repeatability (AC-10) and the CLI's exit code 2 become inconsistent.
 
 | Option | Plugin receives | Cost |
 | --- | --- | --- |

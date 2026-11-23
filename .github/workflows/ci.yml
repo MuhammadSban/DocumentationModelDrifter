@@ -1,11 +1,10 @@
-# runs pytest, ruff and the import check on every pull request and every push to main, Railway's Wait for CI holds the deploy on it
+# runs pytest, ruff and the import check on every pull request and every push to any branch, Railway's Wait for CI holds the deploy on it
 
 name: CI
 
 on:
   pull_request:
   push:
-    branches: [main]
 
 permissions:
   contents: read

@@ -18,6 +18,11 @@ RUN_LIMIT = 600.0
 
 CONTRACT = Path(__file__).resolve().parents[2] / "docs" / "contract"
 
+# names the map from REQ-01 to REQ-07 to the criteria, the only source of coverage.model's pairs
+REQUIREMENTS_MAP = Path(__file__).resolve().parents[2] / "docs" / "base" / "requirements-to-tests.md"
+REQUIREMENTS_MAP_URL = ("https://github.com/MuhammadSban/DocumentationModelDrifter/blob/main/"
+                        "docs/base/requirements-to-tests.md")
+
 GOLDEN = json.loads((CONTRACT / "golden-outputs.json").read_text(encoding="utf-8"))
 REPOSITORY = GOLDEN["fixture_repo"]
 CASES = {case["case"]: case for case in GOLDEN["cases"]}
@@ -64,6 +69,9 @@ class PodTest:
     criteria: tuple[str, ...]
     check: Callable[[Run], str] | None = None
     feature: str | None = None
+    # names a second feature and the check that runs with it when the system lacks the first; a second
+    # feature of None means the check runs on every system that lacks the first
+    fallback: tuple[str | None, Callable[[Run], str]] | None = None
     pending: bool = False
     skip: str | None = None
 
@@ -201,6 +209,37 @@ def drift(case: str) -> Callable[[Run], str]:
     return check
 
 
+def twice(case: str) -> Callable[[Run], str]:
+    # checks that two requests for a model fixture case each give its expected answer (contract §4, T-21)
+    def check(run: Run) -> str:
+        for _ in range(2):
+            drift(case)(run)
+        return f"{case}: two answers match the expected answer"
+    return check
+
+
+def answered(case: str) -> Callable[[Run], str]:
+    # checks that a model fixture case gets a normal answer from a system that judges no drift: a 200
+    # with status SUCCESS inside the call limit shows the commit's code was not run (contract §4, T-23)
+    def check(run: Run) -> str:
+        try:
+            body = _body(run.send("POST", "/analyze", MODEL_CASES[case]["request"]))
+        except Fail as exc:
+            raise Fail(f"{case}: {exc}") from None
+        if body.get("status") != "SUCCESS":
+            raise Fail(f"{case}: status is {body.get('status')!r}, not SUCCESS")
+        return f"{case} was analyzed and answered SUCCESS"
+    return check
+
+
+def review_decisions(run: Run) -> str:
+    # checks that an owner's change with /models updated is aligned (L5), and that a non-owner's edit of an
+    # owned path is a violation (L6), each as the drift tests compare (contract §4, T-22)
+    for case in ("L5", "L6"):
+        drift(case)(run)
+    return "L5 and L6 match the expected answers"
+
+
 def generated(case: str) -> Callable[[Run], str]:
     # checks the /models texts /generate returns against model-golden-outputs.json, each byte for byte;
     # ownership.json is never compared, as people correct it by hand (contract §4)
@@ -304,9 +343,11 @@ TESTS = [
     _row("T-18", "Missing mapped documentation finding", "C4", "AC-02", issues("c8-missing-doc"), **PROSE),
     _row("T-19", "Unchanged mapped documentation finding", "C4", "AC-02", issues("c1-impl-only"), **PROSE),
     _row("T-20", "Code and documentation updated together", "C4", "AC-03", issues("c7-code-and-doc"), **PROSE),
-    _row("T-21", "New findings start PENDING_REVIEW", "C4 C5", "AC-04", pending_review, **PROSE),
-    _row("T-22", "Authorized and unauthorized review decisions", "C7", "AC-05", skip="Phase 5"),
-    _row("T-23", "Read-only analysis, no repository code execution", "C2", "AC-09", skip="checked by inspection"),
+    _row("T-21", "New findings start PENDING_REVIEW", "C4 C5", "AC-04", pending_review,
+         fallback=("model_drift", twice("L2")), **PROSE),
+    _row("T-22", "Authorized and unauthorized review decisions", "C7", "AC-05", review_decisions, **DRIFT),
+    _row("T-23", "Read-only analysis, no repository code execution", "C2", "AC-09", drift("L8"),
+         fallback=(None, answered("L8")), **DRIFT),
     _row("T-24", "/analyze at L0: aligned: true, three empty lists", "C1 C2 C3 C4 C5", "AC-03", drift("L0"), **DRIFT),
     _row("T-25", "/analyze at L1: aligned: true", "C1 C2 C3 C4 C5", "AC-03", drift("L1"), **DRIFT),
     _row("T-26", "/analyze at L2: one structural ADDED", "C1 C2 C3 C4 C5", "AC-02", drift("L2"), **DRIFT),
@@ -324,12 +365,13 @@ TESTS = [
 
 
 def run_suite(target_url: str, session_id: str, limit: float | None = None,
-              on_result: Callable[[dict], None] | None = None) -> dict:
+              on_result: Callable[[dict], None] | None = None, own: bool = False) -> dict:
     # runs every test once, in order, and returns the suite report of pod-tester.openapi.yml;
-    # on_result receives each TestResult entry as soon as it is decided, for a live view of the run
+    # on_result receives each TestResult entry as soon as it is decided, for a live view of the run;
+    # own adds coverage.model, which the course allows only when the tester tests its own team's system
     run = Run(target_url, RUN_LIMIT if limit is None else limit)
     features, health_failure = _features(run)
-    results, components, criteria = [], set(), set()
+    results, components, criteria, evaluated = [], set(), set(), set()
     for test in TESTS:
         result = _run_one(test, run, features, health_failure)
         results.append(result.entry(test.id))
@@ -337,15 +379,21 @@ def run_suite(target_url: str, session_id: str, limit: float | None = None,
             on_result(results[-1])
         if result.answered and (result.outcome in ("pass", "fail") or result.source == "system"):
             components.update(test.components)
+        if result.outcome in ("pass", "fail"):
             criteria.update(test.criteria)
+            evaluated.add(test.id)
+    coverage = {
+        "code": _code_coverage(run, session_id),
+        "component": _measure(components, COMPONENTS, "components C1 to C7 exercised by a test the target "
+                              "answered (pod-contract.md section 5)"),
+        "system": _measure(criteria, CRITERIA, "criteria AC-01 to AC-10 (pod-contract.md section 5), each counted "
+                           "once, from tests that ended pass or fail, with AC-11 counted as AC-02 "
+                           "(specifications.md section 4.1)"),
+    }
+    if own:
+        coverage["model"] = _model_coverage(evaluated)
     return {
-        "coverage": {
-            "code": _code_coverage(run, session_id),
-            "component": _measure(components, COMPONENTS, "components C1 to C7 exercised by a test the target "
-                                  "answered (pod-contract.md section 5)"),
-            "system": _measure(criteria, CRITERIA, "criteria AC-01 to AC-10 exercised by a test the target "
-                               "answered (pod-contract.md section 5)"),
-        },
+        "coverage": coverage,
         "results": results,
         "session_id": session_id,
         "target_url": run.target,
@@ -353,21 +401,24 @@ def run_suite(target_url: str, session_id: str, limit: float | None = None,
 
 
 def _run_one(test: PodTest, run: Run, features: list, health_failure: tuple | None) -> Result:
-    # decides a test's outcome: limit, fixed skip, pending, missing feature, then its check
+    # decides a test's outcome: limit, fixed skip, pending, missing feature, then its check or its fallback's
     if run.left() <= 0:
         return Result("skip", LIMIT_REACHED, answered=False)
     if test.skip:
         return Result("skip", test.skip, answered=False)
     if test.pending:
         return Result("skip", PENDING, answered=False)
+    check = test.check
     if test.feature:
         if health_failure:
             source, message = health_failure
             return Result("error", f"features unknown, {message}", source, answered=False)
         if test.feature not in features:
-            return Result("skip", f"target does not implement {test.feature}", answered=False)
+            if not test.fallback or test.fallback[0] not in (None, *features):
+                return Result("skip", f"target does not implement {test.feature}", answered=False)
+            check = test.fallback[1]
     try:
-        return Result("pass", test.check(run))
+        return Result("pass", check(run))
     except Fail as exc:
         return Result("fail", str(exc))
     except TargetError as exc:
@@ -429,11 +480,49 @@ def _unavailable(reason: str) -> dict:
     return {"basis": f"code coverage unavailable: {reason}", "covered": None, "total": None}
 
 
+def _model_coverage(evaluated: set) -> dict:
+    # counts the map's requirements with a mapped test that ended pass or fail, each once (W4-8)
+    try:
+        version, requirements = read_requirements_map(REQUIREMENTS_MAP)
+    except (OSError, ValueError) as exc:
+        return {"basis": f"model coverage unavailable: {REQUIREMENTS_MAP.name} could not be read: {exc}",
+                "covered": None, "total": None}
+    tests = requirement_tests(requirements)
+    first, last = min(requirements), max(requirements)
+    return {"basis": f"design requirements {first} to {last} of {REQUIREMENTS_MAP.name} version {version}, each "
+                     f"covered when a test mapped to it ended pass or fail: {REQUIREMENTS_MAP_URL}",
+            "covered": sum(1 for ids in tests.values() if set(ids) & evaluated), "total": len(requirements)}
+
+
 def _measure(covered: set, every: tuple, basis: str) -> dict:
     return {"basis": basis, "covered": len(covered & set(every)), "total": len(every)}
 
 
+def read_requirements_map(path: Path = REQUIREMENTS_MAP) -> tuple[str, dict[str, tuple[str, ...]]]:
+    # reads the map file's version line and pairs table; raises OSError or ValueError when it cannot
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if not lines or not lines[0].startswith("Version: ") or not lines[0][len("Version: "):].strip():
+        raise ValueError(f"{path.name} does not open with a version line")
+    requirements: dict[str, list[str]] = {}
+    for line in lines:
+        cells = [c.strip() for c in line.split("|")[1:-1]]
+        if len(cells) == 2 and cells[0] in CRITERIA:
+            for requirement in cells[1].split(", "):
+                requirements.setdefault(requirement, []).append(cells[0])
+    if not requirements:
+        raise ValueError(f"{path.name} has no pairs table")
+    return lines[0][len("Version: "):].strip(), {r: tuple(c) for r, c in sorted(requirements.items())}
+
+
+def requirement_tests(requirements: dict[str, tuple[str, ...]]) -> dict[str, tuple[str, ...]]:
+    # derives each requirement's tests from TESTS: every test that lists one of its criteria
+    return {r: tuple(t.id for t in TESTS if set(t.criteria) & set(c)) for r, c in requirements.items()}
+
+
 def catalog() -> list[dict]:
     # lists the tests for the /tester page
-    return [{"components": list(t.components), "criteria": list(t.criteria), "feature": t.feature, "id": t.id,
+    # a test whose fallback runs on every system is listed without a feature, as it never skips for one
+    return [{"components": list(t.components), "criteria": list(t.criteria),
+             "fallback": t.fallback[0] if t.fallback else None,
+             "feature": None if t.fallback and t.fallback[0] is None else t.feature, "id": t.id,
              "pending": t.pending, "skip": t.skip, "title": t.title} for t in TESTS]

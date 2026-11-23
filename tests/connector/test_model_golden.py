@@ -20,7 +20,7 @@ CASES = [c for c in GOLDEN["cases"] if "drift" in c["expected"]]
 GENERATE = next(c for c in GOLDEN["cases"] if c["case"] == "L0-generate")
 
 # pins drifter check's exit code per case, from spec §4.2's expected verdicts rather than the golden file
-EXIT = {"L-pre": 2, "L0": 0, "L1": 0, "L2": 1, "L3": 1, "L4": 1, "L5": 0, "L6": 1, "L7": 1}
+EXIT = {"L-pre": 2, "L0": 0, "L1": 0, "L2": 1, "L3": 1, "L4": 1, "L5": 0, "L6": 1, "L7": 1, "L8": 0}
 
 
 def _git(cwd, *args):

@@ -70,7 +70,7 @@ paths, methods, inputs, responses, and behavior must match the shared specificat
 their internal implementations." [6] Staff may pair either team's tester with either team's system,
 so both teams build to one contract.
 
-That contract is docs/contract/ (version 2.4.0, agreed by Team 16, recorded 2026-11-05). It builds
+That contract is docs/contract/ (version 2.5.0, agreed by Team 16, recorded 2026-11-22). It builds
 on Team 16's v1.1 package [7], in which Team 16 checks prose documentation. Team 15 checks models
 instead, which the contract allows through two deviations (5.1). Team 16 builds no models.
 
@@ -296,9 +296,10 @@ describes anything at all is visible in /models itself, not in the answer.
 
 #### The system model
 
-The lifecycle of a repository under the tool, drawn in docs/diagrams/behavioral-model.md: the tool
+The lifecycle of a repository under the tool, drawn in docs/diagrams/behavior.md: the tool
 proposes the models once, a person commits them as the baseline, and every push then ends
-Aligned, Drifted or Failed.
+Aligned, Drifted or Failed, where Failed means the check gave no verdict or the request ended in
+an error; docs/diagrams/behavior.md lists each ending.
 
 ### 3.3 Model explanation
 
@@ -317,7 +318,10 @@ with the facts in the models.
 AC-01 to AC-10 have the pod's numbers and meanings (v1.1 SPEC section 10, copied word for word in
 contract section 5). Each criterion first gives the pod's check, then "This system:" says how this
 system meets it; for this system "doc" means /models and a finding means a drift difference. AC-11
-is this system's own and counts as AC-02.
+is this system's own and counts as AC-02. The criterion-to-requirement pairs below come from
+docs/base/requirements-to-tests.md, the only source of them; its version line is the version of
+this list. Our tester reports coverage.model over REQ-01 to REQ-07 when it tests our own system
+only, counting a requirement once a test mapped to it ends pass or fail.
 
 - AC-01, REQ-01: Pod: changes and skipped equal golden, all cases (T-01 to T-07). This system: a
   short commit SHA also gives the same answer as the full SHA, and an unknown or ambiguous one
@@ -331,12 +335,14 @@ is this system's own and counts as AC-02.
   updated /models. The verdict is true. Checked automatically.
 - AC-04, REQ-03: Pod: every finding is PENDING_REVIEW (T-21). This system: what it flags also waits
   for a person; after a false verdict, the code and /models are unchanged and the tool has made no
-  commit. Checked automatically and by inspection.
-- AC-05, REQ-03: Pod: authorized review decisions, Phase 5 (T-22). This system: only a person
-  allowed to do so accepts flagged drift. Accepting means committing updated /models, so write
+  commit. Against this system T-21 runs its model version: /analyze for L2 twice, and both answers
+  must equal L2's expected answer. Checked automatically and by inspection.
+- AC-05, REQ-03: Pod: authorized review decisions (T-22: L5, the authorized change, must come back
+  aligned, and L6, the unauthorized change, with its one ownership violation). This system: only a
+  person allowed to do so accepts flagged drift. Accepting means committing updated /models, so write
   access to the repository is that permission. Committing updated /models after a false verdict
   makes the next check true, and the git history of /models gives the person who accepted it and
-  when. Checked automatically by Team 15's own tests.
+  when. Checked automatically by T-22 and by Team 15's own tests.
 - AC-06, REQ-04: Pod: two runs give distinct ids; GET returns each unchanged, including after a
   restart (c2; T-14 to T-16). This system: each Action run also uploads its answer as an artifact of
   that commit's run. The hosted service saves every /analyze result, and GET /analysis/{analysis_id}
@@ -349,10 +355,12 @@ is this system's own and counts as AC-02.
   message. A commit with no /models, or an in-scope file that cannot be parsed, gives no verdict,
   never true or false: drift is null with a drift_error code in the hosted service, and exit code 2
   in the CLI. Checked automatically.
-- AC-09, REQ-06: Pod: repository unchanged, no code executed, no credentials in logs (inspection,
-  Phase 5; T-23). This system: the repository is byte-identical before and after a check, none of
-  its code runs, and no credentials appear in responses or logs. Checked by automated tests and
-  inspection.
+- AC-09, REQ-06: Pod: repository unchanged, no code executed, no credentials in logs (T-23: L8, a
+  commit whose code would hang, fail or write a file if it were imported or run, must give its
+  expected answer on a system with model_drift and a normal SUCCESS answer on any other; the
+  credentials part is checked by inspection). This system: the repository is
+  byte-identical before and after a check, none of its code runs, and no credentials appear in
+  responses or logs. Checked by automated tests and inspection.
 - AC-10, REQ-07: Pod: five runs of c4 and of c1 give identical significant fields, including
   identical finding_ids (T-17). This system: five runs with the same repository, commit, /models and
   tool version also return byte-identical models and answers (Team 15's own tests), and generate at
@@ -366,9 +374,10 @@ is this system's own and counts as AC-02.
 
 Team 15 builds one small, controlled Git repository, kaan-kanadasi/doc-tracker-model-fixtures, with
 labelled commits and a manually defined expected verdict per model. Its expected answers are
-published in docs/contract/model-golden-outputs.json in two groups (contract section 3): L-pre's
+published in docs/contract/model-golden-outputs.json in three groups (contract section 3): L-pre's
 once the repository exists, L0 to L7's once the formats of all four model files are settled,
-because L0 commits all four. The repository stays fixed so results reproduce. Invalid requests
+because L0 commits all four, and the answers T-21's model version, T-22 and T-23 use (L2, L5, L6
+and L8) once L8 is pushed. The repository stays fixed so results reproduce. Invalid requests
 and unknown commits are tested by the pod's shared tests on Team 16's fixture
 (ParthGupta06/doc-tracker-fixtures).
 
@@ -387,13 +396,14 @@ Starting set of labelled cases (to be revised, see [Q11](#q11-open-decisions)):
 | L5 | L2's change plus updated /models in the same commit | true |
 | L6 | a non-owner edits an owned path | false: ownership, 1 violation |
 | L7 | a hand edit removes an inherits edge from structural.json that the code still makes | false: structural, 1 ADDED inherits |
+| L8 | the owner adds three files whose code would hang, raise or write a file if it were imported or run, plus updated /models in the same commit | true |
 
 Each count must be exactly 1, and every other list empty, so the fixture follows five rules. Its
 code sits under src/, so module ids carry no folder prefix (docs/base/structure.md). L3 removes
 an import of a module of the repository; an import of an external library is not in the model.
 L7's base class is a class of the repository; an external one gives no edge. L4 adds its state and
 transition without adding a module, class, function, method, import, inheritance or call, so the
-structural model does not change. Every commit L0 to L7 except L6 is made by an owner of every
+structural model does not change. Every commit L0 to L8 except L6 is made by an owner of every owned
 path it changes, under the ownership.json committed at L0, so only L6 gives a violation.
 
 ### 4.3 Independent evaluation
@@ -407,8 +417,8 @@ inspected for criteria that cannot be decided from responses alone (AC-04, AC-09
 
 ### 5.1 The pod contract
 
-The cross-team interface is the pod contract in docs/contract/, version 2.4.0, agreed by
-Team 16 (recorded 2026-11-05). It builds on Team 16's v1.1 package [7] and wins over this file for anything
+The cross-team interface is the pod contract in docs/contract/, version 2.5.0, agreed by
+Team 16 (recorded 2026-11-22). It builds on Team 16's v1.1 package [7] and wins over this file for anything
 another team's tester or system sees.
 
 | File | Holds |
@@ -493,8 +503,9 @@ labelled cases of 4.2 against the hosted service and compare the whole drift obj
 /generate at L0 byte for byte, except ownership.json, which people correct by hand (3.2). Team 15's own tests check that drift is byte-identical across
 repeated runs. T-32 is published first, since it needs only L-pre (4.2).
 T-01 to T-23 check change detection, classification, saved results and errors.
-Against this system, T-18 to T-21 (prose findings) are skipped: its GET /system/health
+Against this system, T-18 to T-20 (prose findings) are skipped: its GET /system/health
 lists features ["model_drift"] and not prose_detector (deviation 1, contract section 1).
+T-21 runs its model version (L2, twice), and T-22 (L5 and L6) and T-23 (L8) run.
 
 ## Q6 Milestones for phases 4 and 5
 
@@ -535,7 +546,7 @@ updated /models and see a green check; open the run's answer artifact and find, 
 history of /models, who accepted the change.
 
 Automated validation: AC-04 and AC-09 (also by inspection), and AC-06 for the Action's
-artifacts. Requirement coverage: REQ-03, REQ-04, REQ-06.
+artifacts. Requirement coverage: REQ-01, REQ-02, REQ-03, REQ-04, REQ-05, REQ-06, REQ-07.
 
 ### 6.3 Sequencing rationale
 
@@ -600,7 +611,20 @@ one piece of state is the result store, which keeps every /analyze result durabl
 most 2 checks at once, stops each check at its deadline, and reports that it is up at
 GET /system/health. A third check waits for a free slot within its own deadline, and gets 500
 ANALYSIS_FAILED if the deadline passes while it waits; waiting in the request is not a job queue.
+The deadline starts when the request arrives. /system/generate and the console's /models/view wait
+for the same slots the same way, and GET /system/health answers while checks wait.
 System setup allows one active test session at a time (contract section 2).
+
+The tester served beside the system has limits of its own. It runs one pytest group at a time
+from its page; a second request gets 409 at once. It keeps at most 50 test sessions in memory: a
+new setup first drops the oldest finished session, then the oldest that never ran, and answers 500
+with source "tester" when every session is running or still being set up. It never follows a
+redirect: at setup a 3xx
+is passed through like any other system answer, with the system's own message and source when
+it gives them, and otherwise source "system" and a message that names the new URL. On Railway it
+calls no internal address: a host ending in .internal, or one that resolves to an address that is
+not globally routable, is refused before anything is sent, with 400 at setup and as a
+communication error during a run.
 
 Two measures show whether the check is useful: how often drift is accepted (updated /models)
 rather than fixed in the code, and the false-alert rate on labelled no-drift commits.
@@ -707,14 +731,14 @@ repository.
 [7] Team 16. "Documentation Tracker: Pod 15/16 Shared Specification v1.1" (SPEC.md,
 openapi-system-v1.1.yaml, mapping-v1.1.yaml, golden-outputs.json). Proposed 2026-10-30.
 
-[8] Teams 15 and 16. "Pod 15/16 contract", version 2.4.0. docs/contract/ in this repository.
-Proposed 2026-10-31, agreed by Team 16 (recorded 2026-11-05).
+[8] Teams 15 and 16. "Pod 15/16 contract", version 2.5.0. docs/contract/ in this repository.
+Proposed 2026-11-22, agreed by Team 16 (recorded 2026-11-22).
 
 ## Q11 Open decisions
 
 #### Agreed in the pod contract (recorded 2026-11-05)
 
-- Team 16's agreement to the interface and the testing contract: agreed; docs/contract/ 2.4.0 is the agreed version.
+- Team 16's agreement to the interface and the testing contract: agreed; docs/contract/ 2.5.0 is the agreed version (recorded 2026-11-22).
 - The shared fixture: Team 16's fixture serves the shared tests; Team 15 builds the model fixture.
 - Saving answers by id: every /analyze result is saved durably and returned by GET
   /system/analysis/{analysis_id}.
@@ -733,5 +757,5 @@ Proposed 2026-10-31, agreed by Team 16 (recorded 2026-11-05).
   ids). The pattern syntax itself is settled in 3.2.
 - The Annex XI claim (1.1): whether to keep the specific Annex XI items or only the general
   Art. 53(1)(a) claim.
-- The labelled cases L-pre and L0 to L7 (4.2), to be revised in a separate pass. That pass should
+- The labelled cases L-pre and L0 to L8 (4.2), to be revised in a separate pass. That pass should
   also add a parse-failure case for PARSE_FAILED.

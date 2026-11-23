@@ -56,7 +56,7 @@ A broken file does not break the system silently. The check stops with `INVALID_
 1. **Judge ownership against the old rules.** Check each commit against the ownership.json of the **base** commit (the last accepted baseline), not the new one. Also flag any change to ownership.json or scope.json made by someone who is not an owner of `/models` under the old rules. This closes Problem 1. It is a small change in `read_sources` and `check_ownership`.
 2. **Protect /models on GitHub.** Add a CODEOWNERS entry for `/models/` and turn on branch protection that requires their review. Cheap, and GitHub enforces it, not our tool.
 3. **Add `drifter validate`.** A local command that runs the same checks as `read_sources` on `/models` without a full check, so format errors are found before pushing. Add a `scope.schema.json` at the same time, so scope.json is checked as strictly as the others.
-4. **Write the rule into the docs.** Add the table from the short answer to `docs/diagrams/init.md` and `docs/diagrams/models-folder.md`: structural.json and behavioral.json change only through `init` or `update`; ownership.json and scope.json are edited by hand, only in a reviewed pull request.
+4. **Write the rule into the docs.** Add the table from the short answer to `docs/diagrams/data-flow.md` (its "Who writes /models" table) and `docs/diagrams/models-folder.md`: structural.json and behavioral.json change only through `init` or `update`; ownership.json and scope.json are edited by hand, only in a reviewed pull request.
 
 Not recommended: moving the ownership rules out of `/models`. It gains nothing and breaks the layout the spec defines.
 

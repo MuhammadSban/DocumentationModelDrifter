@@ -23,6 +23,13 @@ Detail for all three: `closed/E02-model-parameters/EPIC.md`, "Open questions", a
 | E02-a | Is N7 approved, and where does it sit in the queue? It is a direction change: `STRATEGY.md` reserves direction to the team, the Next action is build order step 0.6b, and no build-order step covers this work. | Approve it with a wave and a build-order step; approve it as off-path work beside the release; or decline it and keep the draft as a record.  No recommendation: this is direction. **The human approved it on 2026-11-22, "go ahead and build now": the row stays until the human moves it to `RULED/`, which only they write.** | `closed/E02-model-parameters/EPIC.md` | every step of E02 | 2026-11-22 |
 | E02-b | May E02 land before N3, the structural grain, is ruled? The ladder is N3's "finer grain opt-in through `scope.json`" option, built with full detail as the default so that no committed model moves and no `schema_version` is bumped. | Rule N3 first and build E02 from the ruling; or let E02 land as the opt-in and leave N3's question of the default grain open. Recommended: the second, because the default does not change and so nothing N3 decides is foreclosed. **The human approved the recommendation on 2026-11-22.** | `closed/E02-model-parameters/EPIC.md` | E02 steps 2, 3 and 7 | 2026-11-22 |
 | E02-c | Must the W0-7 ruling cover `verbosity` before E02 lands? A repository that lowers its level stops seeing drift in everything the level drops, and an author can lower it in the same push as the change it hides. That is gap G4 of W0-7 in a new place, not a new kind of hole. | Close W0-7 first; or land E02 with the hole named in INV-2 and DEFERRED, and have the W0-7 ruling cover `scope.json` and `verbosity` together. Recommended: the second, since W0-7 already owes `scope.json` the same fix. **The human approved the recommendation on 2026-11-22.** | `closed/E02-model-parameters/EPIC.md` | E02 step 7, Done line 11 | 2026-11-22 |
+## The CLI's exit codes
+
+Found while planning build order step 0.6b. Detail: the design doc of the system-models Epic, "Where the code and the build order disagree", last row. The row is not that Epic's to settle, so it does not carry its number.
+
+| ID | Question | Options + recommendation | Epic | Blocks | Since |
+|---|---|---|---|---|---|
+| CLI-1 | Is it a defect that `drifter check`, `init` and `update` end with a traceback and exit 1 on a git failure, such as an unknown commit or a folder that is no checkout? Exit 1 is also the code for drift, and spec AC-08 gives exit 2 to a check with no verdict. | 1: leave it. 2: catch the git failure, print a one-line message and exit 2. Recommended: 2, as a small change with a failing test first. | none yet | nothing yet | 2026-11-21 |
 
 ## Not yet in a wave
 

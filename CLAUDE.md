@@ -11,7 +11,7 @@ When two docs disagree, the higher one wins, and the lower one is fixed in the s
 3. The human's rulings, `docs/decisions/RULED/`.
 4. The invariants, `docs/invariants/INVARIANTS.md`.
 5. The spec, `docs/base/specifications.md`.
-6. The models in `docs/diagrams/`: `dependency.md`, `behavioral-model.md`, `models-folder.md` and `model-seam.md`. Every other diagram ranks at level 8.
+6. The models in `docs/diagrams/`: `dependency.md`, `data-flow.md`, `behavior.md`, `models-folder.md` and `model-seam.md`. Every other diagram ranks at level 8.
 7. The current Epic, under `docs/epics/`.
 8. Everything else.
 
@@ -36,12 +36,12 @@ A rule gets a number only if all three hold: an agent working elsewhere could br
 | Rule | What it says | Principle | Check |
 |---|---|---|---|
 | R1 | A call that is the human's goes to `docs/decisions/OPEN-DECISIONS.md`: stop and cite its row. Only the human writes `docs/decisions/RULED/`; cite a ruling by its id and follow it. | the human's call | guidance only |
-| R2 | A change that makes a line of `docs/base/specifications.md` or `docs/base/structure.md` untrue updates that line in the same PR. | done is checked | guidance only |
-| R3 | Nothing deploys red: a commit reaches the live server only after CI is green on it. A red PR can still be merged, so fix it before the next deploy. | done is checked | Railway waits for CI and skips a red commit (step 0.5) |
-| R4 | A protected change goes through the permission prompt. Never route around a deny or ask rule (`python -c`, a script). | own abstractions | guidance only; the human's PR review |
+| R2 | A change that makes a line of `docs/base/specifications.md` or `docs/base/structure.md` untrue updates that line in the same change. | done is checked | guidance only |
+| R3 | Nothing deploys red: a commit reaches the live server only after CI is green on it. A red branch can still reach `main`, so fix it before the next deploy. | done is checked | Railway waits for CI and skips a red commit (step 0.5) |
+| R4 | A protected change goes through the permission prompt. Never route around a deny or ask rule (`python -c`, a script). | own abstractions | guidance only; the human's review of the diff before a push to `main` |
 | R5 | Imports follow the module map `docs/diagrams/dependency.md`, which `.importlinter` states as contracts. They point down through its four layers: entry points, services, core, generators. `drifter` and `models` import none of `GitHub_Connector`, `Frontend` and `Tester`. `Tester` imports none of `GitHub_Connector`, `Frontend` and `drifter`. `Frontend` imports none of `GitHub_Connector`, `Tester` and `drifter.check`. | own abstractions | `lint-imports` in CI (`.github/workflows/ci.yml`) |
-| R6 | A change to a part, a flow or a run state updates its model in `docs/diagrams/` in the same PR. | done is checked | guidance only; the human's PR review |
-| R7 | Pick the lane before the first edit. A small change, as `docs/epics/README.md` defines it, goes straight to a PR. Anything else is Epic work on a branch `E<nn>-slug` and follows that file's lifecycle: code starts after RATIFY, only from a live Epic; each commit carries its `Step:` line; the Epic closes after the auditor re-runs Done and the human accepts. | done is checked | `.claude/hooks/step-trailer.py` blocks an agent commit without the `Step:` line; the rest is guidance only |
+| R6 | A change to a part, a flow or a run state updates its model in `docs/diagrams/` in the same change. | done is checked | guidance only; the human's PR review |
+| R7 | Pick the lane before the first edit. A small change, as `docs/epics/README.md` defines it, is committed to a branch and pushed, and CI runs on the push; once CI is green it goes to `main` on the human's word, with no PR. Anything else is Epic work on a branch `E<nn>-slug`, with no PR while it is built and CI on each push, and follows that file's lifecycle: code starts after RATIFY, only from a live Epic; each commit carries its `Step:` line; one PR is opened when the last step is committed, before the audit, and the Epic merges through it; the Epic closes after the auditor re-runs Done and the human accepts. Any change gets a PR when another person's approval or review is needed. | done is checked | `.claude/hooks/step-trailer.py` blocks an agent commit without the `Step:` line; the rest is guidance only |
 
 ## Commands
 

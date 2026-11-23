@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,7 +17,7 @@ from Frontend.model_loader import OWNERSHIP_FILE, SCOPE_FILE, models_from_dicts
 from Frontend.model_viewer import render
 from GitHub_Connector import course, rules, runs
 from Tester import api as tester
-from GitHub_Connector.analysis import analyze, validate, generate
+from GitHub_Connector.analysis import analyze, arrival_deadline, generate, slot_until, validate
 from GitHub_Connector.fetch import fetch
 from GitHub_Connector.schemas import (
     AnalysisError,
@@ -28,7 +27,7 @@ from GitHub_Connector.schemas import (
     ErrorCode,
     GenerateResult,
 )
-from GitHub_Connector.settings import build_label, get_settings, require_volume_on_railway, storage
+from GitHub_Connector.settings import build_label, require_volume_on_railway, storage
 
 # maps every contract error code to its HTTP status, the one table all failures go through
 STATUS_FOR = {
@@ -144,8 +143,9 @@ def index() -> dict:
 
 
 @router.get("/health")
-def health() -> dict[str, object]:
-    # answers the warm-up call, does no git work; model_drift lets testers skip the prose tests (contract §1)
+async def health() -> dict[str, object]:
+    # answers the warm-up call on the event loop, so waiting checks never hold it up; model_drift lets
+    # testers skip the prose tests (contract §1)
     return {
         "status": "ok",
         "tool_version": build_label(),
@@ -185,8 +185,8 @@ def models_view(
     # page shows the level the repository itself declares. A level outside the ladder is a 422 from
     # Query, before any clone, so the panel can never ask for a level no generator has.
     validate(AnalysisRequest(repository=repository, commit_id=commit_id))
-    deadline = time.monotonic() + get_settings().analysis_deadline
-    with fetch(repository, commit_id, None, deadline) as cmp:
+    # takes a check slot like analyze, so the page cannot swamp real checks
+    with slot_until(deadline), fetch(repository, commit_id, None, deadline) as cmp:
         parsed = {
             name: model
             for name, model in model_drift.committed(cmp, cmp.head).items()

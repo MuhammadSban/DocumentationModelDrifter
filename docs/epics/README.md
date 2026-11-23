@@ -4,7 +4,7 @@ An Epic is one planned change: a goal, steps that each carry a check, and Done c
 
 **Build only from a live, ratified Epic.** A closed Epic is history: its steps describe the repository as it was. To change something a closed Epic built, open a new Epic and name the closed one under Relies on.
 
-**A small change needs no Epic.** A change that touches no boundary, no invariant and no model in `docs/diagrams/`, and only a handful of files, goes straight to a PR from a branch with any other name. RATIFY, the audit and the `Step:` trailer apply only to Epic work.
+**A small change needs no Epic.** A change that touches no boundary, no invariant and no model in `docs/diagrams/`, and only a handful of files, is committed to a branch with any other name and pushed; CI runs on the push, and once it is green the change goes to `main` on the human's word, with no pull request. Epic work gets one pull request, opened when its last step is committed, before the audit, and merges through it. Any change gets a pull request when another person's approval or review is needed. RATIFY, the audit and the `Step:` trailer apply only to Epic work.
 
 ## Naming
 
