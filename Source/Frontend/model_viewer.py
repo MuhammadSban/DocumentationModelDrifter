@@ -526,7 +526,7 @@ def _mermaid_member(node: Node) -> str:
 def _short(module: str) -> str:
     # labels a box with the module's own name, the folder around it already saying where it sits,
     # so the words in a box stay large enough to read
-    return module.rpartition(".")[2] or module
+    return module.rsplit("/", 1)[-1] if "/" in module else module.rpartition(".")[2] or module
 
 
 def _figure(title: str, question: str, source: str | None, omitted: str) -> str:

@@ -25,16 +25,18 @@ Apply the user's previously requested Python behavioral improvements and standal
 ### Step 2/3: Connect analysis and scoped generation
 
 - Files: Source/drifter/check.py, Source/GitHub_Connector/analysis.py, Source/GitHub_Connector/api.py, Source/Frontend/model_drift.py, Source/Frontend/model_viewer.py, tests/connector/test_javascript_analysis.py.
-- Check: python -m pytest tests/connector/test_javascript_analysis.py tests/drifter tests/frontend -q -> all pass.
+- Check: python -m pytest tests/connector/test_javascript_analysis.py -k "direct_core or cli_round or default_scope" -q -> six focused core/CLI checks pass. Full HTTP-route coverage remains required by Done criterion 5.
 - Trailer: Step: 2/3
 
 ### Step 3/3: Document and verify the integration
 
 - Files: docs/base/specifications.md, structure.md, behavioral.md; docs/diagrams/dependency.md, model-seam.md, models-folder.md, data-flow.md; docs/README.md, docs/state/WORK-ITEMS.md; focused regression additions in tests/languages/test_javascript.py and tests/connector/test_javascript_analysis.py.
-- Check: python -m pytest -q -> all local tests pass.
+- Check: python -m pytest tests/behavioral tests/common tests/structural tests/languages tests/drifter tests/frontend/test_behavioral_view.py tests/hooks tests/docs tests/image tests/ownership -q -> all locally runnable cases pass. Full integration remains required by Done criterion 5.
 - Trailer: Step: 3/3
 
 ## Done criteria
+
+Execution note: this Windows tool session cannot initialize the asyncio loopback socketpair or run the MSYS shell used by mock Git clones. Node and computer-use fallback transports disconnected. Local step checks therefore cover the available source, CLI, core and rendering tests; full HTTP/Git-clone integration and installation of the upstream dependency lock remain pending in CI. Cached parser versions match the declared pins. These execution limits do not waive Done criterion 5 or close the Epic.
 
 1. CI: gh run list --commit $(git rev-parse HEAD) --limit 1 --json conclusion -> success. Pending until a separately authorized push; this local delivery does not close the Epic.
 2. Specification: git diff --stat origin/main...HEAD -- docs/base/specifications.md -> includes supported-language and default-scope changes.

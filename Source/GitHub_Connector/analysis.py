@@ -1,4 +1,4 @@
-# runs one analysis end to end, callable without HTTP by the API or a later Action
+# runs Python and JavaScript analysis through the shared core, callable without HTTP
 
 from __future__ import annotations
 
@@ -152,7 +152,8 @@ def generate(request: AnalysisRequest) -> GenerateResult:
     with slot_until(deadline):
         with fetch(request.repository, request.commit_id, request.base_commit, deadline) as cmp:
             try:
-                files = check.generate_models(cmp)
+                # honors the committed scope and level, or derives a scope for a new repository
+                files = check.generate_models(cmp, verbosity=None)
             except check.DriftError as exc:
                 raise AnalysisError(ErrorCode.ANALYSIS_FAILED, f"{exc.code}: {exc.message}") from None
             return GenerateResult(repository=request.repository, head_commit=cmp.head,
@@ -160,7 +161,7 @@ def generate(request: AnalysisRequest) -> GenerateResult:
 
 
 def _drift(cmp) -> tuple[Drift | None, DriftErrorBody | None]:
-    # checks the code against the committed models on the clone change detection already made.
+    # checks Python and JavaScript against committed models through the same language dispatch.
     # It runs whatever status change detection reached, and a no-verdict code leaves status alone
     # and drift null, so a check that could not be completed is never read as aligned (spec 5.2)
     try:

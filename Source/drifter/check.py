@@ -21,7 +21,7 @@ from typing import Callable, Protocol
 
 import jsonschema  # type: ignore[import-untyped]
 
-from models.common import ParseFailed, glob, parse_files, write_model
+from models.common import JAVASCRIPT_EXTENSIONS, ParseFailed, glob, parse_files, write_model
 from models.behavioral_model import generate_behavioral
 from models.ownership_model import CommitRecord, PathTouch, propose_ownership
 from models.structural_model import FULL, KEPT_KINDS, generate_structural
@@ -237,6 +237,15 @@ def _matches(path: str, pattern: str) -> bool:
     return glob(pattern).match(path) is not None
 
 
+def default_scope(paths) -> dict:
+    # adds standalone JavaScript for new repositories, preserving Python-only initialization bytes
+    scope = {
+        "include": [*DEFAULT_SCOPE["include"], *(f"**/*{ext}" for ext in JAVASCRIPT_EXTENSIONS)],
+        "exclude": [*DEFAULT_SCOPE["exclude"], "**/node_modules/**", "**/vendor/**", "**/third_party/**"],
+    }
+    return scope if any(path.endswith(JAVASCRIPT_EXTENSIONS) for path in in_scope(list(paths), scope)) else DEFAULT_SCOPE
+
+
 # ------------------------------------------------------------- the ownership check, per push
 
 
@@ -336,19 +345,25 @@ class HistoryReader(Reader, Protocol):
         ...
 
 
-def generate_models(reader: HistoryReader, verbosity: int = FULL) -> dict[str, str]:
+def generate_models(reader: HistoryReader, verbosity: int | None = FULL) -> dict[str, str]:
     # returns the four /models files' text at the commit, as drifter init writes them: the
     # default scope, the regenerated models and ownership proposed from all history (spec 3.2).
     # The level is set here, before the first model exists, so the first baseline is already at it.
     # It is written into scope.json only when it is not FULL, which keeps init's bytes what they
     # were for a repository that asks for no level. The parameter is keyword with a default because
     # POST /system/generate calls this with the reader alone (GitHub_Connector/analysis.py).
-    files = _read_files(reader, in_scope(sorted(reader.tree()), DEFAULT_SCOPE))
-    models = _regenerate(files, verbosity)
+    tree = reader.tree()
+    scope = default_scope(tree)
+    if "models/scope.json" in tree:
+        scope = _model("models/scope.json", reader.read(["models/scope.json"])["models/scope.json"])
+        _scope_rule(scope)
+    level = verbosity_of(scope) if verbosity is None else verbosity
+    files = _read_files(reader, in_scope(sorted(tree), scope))
+    models = _regenerate(files, level)
     models["ownership.json"] = proposed_ownership(reader)
-    models["scope.json"] = (
-        DEFAULT_SCOPE if verbosity == FULL else {**DEFAULT_SCOPE, "verbosity": verbosity}
-    )
+    if verbosity is not None and (verbosity != FULL or "verbosity" in scope):
+        scope = {**scope, "verbosity": verbosity}
+    models["scope.json"] = scope
     return {name: write_model(models[name]) for name in MODEL_FILES}
 
 

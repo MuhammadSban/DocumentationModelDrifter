@@ -18,6 +18,7 @@ from drifter.check import (
     DEFAULT_SCOPE,
     GENERATORS,
     MODEL_FILES,
+    default_scope,
     differences,
     generate_one,
     in_scope,
@@ -102,7 +103,7 @@ def _scope(reader, tree: dict[str, str], commit: str) -> dict:
     # takes the commit's own scope.json where it has one, so a repository that declares its scope
     # is read the way its own generator reads it
     if SCOPE_FILE not in tree:
-        return DEFAULT_SCOPE
+        return default_scope(tree)
     try:
         scope = json.loads(reader.read([SCOPE_FILE], commit)[SCOPE_FILE].decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
