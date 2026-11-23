@@ -135,6 +135,10 @@ The human decided the calls in the W1-2 row (`docs/state/WORK-ITEMS.md:143`). Th
 
 ## Review
 
+RATIFY · design-reviewer at 37535ba · 2026-11-22 (reported, not written by the reviewer)
+
+- Every `gh run list` call in Done lines 1 and 13 carries `--event push`, and line 13's expected output is unchanged. `gh run list --help` lists `-e, --event`. On `b91e137` the commands pick run 45093126779 and give `success` and `362 passed, 1 warning in 55.38s`. Until HEAD is pushed it has no run, so the auditor waits for HEAD's push run to complete.
+
 Revised after the verdict below, on the auditor's finding at `b91e137`: once PR #59 opened, `--limit 1` in Done lines 1 and 13 picked the pull_request run 45097476388, which tests the merge with `main` and gave `448 passed`, not the push run 45093126779 with `362 passed`. Both lines now pass `--event push` to `gh run list`; line 13's expected output is unchanged. On `b91e137` the new command picks run 45093126779. The next reviewer writes its verdict above this paragraph.
 
 RATIFY · design-reviewer at de1a166 · 2026-11-22 (reported, not written by the reviewer)
