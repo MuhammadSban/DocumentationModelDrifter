@@ -797,7 +797,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-o", "--out", help="write the page here instead of stdout")
     args = parser.parse_args(argv)
 
-    page = render(load_models(args.models_dir))
+    models = load_models(args.models_dir)
+    # the level this folder declares, so the panel names what is actually drawn: rendered to a file
+    # there is no route to ask for another, and a page claiming Full over a level-1 model would be
+    # the one thing this panel must never do
+    level = models.scope.verbosity if models.scope else FULL
+    page = render(models, drawn_level=level, committed_level=level)
     if args.out:
         Path(args.out).write_text(page, encoding="utf-8")
         print(f"wrote {args.out}", file=sys.stderr)

@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from GitHub_Connector.api import app
 from GitHub_Connector.settings import get_settings
 from models.common import write_model
+from models.structural_model import generate_structural
 
 # one in-scope file, enough for the structural generator to have something to say
 CODE = {"src/app.py": "def charge(amount):\n    return amount\n"}
@@ -278,6 +279,39 @@ def test_a_preview_compares_the_drawn_level_with_itself(view):
     response = view(base, head, verbosity=1)
 
     assert chips(response.text)["Structural"] == "same as previous commit"
+
+
+@pytest.mark.parametrize(
+    "declared, named",
+    [(1, "level 1 of 4, Overview"), (3, "level 3 of 4, Members"), (None, "level 4 of 4, Full")],
+)
+def test_the_standalone_render_names_the_level_the_folder_declares(tmp_path, declared, named):
+    # the panel must never claim Full over a model that holds less. Rendered to a file there is no
+    # route to ask for another level, so the only level it can name is the committed one.
+    from Frontend.model_loader import load_models
+    from Frontend.model_viewer import main
+
+    scope = dict(SCOPE) if declared is None else {**SCOPE, "verbosity": declared}
+    (tmp_path / "scope.json").write_text(write_model(scope))
+    (tmp_path / "ownership.json").write_text(write_model(RULES))
+    (tmp_path / "structural.json").write_text(write_model(generate_structural(CODE)))
+    out = tmp_path / "page.html"
+
+    assert main([str(tmp_path), "-o", str(out)]) == 0
+
+    assert f"Showing {named}," in out.read_text()
+    assert load_models(tmp_path).scope.verbosity == (declared or 4)
+
+
+def test_a_level_the_ladder_does_not_hold_labels_the_page_rather_than_failing(tmp_path):
+    # the check refuses such a value; the viewer must still draw something and name a real level,
+    # since a page that 500s teaches the reader nothing
+    from Frontend.model_loader import load_models
+
+    (tmp_path / "scope.json").write_text(write_model({**SCOPE, "verbosity": 7}))
+    (tmp_path / "ownership.json").write_text(write_model(RULES))
+
+    assert load_models(tmp_path).scope.verbosity == 4
 
 
 def test_the_standalone_render_shows_the_panel_read_only():
