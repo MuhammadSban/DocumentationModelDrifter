@@ -1,6 +1,6 @@
 # E02: Model generation parameters, and verbosity as the first one
 
-Status: draft · Owner: Kaan
+Status: ratified · Owner: Kaan
 
 W-row: N7 in `docs/state/WORK-ITEMS.md` · Branch: `E02-model-parameters`
 
@@ -683,3 +683,63 @@ blocks RATIFY is three lines, each a one-line fix, and nothing else:
 - **Unchanged and still true.** Done criterion 3 prints nothing only after the human moves rows
   E02-a to E02-c and `docs/decisions/OPEN-DECISIONS.md:19` into `docs/decisions/RULED/`, which only
   they write (R1). Criterion 4 sits after it. Direction was not re-opened.
+
+RATIFY · design-reviewer at 1ad757f · 2026-11-22
+
+Fifth review, of `1ad757f`; docs only since the third, so every code reading and every run of the
+third and fourth reviews still stands. **Every output the Done table now records was reproduced
+here, command by command, at this commit** — the table has twice claimed more than it had, so each
+line was run rather than read: line 2 gives `1 file changed, 7 insertions(+), 2 deletions(-)`;
+line 3's grep prints exactly 4 lines, rows E02-a to E02-c and the detail line; line 5 gives
+`1 failed, 254 passed` with the one failure being the Apple-Git `test_fetch` case that fails on
+`main` in this environment too, and `git diff --stat main...HEAD -- docs/contract/` prints nothing;
+line 6 `9 passed`; line 7 `8 passed, 76 deselected`; line 8 `7 passed, 77 deselected`; line 9
+`40 passed` with an empty `Source/Frontend/index.html` diff; line 10 `3` and `5`; line 11 ends
+`Contracts: 5 kept, 0 broken.`; line 12 `1` and `3`; line 13 `2 passed, 82 deselected`. The whole
+suite gives `368 passed` with the same single failure, and `ruff check` passes. Both criteria
+defects are now on the record above the table they describe, in the builder's own words, which is
+the honest version of what the previous two paragraphs claimed.
+
+The three blocking lines of the fourth review and its nit are fixed: the spec sentence is cited as
+`docs/base/specifications.md` §3.2, Scope in `DESIGN.md`'s prose as well as in its premise row;
+step 6 names "both of its `snapshot` calls, at the head and at the base" instead of two line
+numbers; and the `model_drift.py:40-52` range is gone from the revision note and from open
+question 4, both of which now say `snapshot` in `Source/Frontend/model_drift.py`. Every line
+number still cited anywhere in the Epic or its design was checked at this commit and every one
+holds: `Source/GitHub_Connector/analysis.py:132` is `files = check.generate_models(cmp)`;
+`Source/Frontend/model_viewer.py:5` is the module comment about the page's scripts;
+`docs/decisions/OPEN-DECISIONS.md:23`, `:24` and `:25` are rows E02-a, E02-b and E02-c;
+`Source/Frontend/index.html:256` is the models iframe and `:691` the URL it builds;
+`.importlinter:47` is the `Frontend.model_drift -> drifter.check` ignore line;
+`docs/invariants/INVARIANTS.md:16` and `:17` are INV-1 and INV-2; `docs/base/structure.md:4` is the
+generator's signature; `docs/base/specifications.md:261` is the Scope sentence and `:213` the "four
+files" one.
+
+Everything the verdict requires holds. The filled-copy check of `docs/templates/README.md` prints
+nothing for `EPIC.md` and for `DESIGN.md`. All ten steps name their files, one check command with
+the output that means done, and a trailer, and the headings now match the trailers the commits
+carry (`Step: 1/7` to `7/7`, then `8/10` to `10/10`). Every Done criterion is a command with its
+expected output except line 4, which is the human's word. `DESIGN.md` exists, as it must for an
+Epic that changes `docs/diagrams/model-seam.md` and `docs/diagrams/models-folder.md`, and both are
+updated. Nothing contradicts a higher level of the authority order: `docs/contract/` has no changed
+byte and the route carries `include_in_schema=False`, so Team 16 agrees to nothing; no ruling
+exists to conflict with and R1 is respected, the three rows staying in
+`docs/decisions/OPEN-DECISIONS.md` until the human writes `docs/decisions/RULED/`; INV-2's hole is
+named and graded DEFERRED rather than opened; `docs/base/specifications.md` §3.2 and
+`docs/base/structure.md` were corrected in the same branch under R2. No claim in either file fails
+on disk, and all six open questions end in a sourced answer, so none needs a row in
+`docs/decisions/OPEN-DECISIONS.md`.
+
+Status set to `ratified`.
+
+- **For the closing, not against the verdict.** Done criterion 3 still prints its 4 lines, and
+  criterion 4 is the human's. Both come after RATIFY: the auditor re-runs every line at HEAD from a
+  session that did not build this, and the human moves rows E02-a to E02-c and
+  `docs/decisions/OPEN-DECISIONS.md:19` into `docs/decisions/RULED/` before either can pass (R1).
+- **Recorded in the second review and still true.** The build ran while the Status was `draft`,
+  which R7 does not allow; the human ratified by word on 2026-11-22 and asked for the close-out, and
+  this verdict puts the Status where the code already is. The queue's own lines say the same
+  (`docs/state/WORK-ITEMS.md:13`, `:240`).
+- **Not driven, and the Epic says so.** The panel has never been opened in a browser: its layout
+  and the `localStorage` memory are read from rendered HTML and from `tests/frontend`, not seen.
+  That is named in "Driven by hand" and is the one thing no Done line can prove.
