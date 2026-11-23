@@ -78,6 +78,13 @@ None: the human answered the three proposals in the W0-6 row (2026-11-22), and e
 
 ## Review
 
+RATIFY · design-reviewer at 0827484 · 2026-11-22
+
+- Both `gh run list` calls in the Epic, Done lines 1 and 10 (`EPIC.md:61`, `:73`), now pass `--event push`; `grep -n "gh run list"` finds no other call.
+- The flag is valid: `gh run list --help` lists `-e, --event event  Filter runs by which event triggered the run`.
+- It picks the right run: on `29a2078`, which has both runs, the unfiltered call lists the pull_request run 45102624366 first; with `--event push` it returns the push run 45102502445. On `18c69ff`, line 1's shape prints `success`. HEAD of this branch is not pushed yet, so it has no run.
+- The commit carries `Step: plan` and touches only this file, 2 lines in and 2 out (`git show --stat 0827484`). Nothing else changed.
+
 RATIFY · design-reviewer at e7efef0 · 2026-11-22
 
 - The first finding at `b2019e8` is fixed. The Goal cites `docs/proposals/init/init.md:59` (fix 4) and no longer says E02 deleted it. `git cat-file -t HEAD:docs/proposals/init/init.md` prints `blob`. The W0-6 row (`docs/state/WORK-ITEMS.md:100`) now says only "since E02".
