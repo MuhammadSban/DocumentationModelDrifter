@@ -1,6 +1,6 @@
 # E06: Image hygiene
 
-Status: ratified · Owner: Kaan
+Status: closed · Owner: Kaan
 
 W-row: W1-2 and W1-3 (build order step 2.1) in `docs/state/WORK-ITEMS.md` · Branch: `E06-image-hygiene`
 
