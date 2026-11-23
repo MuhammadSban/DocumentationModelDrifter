@@ -135,6 +135,10 @@ The human decided the calls in the W1-2 row (`docs/state/WORK-ITEMS.md:143`). Th
 
 ## Review
 
+RATIFY · design-reviewer at de1a166 · 2026-11-22 (reported, not written by the reviewer)
+
+- Done line 10, run once as written, shows steps [2/10] to [9/10] each followed by `CACHED`, and `[10/10] COPY Source/ Source/` with none. `date +%s%N` works in Git Bash, so the appended line is new on every run, and a cache hit on `COPY Source/` would need that exact text built before. The first `docker build -q` caches every layer above it, even on a fresh machine; if that build fails, `&&` stops the line and it prints nothing, which reads as a failure.
+
 Revised after the verdict below, on the checker's finding at `cb357bd`: Done line 10 appended a fixed `# e06`, so after one run the changed `Source/` layer sat in Docker's build cache and a second run read `COPY Source/` as `CACHED` (`/tmp/e06-chk-E10.log`). With a unique marker the checker saw every layer above `COPY Source/` cached and `COPY Source/` rebuilt (`/tmp/e06-chk-E10b.log`). The line now appends `# e06 $(date +%s%N)`. The next reviewer writes its verdict above this paragraph.
 
 RATIFY · design-reviewer at 408a479 · 2026-11-22 (reported, not written by the reviewer)
