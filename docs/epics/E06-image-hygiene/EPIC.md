@@ -28,13 +28,13 @@ Everything this Epic reads or changes, found by looking before the steps are wri
 - CI installs both files in one command, `pip install -r requirements.txt -r requirements-dev.txt` (`.github/workflows/ci.yml:21`), on `python-version: "3.12"` (`:20`). pip checks hashes for the whole install as soon as one requirement carries a hash, so both files need hashes, and line 21 can stay as it is.
 - `python:3.12.16-slim-trixie` is on Docker Hub (last pushed 2026-11-08) and is the newest 3.12 patch there with a `slim-trixie` tag; the manifest that `actions/setup-python` reads (`actions/python-versions`, `versions-manifest.json`) lists 3.12.16 for Linux x64 on 22.04, 24.04 and 26.04, and nothing newer in 3.12. Both were read on 2026-11-22.
 - This checkout runs Python 3.13.13 on Windows; the image and CI run 3.12 on Linux. `uv --version` gives `uv 0.11.19`; `pip-compile` is not installed. In uv's universal mode the Python that runs the command is the lower bound unless `--python-version` names one, so the commands below pass `--python-version 3.12`.
-- The `/tester` page runs only `tests/structural`, `behavioral`, `ownership` and `common` (`Source/Tester/unit_tests.py:15-20`), so `tests/build/` never runs inside the image, where the `Dockerfile` and `.dockerignore` are absent.
+- The `/tester` page runs only `tests/structural`, `behavioral`, `ownership` and `common` (`Source/Tester/unit_tests.py:15-20`), so `tests/image/` never runs inside the image, where the `Dockerfile` and `.dockerignore` are absent.
 - `docs/contract/` names no Python or package version: `grep -rniE "python|version" docs/contract/` finds `config_version`, `tool_version`, `schema_version`, the contract's own "Version 2.5.0" and the words "Python code", and no version of Python or of a package.
-- CI is green on `ff79932`: run 45074364848, `358 passed, 1 warning in 49.74s`. There is no `tests/build/` folder, and pytest has no configuration file, so plain `pytest` collects a new folder under `tests/`.
+- CI is green on `ff79932`: run 45074364848, `358 passed, 1 warning in 49.74s`. There is no `tests/build/` folder, and pytest has no configuration file, so plain `pytest` collects a new folder under `tests/`, unless its name is in pytest's default `norecursedirs`, which holds `build`. Found on step 3's push: CI run 45090643620 on `09b07d3` gave `358 passed`, and `pytest --collect-only -q` found 0 tests under `tests/build/`. So step 4 moves the file to `tests/image/` (decided by the human, 2026-11-22).
 
 ## Steps
 
-One commit per step, made after the step's check passes. Four new tests in all, in one new file, `tests/build/test_image.py`. Each is **written first**: it fails at the step's parent commit.
+One commit per step, made after the step's check passes. Four new tests in all, in one new file: steps 1 to 3 wrote it as `tests/build/test_image.py`, and step 4 moves it to `tests/image/test_image.py`, because plain `pytest` never enters a folder named `build` (fact line 33). Each is **written first**: it fails at the step's parent commit.
 
 **Seam.** Every test reads the text of a committed file from the repository root (`Path(__file__).resolve().parents[2]`, as `tests/docs/test_diagrams.py:10` does). No test builds an image, starts Docker or uses the network.
 
@@ -70,10 +70,10 @@ One commit per step, made after the step's check passes. Four new tests in all, 
 
 ### Step 4/5: name one exact Python in the Dockerfile and in CI
 
-- Files: `Dockerfile` (line 3), `.github/workflows/ci.yml` (lines 17 and 20, a protected file: the edit stops for the human's approval), `tests/build/test_image.py`
-- What: `FROM python:3.12.16-slim-trixie`, and `python-version: "3.12.16"` with its comment naming the same version. No line is added or removed in either file. Test:
+- Files: `Dockerfile` (line 3), `.github/workflows/ci.yml` (lines 17 and 20, a protected file: the edit stops for the human's approval), `tests/build/test_image.py` moved to `tests/image/test_image.py`
+- What: `FROM python:3.12.16-slim-trixie`, and `python-version: "3.12.16"` with its comment naming the same version. No line is added or removed in either file. `git mv tests/build/test_image.py tests/image/test_image.py`, so CI collects the file. Test:
   - `test_dockerfile_and_ci_name_the_same_exact_python_patch`: the `FROM` line and the `python-version` value each name a three-part version, and the two are equal. At the parent both say `3.12`.
-- Check: `python -m pytest tests/build/test_image.py -q` → the summary line starts with `4 passed` and has no `failed`
+- Check: `python -m pytest tests/image/test_image.py -q` → the summary line starts with `4 passed` and has no `failed`
 - Trailer: `Step: 4/5`
 
 ### Step 5/5: the docs
@@ -107,7 +107,7 @@ This Epic's own:
 11. A wrong hash fails the build: `T=$(mktemp -d) && git archive HEAD | tar -x -C "$T" && sed -i "s/sha256:[0-9a-f]\{8\}/sha256:00000000/g" "$T/requirements.txt" && docker build --progress=plain "$T" 2>&1 | grep -c "DO NOT MATCH THE HASHES"` → a number above 0. The change is made in the temporary copy; `git status --short` in the checkout prints nothing afterwards.
 12. One exact Python in both files: `grep -n "3\.12\.[0-9]" Dockerfile .github/workflows/ci.yml` → the `FROM python:3.12.16-slim-trixie` line of the `Dockerfile` and the `python-version: "3.12.16"` line of `ci.yml`, with its comment; no line names another patch
 13. The whole suite passes in CI: `gh run view $(gh run list --commit $(git rev-parse HEAD) --limit 1 --json databaseId --jq ".[0].databaseId") --log | grep -E "[0-9]+ passed"` → the line holds `362 passed` and no `failed` (358 at `ff79932`, plus 4). `361 passed, 1 skipped` also counts: `tests/connector/test_golden.py` skips when the runner cannot reach the fixture repository (INV-1).
-14. The new tests pass: `python -m pytest tests/build/test_image.py -q` → the summary line starts with `4 passed` and has no `failed`
+14. The new tests pass: `python -m pytest tests/image/test_image.py -q` → the summary line starts with `4 passed` and has no `failed`
 15. The old claims are gone from the proposal: `grep -Pzo -e 'not\s+yet\s+applied|about\s+14\s+MB|about\s+15\s+MB' docs/proposals/docker/docker.md` → prints nothing. The grep reads the file as one record (`-z`) and `\s+` matches a line break. Run on the file at `ff79932` it prints all three phrases.
 16. The image installs with hash checking on: `grep -c "^RUN .*--require-hashes" Dockerfile` → `1`. Only `RUN` lines count, so a comment that names the flag cannot change the figure.
 17. The home folder is still the user's: after line 5, `MSYS_NO_PATHCONV=1 docker run --rm e06-image find /home/drifter ! -user drifter` → prints nothing: every file and folder under it, and the folder itself, belong to `drifter`. Step 2 moves `ENV HOME=/home/drifter` above the pip install, which runs as root.
@@ -134,6 +134,8 @@ The human decided the calls in the W1-2 row (`docs/state/WORK-ITEMS.md:143`). Th
 - Does a first build from a fresh folder print the whole context's size on its `transferring context` line? Checked in step 1, where the size before must come out near the 59.77 MB summed from the files; if Docker sends only the paths the `COPY` lines name, the builder writes that in the log, and step 5 writes it beside the two sizes in the W1-2 row. Review: no file, model or ruling answers it; it is BuildKit's behavior, not the human's call. If BuildKit sends only the `COPY` paths, the size before is near 21 MB (`Source/` with its 19.86 MB `.mypy_cache`, `tests/`, `docs/contract/`), not 59.77 MB; the step already says what to write then.
 
 ## Review
+
+Revised after the verdict below, between steps 3 and 4, on the human's call of 2026-11-22: pytest's default `norecursedirs` holds `build`, so CI never collected `tests/build/` (run 45090643620 on `09b07d3`: `358 passed`). Step 4 moves the test file to `tests/image/`; fact lines 31 and 33, the Steps intro, step 4's Files, What and Check, and Done line 14 say so. The checks of steps 1 to 3 keep `tests/build/`, the path at their commits. The next reviewer writes its verdict above this paragraph.
 
 RATIFY · design-reviewer at b6668ff · 2026-11-22 (accepted by the human from the reviewer's report: the reviewer writes no verdict on an Epic whose Status is not `draft`, so it changed nothing and reported)
 
