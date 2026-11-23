@@ -58,7 +58,7 @@ Each line is a command and the output that means done. The auditor re-runs every
 
 Baseline, the same for every Epic:
 
-1. CI green: `gh run list --commit $(git rev-parse HEAD) --limit 1 --json conclusion --jq ".[0].conclusion"` → `success`
+1. CI green: `gh run list --commit $(git rev-parse HEAD) --event push --limit 1 --json conclusion --jq ".[0].conclusion"` → `success`
 2. Spec lines updated: `git diff --stat origin/main...HEAD -- docs/base/specifications.md` → empty. The Epic changes no behavior, and no spec line says what a hand edit to `structural.json` or `behavioral.json` does in general (`docs/base/specifications.md:245`, `:398` and `:503` are the only lines with "by hand" or "hand edit", and each stays true)
 3. No open row for this Epic: `git grep -n "E07" -- docs/decisions/OPEN-DECISIONS.md` → prints nothing
 4. The human accepts. The one line that is the human's word and not a command: it comes after lines 1 to 3 and the Epic's own lines pass.
@@ -70,7 +70,7 @@ This Epic's own:
 7. The two tables are identical: `git grep -h -A8 "^## Who writes /models" -- docs/diagrams/data-flow.md docs/diagrams/models-folder.md | tr -d '\r' | grep -vx -- "--" | sort | uniq -u` → prints nothing. Each heading is followed by a blank line and the 7-line table, so `-A8` takes the table and stops before the next blank line. Today the command prints data-flow.md's heading, blank line and table, because the second copy is missing.
 8. The qualifier is in both: `git grep -c "is drift at the default volatility, 1 (Exact)" -- docs/diagrams/data-flow.md docs/diagrams/models-folder.md` → `docs/diagrams/data-flow.md:1` and `docs/diagrams/models-folder.md:1`
 9. Only the one line of data-flow.md changed: `git diff --numstat origin/main...HEAD -- docs/diagrams/data-flow.md` → `1	1	docs/diagrams/data-flow.md`
-10. The whole suite on CI counts the new test: `gh run view $(gh run list --commit $(git rev-parse HEAD) --limit 1 --json databaseId --jq ".[0].databaseId") --log | grep -o "[0-9]* passed[^=]*"` → `466 passed` and no `failed`. If `tests/connector/test_golden.py` cannot reach GitHub, its tests show as skipped, and passed plus skipped is 466.
+10. The whole suite on CI counts the new test: `gh run view $(gh run list --commit $(git rev-parse HEAD) --event push --limit 1 --json databaseId --jq ".[0].databaseId") --log | grep -o "[0-9]* passed[^=]*"` → `466 passed` and no `failed`. If `tests/connector/test_golden.py` cannot reach GitHub, its tests show as skipped, and passed plus skipped is 466.
 
 ## Open questions
 
