@@ -1,0 +1,5 @@
+# names the lint tools CI adds; requirements-dev.txt is locked from it by:
+# uv pip compile requirements-dev.in --universal --python-version 3.12 --generate-hashes -o requirements-dev.txt
+-c requirements.txt
+ruff==0.17.6
+import-linter==2.17

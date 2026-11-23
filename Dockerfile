@@ -20,7 +20,7 @@ ENV DRIFTER_RUNS_DIR=/app/runs \
     PYTHONDONTWRITEBYTECODE=1
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 
 # ships the tests the /tester page runs, the golden answers the pod tests compare with and the map coverage.model reads
 COPY docs/contract/ docs/contract/
