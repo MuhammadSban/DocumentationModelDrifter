@@ -281,6 +281,25 @@ def test_a_preview_compares_the_drawn_level_with_itself(view):
     assert chips(response.text)["Structural"] == "same as previous commit"
 
 
+def test_the_console_server_forwards_every_path_the_console_asks_the_api_for():
+    # the console and the server that fronts it are two files, and the models page went missing
+    # because they disagreed: index.html framed /models/view while ui.py forwarded only /system/*,
+    # so the frame got a 404 and the page, panel and all, never appeared. This pins the agreement.
+    from pathlib import Path
+
+    from Frontend import ui
+
+    console = (Path(ui.__file__).parent / "index.html").read_text(encoding="utf-8")
+    asked = set(re.findall(r'api\("(/[\w/.-]+)', console))
+
+    assert "/models/view" in asked, "the console no longer frames the models page by that path"
+    for path in asked:
+        assert path.startswith(ui.PROXIED) or path == "/system", f"ui.py would serve {path} as a file"
+    # and it still serves its own files rather than proxying everything
+    assert not "/index.html".startswith(ui.PROXIED)
+    assert not "/app.css".startswith(ui.PROXIED)
+
+
 @pytest.mark.parametrize(
     "declared, named",
     [(1, "level 1 of 4, Overview"), (3, "level 3 of 4, Members"), (None, "level 4 of 4, Full")],
