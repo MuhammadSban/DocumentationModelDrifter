@@ -11,10 +11,31 @@ SCHEMA_VERSION = 1
 
 FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef)
 
+# how much of the code the model describes, set by scope.json's verbosity key. Each level keeps
+# everything the level below it keeps, so a level is a subset of the one above; FULL is what this
+# generator has always written, and is the default (docs/closed/E02-model-parameters/DESIGN.md).
+OVERVIEW, TYPES, MEMBERS, FULL = 1, 2, 3, 4
 
-def generate_structural(files: dict[str, str]) -> dict:
+# names the node kinds each level keeps. Edges follow from the nodes rather than from a table of
+# their own: an edge is kept only where both of its ends are, so imports edges, which join two
+# modules, survive every level, and inherits edges arrive with the classes they join.
+KEPT_KINDS = {
+    OVERVIEW: ("module",),
+    TYPES: ("module", "class"),
+    MEMBERS: ("module", "class", "function", "method"),
+    FULL: ("module", "class", "function", "method"),
+}
+
+# names the signature attributes only FULL carries (structure.md), dropped from a node below it
+SIGNATURE = ("async", "decorators", "params")
+
+
+def generate_structural(files: dict[str, str], verbosity: int = FULL) -> dict:
     # returns the structural model of files (repo-relative path -> text), raises ParseFailed
-    # if any file is not valid Python
+    # if any file is not valid Python. verbosity trims what the model describes, FULL being
+    # everything; the core validates the committed value before calling.
+    if verbosity not in KEPT_KINDS:
+        raise ValueError(f"verbosity {verbosity!r} is not one of {sorted(KEPT_KINDS)}")
     trees = parse_files(files)
     modules = {path: module_id(path) for path in trees}
     known = set(modules.values())
@@ -43,9 +64,23 @@ def generate_structural(files: dict[str, str]) -> dict:
             if target in nodes and nodes[target]["kind"] == "class":
                 _edge(edges, "inherits", class_id, target, path)
 
+    return _at_level(nodes, edges, verbosity)
+
+
+def _at_level(nodes: dict[str, dict], edges: dict[str, dict], verbosity: int) -> dict:
+    # trims the model to one level: the kinds that level keeps, the signature attributes only FULL
+    # carries, and the edges whose both ends survived. At FULL nothing is dropped, so the bytes are
+    # what this generator wrote before verbosity existed.
+    kept = [node for node in nodes.values() if node["kind"] in KEPT_KINDS[verbosity]]
+    if verbosity != FULL:
+        kept = [{k: v for k, v in node.items() if k not in SIGNATURE} for node in kept]
+    ids = {node["id"] for node in kept}
     return {
-        "edges": sorted(edges.values(), key=lambda e: e["id"]),
-        "nodes": sorted(nodes.values(), key=lambda n: n["id"]),
+        "edges": sorted(
+            (edge for edge in edges.values() if edge["source"] in ids and edge["target"] in ids),
+            key=lambda e: e["id"],
+        ),
+        "nodes": sorted(kept, key=lambda n: n["id"]),
         "schema_version": SCHEMA_VERSION,
     }
 

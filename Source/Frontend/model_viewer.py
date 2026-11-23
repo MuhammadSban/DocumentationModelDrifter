@@ -2,7 +2,11 @@
 #
 #   PYTHONPATH=Source python -m Frontend.model_viewer <models-dir> [-o page.html]
 #
-# the page is static HTML: no server, no scripts, no network
+# the page is static HTML. Its two scripts are the Mermaid import that draws the diagrams and, on
+# a served page only, the few lines that remember the parameters panel's stop in the reader's own
+# browser; the panel itself is a GET form and needs neither. Rendered to a file there is no server
+# to ask for another level, so the panel is read-only and the page asks the network for Mermaid
+# alone.
 
 from __future__ import annotations
 
@@ -15,6 +19,7 @@ from pathlib import Path
 from Frontend.model_drift import Verdict
 from models.ownership_model import WINDOW
 from models.common import glob
+from models.structural_model import FULL, MEMBERS, OVERVIEW, TYPES
 from Frontend.model_loader import (
     BEHAVIORAL_FILE,
     BehavioralModel,
@@ -40,6 +45,16 @@ OWNER_SLOTS = 8
 # caps the state machines drawn, the rest counted: a page of fifty lifecycles answers nothing
 MACHINE_SLOTS = 8
 
+# names each verbosity level for the parameters panel, in ladder order: a name, then what that
+# level adds to the one below it. Each says what it answers rather than how big it is, so a reader
+# picks the question they have and not a size.
+LEVEL_NAMES = {
+    OVERVIEW: ("Overview", "the packages and the imports between them"),
+    TYPES: ("Types", "adds the classes, and what extends what"),
+    MEMBERS: ("Members", "adds the functions and methods each one offers"),
+    FULL: ("Full", "adds every signature"),
+}
+
 # caps the staggered entrance, so a page of forty contributors does not open for two seconds
 STAGGER_STEPS = 8
 
@@ -52,8 +67,21 @@ MERMAID = "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs"
 STYLE = (Path(__file__).resolve().parent / "app.css").read_text(encoding="utf-8")
 
 
-def render(models: Models, verdict: Verdict | None = None, *, derived: bool = False) -> str:
-    # renders the standalone page: the shell, the models, and the script that draws them
+def render(
+    models: Models,
+    verdict: Verdict | None = None,
+    *,
+    derived: bool = False,
+    drawn_level: int = FULL,
+    committed_level: int = FULL,
+    route: str | None = None,
+    repository: str | None = None,
+    commit_id: str | None = None,
+) -> str:
+    # renders the standalone page: the shell, the models, and the script that draws them.
+    # route is where the parameters panel submits to, which only a served page has: rendered to a
+    # file there is no server behind it, so the panel is shown read-only instead of offering a
+    # control that would do nothing.
     return (
         "<!doctype html>\n"
         '<html lang="en">\n<head>\n<meta charset="utf-8">\n'
@@ -63,16 +91,36 @@ def render(models: Models, verdict: Verdict | None = None, *, derived: bool = Fa
         '<meta name="theme-color" content="#0f1216" media="(prefers-color-scheme: dark)">\n'
         "<title>Models</title>\n"
         f"<style>{STYLE}</style>\n</head>\n<body>\n<main>\n"
-        + fragment(models, verdict, derived=derived)
+        + fragment(
+            models,
+            verdict,
+            derived=derived,
+            drawn_level=drawn_level,
+            committed_level=committed_level,
+            route=route,
+            repository=repository,
+            commit_id=commit_id,
+        )
         + "\n</main>\n"
         + _script()
+        + _remember(route)
         + "\n</body>\n</html>\n"
     )
 
 
-def fragment(models: Models, verdict: Verdict | None = None, *, derived: bool = False) -> str:
+def fragment(
+    models: Models,
+    verdict: Verdict | None = None,
+    *,
+    derived: bool = False,
+    drawn_level: int = FULL,
+    committed_level: int = FULL,
+    route: str | None = None,
+    repository: str | None = None,
+    commit_id: str | None = None,
+) -> str:
     # renders the models alone, without a page around them, so the console can put them inside
-    # its own shell: one panel per model, in the order a reader meets them
+    # its own shell: the parameters panel, then one panel per model, in the order a reader meets them
     sections = [
         _structural(models.structural, verdict),
         _behavioral(models.behavioral, verdict),
@@ -80,7 +128,9 @@ def fragment(models: Models, verdict: Verdict | None = None, *, derived: bool = 
     ]
     return (
         f'<div class="top">\n<h1>Models</h1>\n<p class="mono">{escape(models.source)}</p>\n'
-        f"{_compared(verdict)}</div>\n" + "\n".join(sections)
+        f"{_compared(verdict)}</div>\n"
+        + _parameters(drawn_level, committed_level, route, repository, commit_id)
+        + "\n".join(sections)
     )
 
 
@@ -96,6 +146,103 @@ def _compared(verdict: Verdict | None) -> str:
         f'<p class="note">Drift checked by regenerating each model at '
         f'<code>{escape(verdict.base[:7])}</code> and <code>{escape(verdict.head[:7])}</code> '
         "and comparing them whole.</p>\n"
+    )
+
+
+def _parameters(
+    drawn: int, committed: int, route: str | None, repository: str | None, commit_id: str | None
+) -> str:
+    # the model parameters panel: one stop per verbosity level, and what the level means for what
+    # the reader is looking at. A GET form, so changing the level needs no script at all: the page
+    # is asked for again at the new level and the server regenerates. Without a route there is no
+    # server behind the page, so the stops are shown disabled and the panel says how to change it.
+    served = route is not None and repository is not None and commit_id is not None
+    stops = "".join(
+        f'<label class="stop{" on" if level == drawn else ""}">'
+        f'<input type="radio" name="verbosity" value="{level}"'
+        f'{" checked" if level == drawn else ""}{"" if served else " disabled"}>'
+        f"<span><b>{escape(name)}</b>"
+        f'<span class="of"> {escape(adds)}</span></span></label>'
+        for level, (name, adds) in LEVEL_NAMES.items()
+    )
+    if served:
+        body = (
+            f'<form class="stops" method="get" action="{escape(route)}">'
+            f'<input type="hidden" name="repository" value="{escape(repository)}">'
+            f'<input type="hidden" name="commit_id" value="{escape(commit_id)}">'
+            f"{stops}"
+            '<button type="submit">Show</button></form>'
+        )
+    else:
+        body = f'<div class="stops">{stops}</div>'
+    return (
+        '<section class="panel params">\n<h2>Parameters</h2>\n'
+        '<p class="question">How much of the code should these models describe?</p>\n'
+        f"{body}\n{_levels_note(drawn, committed, served)}</section>\n"
+    )
+
+
+def _levels_note(drawn: int, committed: int, served: bool) -> str:
+    # separates the level being drawn from the level the repository commits. A preview read as the
+    # real check is the one way this panel could mislead, so, like _provenance, it never goes
+    # unmarked: the chips compare the drawn level with itself, and the check uses the committed one.
+    drawn_name = LEVEL_NAMES.get(drawn, (str(drawn), ""))[0]
+    committed_name = LEVEL_NAMES.get(committed, (str(committed), ""))[0]
+    if not served:
+        return (
+            f'<p class="note">Showing level {drawn} of {len(LEVEL_NAMES)}, {escape(drawn_name)}, '
+            "which is what this folder's models hold. To change it, run "
+            f"<code>drifter update --verbosity {drawn}</code> with the level you want, which "
+            "rewrites <code>models/scope.json</code> and the models together.</p>\n"
+        )
+    if drawn == committed:
+        return (
+            f'<p class="note">Showing level {drawn} of {len(LEVEL_NAMES)}, '
+            f"{escape(drawn_name)}, which is the level this repository commits.</p>\n"
+        )
+    return (
+        f'<p class="note">Showing level {drawn} of {len(LEVEL_NAMES)}, {escape(drawn_name)}, as a '
+        f"preview. This repository commits level {committed}, {escape(committed_name)}, and that "
+        "is the level <code>drifter check</code> uses. The drift chips below compare level "
+        f"{drawn} with level {drawn}, so they describe this preview and not the check. Previewing "
+        "changes nothing in the repository: to commit this level, run "
+        f"<code>drifter update --verbosity {drawn}</code>, which rewrites "
+        "<code>models/scope.json</code> and the models together.</p>\n"
+    )
+
+
+def _remember(route: str | None) -> str:
+    # remembers the reader's stop in their own browser, so the panel opens where they left it. The
+    # page's one script besides Mermaid, and the only part of the panel that needs one: losing it
+    # costs the memory and nothing else. Wrapped in try and catch, since a private window or
+    # blocked storage makes every one of these calls throw.
+    if route is None:
+        return ""
+    return (
+        "\n<script>\n"
+        "(() => {\n"
+        '  const form = document.querySelector(".params form");\n'
+        "  if (!form) return;\n"
+        '  const KEY = "models.verbosity";\n'
+        '  const url = new URL(location.href);\n'
+        "  try {\n"
+        # no level in the URL: the reader arrived without asking, so their remembered stop is
+        # offered by reloading once at it. The guard stops that reload looping.
+        '    const kept = localStorage.getItem(KEY);\n'
+        '    if (!url.searchParams.has("verbosity") && kept) {\n'
+        '      url.searchParams.set("verbosity", kept);\n'
+        "      location.replace(url);\n"
+        "      return;\n"
+        "    }\n"
+        "  } catch (e) { /* private window or blocked storage: no memory, panel still works */ }\n"
+        '  form.addEventListener("submit", () => {\n'
+        '    const picked = form.querySelector("input[name=verbosity]:checked");\n'
+        "    try {\n"
+        "      if (picked) localStorage.setItem(KEY, picked.value);\n"
+        "    } catch (e) { /* nothing to do: the form still submits */ }\n"
+        "  });\n"
+        "})();\n"
+        "</script>"
     )
 
 

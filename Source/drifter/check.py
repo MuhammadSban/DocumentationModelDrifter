@@ -24,12 +24,14 @@ import jsonschema  # type: ignore[import-untyped]
 from models.common import ParseFailed, glob, parse_files, write_model
 from models.behavioral_model import generate_behavioral
 from models.ownership_model import CommitRecord, PathTouch, propose_ownership
-from models.structural_model import generate_structural
+from models.structural_model import FULL, KEPT_KINDS, generate_structural
 
 # names the four files /models must hold, as the contract's ModelsFixture requires
 MODEL_FILES = ("behavioral.json", "ownership.json", "scope.json", "structural.json")
 
-# defaults drifter init writes into scope.json (spec 3.2)
+# defaults drifter init writes into scope.json (spec 3.2). No verbosity key: an absent one means
+# FULL, so init's bytes are what they were before the level existed, and only a repository that
+# asks for another level carries it (docs/closed/E02-model-parameters/EPIC.md, step 4)
 DEFAULT_SCOPE = {"exclude": ["tests/**"], "include": ["**/*.py"]}
 
 # caps one in-scope file, over this there is no verdict (spec 5.2)
@@ -99,21 +101,69 @@ def answer(sources: Sources) -> dict:
     }
 
 
-# maps each regenerated model to its generator (model-seam.md)
-GENERATORS: dict[str, Callable[[dict[str, str]], dict]] = {
+# maps each regenerated model to its generator (model-seam.md). Callable[..., dict] rather than one
+# signature: structural takes a verbosity level and behavioral does not, so call through
+# generate_one instead of calling an entry directly.
+GENERATORS: dict[str, Callable[..., dict]] = {
     "behavioral": generate_behavioral,
     "structural": generate_structural,
 }
 
 
+# the generation parameters scope.json may hold: a key, its default, and the values it allows.
+# Verbosity is the only one. A second parameter is one row here plus the generator argument it
+# feeds; nothing else in this module names a parameter by name.
+PARAMETERS: dict[str, tuple[object, tuple]] = {
+    "verbosity": (FULL, tuple(sorted(KEPT_KINDS))),
+}
+
+
+def parameters_of(scope: dict) -> dict:
+    # reads every declared parameter from a committed scope.json, each falling back to its default
+    # where the file omits it or holds a value PARAMETERS does not allow. Total on purpose: the
+    # check validates with _scope_rule first and never reaches a fallback, while the console's page
+    # reads a scope nothing has validated and must draw something rather than fail.
+    return {key: _parameter(scope, key) for key in PARAMETERS}
+
+
+def _parameter(scope: dict, key: str) -> object:
+    # one parameter's value, or its default where the file's value is not one this build allows
+    default, allowed = PARAMETERS[key]
+    value = scope.get(key, default)
+    return value if _allowed(value, allowed) else default
+
+
+def _allowed(value: object, allowed: tuple) -> bool:
+    # a bool is an int in Python, so True would otherwise pass as the level 1 it equals
+    return not isinstance(value, bool) and isinstance(value, type(allowed[0])) and value in allowed
+
+
+def verbosity_of(scope: dict) -> int:
+    # how much of the code the structural model describes, from the committed scope
+    level = parameters_of(scope)["verbosity"]
+    return level if isinstance(level, int) else FULL
+
+
+def generate_one(name: str, files: dict[str, str], verbosity: int = FULL) -> dict:
+    # runs one model's generator at the given level. Only structural has a ladder: behavioral keeps
+    # every element at every level while N2 is unruled, so it is called with the files alone. This
+    # is the one place that knows which generator takes a level; the three generation sites
+    # (_regenerate, model_differences and the page's snapshot) all call through here.
+    generate = GENERATORS[name]
+    return generate(files, verbosity) if name == "structural" else generate(files)
+
+
+
+
 def model_differences(name: str, sources: Sources) -> list[dict]:
     # regenerates one model and sets it against the committed one by element id; a model with no
     # registered generator reports no differences
-    generate = GENERATORS.get(name)
-    if generate is None:
+    if name not in GENERATORS:
         return []
     try:
-        fresh = generate(sources.files)
+        # the level the commit itself declares, so the fresh model and the committed one are at the
+        # same level and a level the repository lowered is not read as every element disappearing
+        fresh = generate_one(name, sources.files, verbosity_of(sources.models["scope.json"]))
     except ParseFailed as exc:
         raise DriftError(exc.code, str(exc)) from None
     return differences(fresh, sources.models[f"{name}.json"])
@@ -260,13 +310,19 @@ class HistoryReader(Reader, Protocol):
         ...
 
 
-def generate_models(reader: HistoryReader) -> dict[str, str]:
+def generate_models(reader: HistoryReader, verbosity: int = FULL) -> dict[str, str]:
     # returns the four /models files' text at the commit, as drifter init writes them: the
-    # default scope, the regenerated models and ownership proposed from all history (spec 3.2)
+    # default scope, the regenerated models and ownership proposed from all history (spec 3.2).
+    # The level is set here, before the first model exists, so the first baseline is already at it.
+    # It is written into scope.json only when it is not FULL, which keeps init's bytes what they
+    # were for a repository that asks for no level. The parameter is keyword with a default because
+    # POST /system/generate calls this with the reader alone (GitHub_Connector/analysis.py).
     files = _read_files(reader, in_scope(sorted(reader.tree()), DEFAULT_SCOPE))
-    models = _regenerate(files)
+    models = _regenerate(files, verbosity)
     models["ownership.json"] = proposed_ownership(reader)
-    models["scope.json"] = DEFAULT_SCOPE
+    models["scope.json"] = (
+        DEFAULT_SCOPE if verbosity == FULL else {**DEFAULT_SCOPE, "verbosity": verbosity}
+    )
     return {name: write_model(models[name]) for name in MODEL_FILES}
 
 
@@ -276,20 +332,30 @@ def proposed_ownership(reader: HistoryReader) -> dict:
     return propose_ownership(reader.head, _parse_history(reader.history()))
 
 
-def regenerate_models(reader: Reader) -> dict[str, str]:
+def regenerate_models(reader: Reader, verbosity: int | None = None) -> dict[str, str]:
     # returns structural.json and behavioral.json's text at the commit, as drifter update writes
-    # them. Only the committed scope.json is read, so a broken model being replaced cannot block it.
+    # them, and scope.json too where verbosity sets a new level. Only the committed scope.json is
+    # read, so a broken model being replaced cannot block it.
     if "models/scope.json" not in reader.tree():
         raise DriftError("MODELS_NOT_FOUND", f"models/scope.json is missing at {reader.head}")
     scope = _model("models/scope.json", reader.read(["models/scope.json"])["models/scope.json"])
     _scope_rule(scope)
     files = _read_files(reader, in_scope(sorted(reader.tree()), scope))
-    return {name: write_model(model) for name, model in _regenerate(files).items()}
+    # a level given here overrides the committed one and is written back beside the models, so
+    # changing the level is one commit; without it the committed level decides, and scope.json is
+    # left exactly as the person left it
+    if verbosity is not None:
+        scope = {**scope, "verbosity": verbosity}
+    regenerated = _regenerate(files, verbosity_of(scope))
+    written = {name: write_model(model) for name, model in regenerated.items()}
+    if verbosity is not None:
+        written["scope.json"] = write_model(scope)
+    return written
 
 
-def _regenerate(files: dict[str, str]) -> dict[str, dict]:
-    # regenerates each model in GENERATORS from in-scope files
-    return {f"{name}.json": generate(files) for name, generate in GENERATORS.items()}
+def _regenerate(files: dict[str, str], verbosity: int = FULL) -> dict[str, dict]:
+    # regenerates each model in GENERATORS from in-scope files, at the given level
+    return {f"{name}.json": generate_one(name, files, verbosity) for name in GENERATORS}
 
 
 class LocalReader:
@@ -387,6 +453,14 @@ def _scope_rule(scope: object) -> None:
         patterns = scope.get(key, [])
         if not (isinstance(patterns, list) and all(isinstance(p, str) for p in patterns)):
             raise DriftError("INVALID_MODELS", f"models/scope.json: {key} is not a list of patterns")
+    # every declared generation parameter, by one rule: a value the build does not allow is no
+    # more readable than a malformed pattern, so it is INVALID_MODELS and never a quiet default
+    for key, (_, allowed) in PARAMETERS.items():
+        if key in scope and not _allowed(scope[key], allowed):
+            raise DriftError(
+                "INVALID_MODELS",
+                f"models/scope.json: {key} is {scope[key]!r}, not one of {list(allowed)}",
+            )
 
 
 def _ownership_rule(model: object) -> None:

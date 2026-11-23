@@ -114,6 +114,28 @@
     details ul { columns: 1; }
   }
 
+  /* ---- the parameters panel: one stop per verbosity level, a GET form on a served page ---- */
+  .params .stops { display: flex; flex-direction: column; gap: 2px; align-items: stretch; }
+  .params .stop { display: flex; align-items: baseline; gap: 10px; padding: 9px 12px;
+                  border: 1px solid transparent; border-radius: 8px; font-size: 13.5px;
+                  color: var(--muted); cursor: pointer; transition: background .12s var(--ease); }
+  .params .stop:hover { background: var(--raised); }
+  /* the level being drawn, named as well as marked: colour alone never carries it */
+  .params .stop.on { background: var(--accent-soft); border-color: var(--line-strong);
+                     color: var(--text); font-weight: 500; }
+  .params .stop input { margin: 0; accent-color: var(--accent); flex: none; }
+  /* no server behind a page rendered to a file, so the stops are shown and not offered */
+  .params .stop:has(input:disabled) { cursor: default; opacity: .7; }
+  .params .stop:has(input:disabled):hover { background: none; }
+  .params button { align-self: start; margin-top: 10px; padding: 7px 16px; font: inherit;
+                   font-weight: 500; color: var(--accent-ink); background: var(--accent);
+                   border: 1px solid transparent; border-radius: 8px; cursor: pointer; }
+  .params button:hover { filter: brightness(1.08); }
+  .params .note { margin-top: 14px; margin-bottom: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    .params .stop, .params button { transition: none; }
+  }
+
   /* ---- structural: two diagrams, each drawn from the model's own ids ---- */
   .diagram { margin-top: 18px; }
   .diagram:first-child { margin-top: 4px; }

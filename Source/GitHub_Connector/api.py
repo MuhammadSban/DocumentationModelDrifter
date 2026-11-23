@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 
@@ -167,7 +168,11 @@ def stylesheet() -> FileResponse:
 
 
 @app.get("/models/view", include_in_schema=False)
-def models_view(repository: str, commit_id: str) -> Response:
+def models_view(
+    repository: str,
+    commit_id: str,
+    verbosity: Annotated[int | None, Query(ge=1, le=4)] = None,
+) -> Response:
     # renders one commit's models as the page the console's Models view frames: the structural
     # model regenerated at that commit, the repository's own ownership rules beside it, and the
     # naive drift chip comparing the commit with the one before it. Kept out of the OpenAPI
@@ -175,7 +180,10 @@ def models_view(repository: str, commit_id: str) -> Response:
     #
     # A whole page, framed rather than injected: the console styles .dot, .row and .sub for its
     # watchlist, which are the classes the ownership map draws itself with.
-    deadline = arrival_deadline()
+    #
+    # verbosity previews the models at one level of the ladder without committing it; absent, the
+    # page shows the level the repository itself declares. A level outside the ladder is a 422 from
+    # Query, before any clone, so the panel can never ask for a level no generator has.
     validate(AnalysisRequest(repository=repository, commit_id=commit_id))
     # takes a check slot like analyze, so the page cannot swamp real checks
     with slot_until(deadline), fetch(repository, commit_id, None, deadline) as cmp:
@@ -193,18 +201,35 @@ def models_view(repository: str, commit_id: str) -> Response:
         # the scope the page actually trimmed by, so a repository that declares none still shows
         # code rather than every path in its history
         parsed.setdefault(SCOPE_FILE, check.DEFAULT_SCOPE)
+        # the level this repository commits, which the page names beside the one it is drawing
+        committed_level = check.verbosity_of(parsed[SCOPE_FILE])
         changed: dict[str, bool] = {}
         note = None
         try:
-            fresh = model_drift.snapshot(cmp, cmp.head)
+            # the same level on both sides: the chip means "changed since the commit before", so a
+            # head drawn at the previewed level against a base at the committed one would report
+            # the preview itself as drift
+            fresh = model_drift.snapshot(cmp, cmp.head, verbosity)
             parsed.update(fresh)
             if cmp.base is not None:
-                changed = model_drift.drifted(model_drift.snapshot(cmp, cmp.base), fresh)
+                changed = model_drift.drifted(
+                    model_drift.snapshot(cmp, cmp.base, verbosity), fresh
+                )
         except model_drift.SnapshotFailed as exc:
             note = str(exc)
         models = models_from_dicts(parsed, f"{repository} @ {cmp.head[:7]}")
         verdict = model_drift.Verdict(head=cmp.head, base=cmp.base, changed=changed, note=note)
-    return Response(render(models, verdict, derived=derived), media_type="text/html")
+    page = render(
+        models,
+        verdict,
+        derived=derived,
+        drawn_level=verbosity if verbosity is not None else committed_level,
+        committed_level=committed_level,
+        route="/models/view",
+        repository=repository,
+        commit_id=commit_id,
+    )
+    return Response(page, media_type="text/html")
 
 
 router.include_router(course.router)

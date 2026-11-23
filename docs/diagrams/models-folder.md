@@ -10,9 +10,10 @@ classDiagram
     accDescr: scope.json picks which files feed the structural and behavioral generators. structural.json holds nodes and edges, behavioral.json states and transitions, ownership.json an ordered list of rules.
 
     class scope["scope.json"] {
-        picks generator input
+        picks generator input, sets generation parameters
         include: every .py file
         exclude: the top-level tests/ only, tests/**
+        verbosity: 1 to 4, absent means 4
         defaults written by init
         patterns: mapping-v1.1.yaml glob
         no JSON Schema yet, W3-1 adds it
@@ -22,6 +23,7 @@ classDiagram
         nodes: id, kind, file
         kinds: module, class, function, method
         functions and methods: async, decorators, params
+        how much of it: scope.json verbosity
         edges: id, kind, source, target, file
         edge kinds: imports, inherits
         settled in structure.md
@@ -49,3 +51,18 @@ classDiagram
     scope ..> structural : picks the files for
     scope ..> behavioral : picks the files for
 ```
+
+## The verbosity ladder
+
+`scope.json`'s `verbosity` says how much of the code `structural.json` describes. Each level keeps everything the level below it keeps, so a level is a subset of the one above. An absent key means 4, which is what the generator wrote before the parameter existed, so a repository that declares none holds byte-identical models. `drifter init --verbosity` sets it before the first model is generated; afterwards `drifter update --verbosity` changes it, regenerating at the new level and making it the baseline.
+
+**Change the level with `drifter update --verbosity`, which is one commit.** It writes the new level into `scope.json` and regenerates at it together, so the commit that carries both is aligned. Editing `scope.json` by hand and then running `update` without the flag does **not** work the same way: `update` reads the scope **committed at the commit**, not the working tree, so it regenerates at the old level and leaves the repository in drift. That trap is why the flag exists (verified by hand, 2026-11-22). Without the flag `update` writes the two models and leaves `scope.json` exactly as it was, as it always has.
+
+| Level | Name | `structural.json` holds | Answers |
+|---|---|---|---|
+| 1 | Overview | `module` nodes, `imports` edges | which parts depend on which |
+| 2 | Types | level 1, plus `class` nodes and `inherits` edges | plus: which types extend which |
+| 3 | Members | level 2, plus `function` and `method` nodes, with no `async`, `decorators` or `params` | plus: what each type and module offers |
+| 4 | Full | level 3, plus `async`, `decorators` and `params` | plus: the signature of each one |
+
+Level 3 is why `structural.schema.json` holds three node variants and not two: a member named without its signature is neither a `plainNode`, whose `kind` is `class` or `module`, nor a `functionNode`, which requires all three attributes, so it is a `memberNode`. The variant is additive, so `schema_version` stays 1. Behavioral has no ladder: it emits every state and transition at every level while row N2 is unruled. Ownership has none either, being checked and never regenerated. The seam's side of this is "Generation parameters" in `model-seam.md`; the design is `docs/closed/E02-model-parameters/DESIGN.md`.

@@ -1,9 +1,12 @@
 # runs the drifter command line on a local checkout, the current folder by default. check prints the
 # four-field answer as canonical JSON and exits 0 when aligned, 1 on drift, 2 with no verdict.
 # init writes the four /models files from a commit and refuses (exit 1) to overwrite one unless
-# --force; update rewrites only structural.json and behavioral.json, from the scope committed at
-# the commit, leaving ownership.json and scope.json as the person left them. A no-verdict code
-# prints its drift_error and exits 2 for every command.
+# --force; --verbosity sets how much of the code the structural model describes, before the first
+# model is generated, and is written into scope.json where it is not the default. update rewrites
+# structural.json and behavioral.json from the scope committed at the commit, leaving
+# ownership.json alone; it writes scope.json only when its own --verbosity gives a new level, which
+# regenerates at that level and makes it the baseline in one commit. A no-verdict code prints its
+# drift_error and exits 2 for every command.
 
 from __future__ import annotations
 
@@ -22,6 +25,7 @@ from drifter.check import (
     regenerate_models,
 )
 from models.common import write_model
+from models.structural_model import FULL, KEPT_KINDS
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -36,15 +40,26 @@ def main(argv: list[str] | None = None) -> int:
     init_cmd.add_argument("commit", nargs="?", default="HEAD")
     init_cmd.add_argument("--force", action="store_true", help="overwrite existing /models files")
     init_cmd.add_argument("--repo", default=".", help="the checkout to write into; defaults to the current folder")
+    init_cmd.add_argument(
+        "--verbosity", type=int, choices=sorted(KEPT_KINDS), default=FULL,
+        help="how much of the code the structural model describes: 1 the modules and their imports, "
+             "2 adds the classes, 3 adds the functions and methods, 4 (the default) adds their signatures",
+    )
     update_cmd = commands.add_parser("update", help="regenerate structural.json and behavioral.json, accepting drift")
     update_cmd.add_argument("commit", nargs="?", default="HEAD")
     update_cmd.add_argument("--repo", default=".", help="the checkout to write into; defaults to the current folder")
+    update_cmd.add_argument(
+        "--verbosity", type=int, choices=sorted(KEPT_KINDS), default=None,
+        help="change the level and regenerate at it in one step, writing it into scope.json; "
+             "without this flag the committed level decides and scope.json is left alone",
+    )
     args = parser.parse_args(argv)
     try:
         if args.command == "init":
-            return _init(Path(args.repo), args.commit, args.force)
+            return _init(Path(args.repo), args.commit, args.force, args.verbosity)
         if args.command == "update":
-            _write(_models_folder(Path(args.repo)), regenerate_models(LocalReader(Path(args.repo), args.commit)))
+            reader = LocalReader(Path(args.repo), args.commit)
+            _write(_models_folder(Path(args.repo)), regenerate_models(reader, args.verbosity))
             return 0
         verdict = answer(local_sources(Path(args.repo), args.commit, args.base))
     except DriftError as exc:
@@ -54,14 +69,14 @@ def main(argv: list[str] | None = None) -> int:
     return 0 if verdict["aligned"] else 1
 
 
-def _init(repo: Path, commit: str, force: bool) -> int:
+def _init(repo: Path, commit: str, force: bool, verbosity: int = FULL) -> int:
     # writes the four files into the checkout's top-level /models, refusing to replace one unless forced
     models = _models_folder(repo)
     existing = [name for name in MODEL_FILES if (models / name).exists()]
     if existing and not force:
         print(f"drifter: models/{existing[0]} exists; use --force to overwrite", file=sys.stderr)
         return 1
-    _write(models, generate_models(LocalReader(repo, commit)))
+    _write(models, generate_models(LocalReader(repo, commit), verbosity))
     return 0
 
 

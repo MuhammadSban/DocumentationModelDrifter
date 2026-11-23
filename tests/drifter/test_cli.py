@@ -13,7 +13,7 @@ import pytest
 from drifter import check, cli
 from models.behavioral_model import generate_behavioral
 from models.common import write_model
-from models.structural_model import generate_structural
+from models.structural_model import KEPT_KINDS, generate_structural
 
 CODE = {"src/app.py": "def charge(amount):\n    return amount\n"}
 SCOPE = {"exclude": ["tests/**"], "include": ["**/*.py"]}
@@ -667,3 +667,199 @@ def test_the_package_installs_the_schema_validator_and_ships_the_schemas():
 
     assert "jsonschema" in pyproject["project"]["dependencies"]
     assert "*.schema.json" in pyproject["tool"]["setuptools"]["package-data"]["models"]
+
+
+# ------------------------------------------------------------- scope.json's verbosity level (E02)
+
+# two modules, one importing the other, so a level below MEMBERS has something to drop
+LADDER_CODE = {
+    "src/shop/models.py": "class Base:\n    def save(self):\n        pass\n",
+    "src/shop/orders.py": "from shop.models import Base\n\n\nclass Order(Base):\n    pass\n",
+}
+
+
+def _level_repo(path, level, code=None):
+    # commits code and a /models generated at one level, with that level declared in scope.json,
+    # which is what a repository looks like after init or update at that level
+    files = code or LADDER_CODE
+    scope = {**SCOPE, "verbosity": level}
+    models = {
+        "models/behavioral.json": {"schema_version": 1, "states": [], "transitions": []},
+        "models/ownership.json": NO_RULES,
+        "models/scope.json": scope,
+        "models/structural.json": generate_structural(files, level),
+    }
+    subprocess.run(["git", "init", "-q", "-b", "main", str(path)], check=True)
+    for name, text in {**files, **{k: write_model(v) for k, v in models.items()}}.items():
+        (path / name).parent.mkdir(parents=True, exist_ok=True)
+        (path / name).write_bytes(text.encode())
+    _commit(path, "first")
+    return path
+
+
+def test_a_check_at_a_lowered_level_is_aligned(tmp_path, monkeypatch, capsysbinary):
+    # the level the commit declares is the level the check regenerates at. Without that, the fresh
+    # model comes back at level 4 and every class and method the level dropped reads as REMOVED.
+    repo = _level_repo(tmp_path, 1)
+
+    code, out = _check(repo, monkeypatch, capsysbinary)
+
+    assert json.loads(out)["aligned"] is True
+    assert code == 0
+
+
+@pytest.mark.parametrize("level", [1, 2, 3, 4])
+def test_every_level_checks_aligned_against_its_own_models(tmp_path, monkeypatch, capsysbinary, level):
+    repo = _level_repo(tmp_path / str(level), level)
+
+    code, _ = _check(repo, monkeypatch, capsysbinary)
+
+    assert code == 0
+
+
+def test_a_lowered_level_still_sees_drift_in_what_it_keeps(tmp_path, monkeypatch, capsysbinary):
+    # the level trims what is described, it does not stop the check: a new module is still drift
+    repo = _level_repo(tmp_path, 1)
+    (repo / "src" / "shop" / "billing.py").write_bytes(b"from shop.models import Base\n")
+    _commit(repo, "add a module")
+
+    code, out = _check(repo, monkeypatch, capsysbinary)
+
+    added = [d["id"] for d in json.loads(out)["structural"] if d["change"] == "ADDED"]
+    assert "shop.billing" in added
+    assert code == 1
+
+
+@pytest.mark.parametrize("bad", [0, 5, True, "high", [1], {"level": 1}, None])
+def test_a_level_outside_the_ladder_gives_no_verdict(tmp_path, monkeypatch, capsysbinary, bad):
+    # an unreadable level is INVALID_MODELS, like any other unreadable scope.json, and never a pass
+    repo = _level_repo(tmp_path / str(hash(str(bad))), 1)
+    (repo / "models" / "scope.json").write_bytes(write_model({**SCOPE, "verbosity": bad}).encode())
+    _commit(repo, "break the level")
+
+    code, out = _check(repo, monkeypatch, capsysbinary)
+
+    assert json.loads(out)["drift_error"]["code"] == "INVALID_MODELS"
+    assert code == 2
+
+
+def test_every_declared_parameter_is_read_validated_and_defaulted(tmp_path):
+    # the seam a second parameter plugs into: one declaration decides what scope.json may hold, and
+    # the reader and the validator both work from it, so a parameter cannot be half-added
+    for key, (default, allowed) in check.PARAMETERS.items():
+        assert allowed, f"{key} allows no value"
+        assert default in allowed, f"{key}'s default is not one of its allowed values"
+        # the reader answers for a scope that declares nothing, and for each allowed value
+        assert check.parameters_of({})[key] == default
+        for value in allowed:
+            assert check.parameters_of({key: value})[key] == value
+        # a value outside the declaration is no verdict through the validator, and the default
+        # through the reader, which the page relies on
+        with pytest.raises(check.DriftError) as raised:
+            check._scope_rule({**SCOPE, key: "not a value this build allows"})
+        assert raised.value.code == "INVALID_MODELS"
+        assert check.parameters_of({key: "not a value this build allows"})[key] == default
+
+
+def test_the_declaration_covers_verbosity_and_the_generator_agrees():
+    # verbosity is the one parameter today, and its allowed values are the generator's own ladder
+    assert set(check.PARAMETERS) == {"verbosity"}
+    assert check.PARAMETERS["verbosity"] == (4, (1, 2, 3, 4))
+    assert sorted(KEPT_KINDS) == list(check.PARAMETERS["verbosity"][1])
+
+
+@pytest.mark.parametrize("level", [1, 2, 3])
+def test_init_sets_the_level_before_the_first_model_and_checks_aligned(
+    tmp_path, monkeypatch, capsysbinary, level
+):
+    # the human's semantic of 2026-11-22: the level is chosen before the initial model is
+    # generated, so the first baseline is already at it and needs no lowering afterwards
+    repo = _code_repo(tmp_path / str(level), LADDER_CODE)
+
+    written, _ = _run(repo, monkeypatch, capsysbinary, "init", "--verbosity", str(level))
+    _commit(repo, "commit the models")
+    checked, out = _check(repo, monkeypatch, capsysbinary)
+
+    scope = json.loads((repo / "models" / "scope.json").read_bytes())
+    assert (written, checked) == (0, 0)
+    assert scope["verbosity"] == level
+    assert json.loads(out)["aligned"] is True
+
+
+def test_init_at_the_default_level_writes_the_bytes_it_always_wrote(
+    tmp_path, monkeypatch, capsysbinary
+):
+    # the Epic's own promise: a repository that asks for no level sees no change at all, scope.json
+    # included, so no verbosity key is written and nothing a golden holds moves
+    plain = _code_repo(tmp_path / "plain", CODE)
+    asked = _code_repo(tmp_path / "asked", CODE)
+
+    _run(plain, monkeypatch, capsysbinary, "init")
+    _run(asked, monkeypatch, capsysbinary, "init", "--verbosity", "4")
+
+    for name in check.MODEL_FILES:
+        assert (plain / "models" / name).read_bytes() == (asked / "models" / name).read_bytes()
+    assert json.loads((plain / "models" / "scope.json").read_bytes()) == SCOPE
+
+
+def test_init_refuses_a_level_outside_the_ladder(tmp_path, monkeypatch, capsysbinary):
+    # argparse refuses it before any model is generated, so the folder is left untouched
+    repo = _code_repo(tmp_path, CODE)
+
+    with pytest.raises(SystemExit) as exit_code:
+        _run(repo, monkeypatch, capsysbinary, "init", "--verbosity", "5")
+
+    assert exit_code.value.code == 2
+    assert not (repo / "models").exists()
+
+
+def test_update_with_a_level_changes_it_and_rebaselines_in_one_commit(
+    tmp_path, monkeypatch, capsysbinary
+):
+    # update reads the scope committed at the commit, so a level edited only in the working tree
+    # would regenerate at the old one. The flag changes the level and the models together, which is
+    # one commit instead of two, the first of them deliberately red.
+    repo = _level_repo(tmp_path, 4)
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "update", "--verbosity", "1")
+    _commit(repo, "down to level 1")
+    checked, out = _check(repo, monkeypatch, capsysbinary)
+
+    scope = json.loads((repo / "models" / "scope.json").read_bytes())
+    kinds = {n["kind"] for n in json.loads((repo / "models" / "structural.json").read_bytes())["nodes"]}
+    assert (code, checked) == (0, 0)
+    assert scope["verbosity"] == 1
+    assert kinds == {"module"}
+    assert json.loads(out)["aligned"] is True
+
+
+def test_update_without_a_level_leaves_the_scope_alone(tmp_path, monkeypatch, capsysbinary):
+    # the flag alone decides whether the level changes: without it update writes the two models and
+    # nothing else, as it always has
+    repo = _level_repo(tmp_path, 2)
+    before = (repo / "models" / "scope.json").read_bytes()
+
+    code, _ = _run(repo, monkeypatch, capsysbinary, "update")
+
+    assert code == 0
+    assert (repo / "models" / "scope.json").read_bytes() == before
+
+
+def test_update_at_a_changed_level_redefines_the_baseline(tmp_path, monkeypatch, capsysbinary):
+    # the human's semantic of 2026-11-22: a person edits the level and runs update, and what update
+    # writes is the new baseline, so the check straight after it reports nothing
+    repo = _level_repo(tmp_path, 4)
+    (repo / "models" / "scope.json").write_bytes(write_model({**SCOPE, "verbosity": 1}).encode())
+    _commit(repo, "lower the level")
+
+    drifted, _ = _check(repo, monkeypatch, capsysbinary)
+    updated, _ = _run(repo, monkeypatch, capsysbinary, "update")
+    _commit(repo, "regenerate at the new level")
+    aligned, out = _check(repo, monkeypatch, capsysbinary)
+
+    # before the update the models are still at level 4, which is drift by itself (spec 263-264)
+    assert drifted == 1
+    assert (updated, aligned) == (0, 0)
+    assert json.loads(out)["aligned"] is True
+    kinds = {n["kind"] for n in json.loads((repo / "models" / "structural.json").read_bytes())["nodes"]}
+    assert kinds == {"module"}

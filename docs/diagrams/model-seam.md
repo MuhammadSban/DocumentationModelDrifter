@@ -8,6 +8,8 @@ Each model's generator and schema decide everything inside that model: kinds, id
 
 | Part | Writes |
 | --- | --- |
+| Structural | `generate_structural(files, verbosity=FULL) -> dict` and `structural.schema.json`; element lists `nodes`, `edges` |
+| Behavioral | `generate_behavioral(files) -> dict` and `behavioral.schema.json`; element lists of the owner's choice |
 | Structural | `generate_structural(files) -> dict` and `structural.schema.json`; element lists `nodes`, `edges` |
 | Behavioral | `generate_behavioral(files) -> dict` and `behavioral.schema.json`; element lists of the generator's choice |
 | Ownership | `propose_ownership(head_sha, records) -> dict` and `ownership.schema.json`; rules, never diffed |
@@ -28,6 +30,16 @@ Every top-level list in a model file holds elements. Each element has a unique `
 ```
 
 A generator must be pure (no git, network, clock, randomness or environment), never import or run the analysed code, sort each top-level list by `id`, keep inner lists in a fixed order, leave out line numbers, times and absolute paths, and pin `schema_version` with `const` in its schema.
+
+## Generation parameters
+
+A generation parameter changes what a generator emits. Every one of them is declared in committed `/models`, in `scope.json`, and is never passed from a request or held in a browser: INV-1 fixes the bytes on the repository version, `/models` and the tool version, so a parameter outside those three would end determinism. Verbosity is the first, a level from 1 to 4 that says how much of the code the structural model describes, with 4 the default and the bytes the generator wrote before the parameter existed. Only structural has a ladder; behavioral keeps every element at every level while row N2 is unruled, so it is still called with the files alone.
+
+The core applies it through `generate_one(name, files, verbosity)`, which holds the one fact of which generator takes a level, and reads it with `verbosity_of(scope)` over `parameters_of(scope)`, which answers each parameter's default for a scope that declares none or declares a value this build does not allow. Reading is total on purpose: the check validates the scope with `_scope_rule` first and never reaches a fallback, while the console's page reads a scope nothing has validated and must draw something rather than fail.
+
+### Adding the next parameter
+
+`PARAMETERS` in `Source/drifter/check.py` is the declaration: one row per key, its default and the values it allows. `parameters_of` reads from it and `_scope_rule` validates from it, so neither names a parameter: reading and validating, the half that would otherwise be rewritten each time, is general. Applying a parameter is not, and is not pretended to be: `generate_one` names `verbosity` and `"structural"` by hand, and the three generation sites pass the level positionally. So a second parameter is a row in `PARAMETERS`, a line in `generate_one`, the argument it adds to its generator, and the three call sites that pass it. Three things stay true however many there are: the default must leave the committed bytes exactly as they were, so a repository that declares nothing never moves; a value the build does not allow is `INVALID_MODELS` and never a quiet default; and the parameter is read from committed `/models` at the commit being judged, never from a request, a flag at check time or a browser, because INV-1 fixes the bytes on the repository version, `/models` and the tool version. A generator keeps a named argument rather than a bag of parameters: this page's first rule is that an owner decides everything inside their model, and that includes their signature. Which parameters come next is undecided. `GENERATORS` is typed `Callable[..., dict]` because its entries no longer share one signature. There are three generation sites, and all three call `generate_one`: `_regenerate` (`drifter init`, `drifter update`, `POST /system/generate`), `model_differences` (the check itself, which does not go through `_regenerate`) and `snapshot` in `Frontend/model_drift.py` (the console's models page, a duplication W3-3 removes). The level a commit is judged at is always the one its own `scope.json` declares, so the regenerated model and the committed one are never at different levels. Editing the level without regenerating shows up as drift by itself, like any other scope edit (spec §3.2); `drifter update --verbosity` changes the level and regenerates in one step, making it the baseline. Designed in `docs/closed/E02-model-parameters/DESIGN.md`.
 
 ## One check
 
