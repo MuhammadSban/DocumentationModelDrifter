@@ -6,9 +6,15 @@ def generate_behavioral(files: dict[str, str]) -> dict
 
 The function reads Python source code and returns the states a variable takes and the transitions between them. Like the structural generator it is pure: no git, network, clock or randomness, so the same files always give the same model.
 
-The format is frozen as `generate_behavioral` writes it in `schema_version` 1. Snippet goldens in `tests/behavioral/test_behavioral_model.py` lock it; any change to the output is a format change, bumps `schema_version` and needs new goldens. The spec wins where this file disagrees with it.
+The JSON shape and existing identities stay at `schema_version` 1. Snippet goldens in `tests/behavioral/test_behavioral_model.py` lock the existing output; `test_behavioral_cases.py` checks additional mining patterns. A change to the JSON shape or identity scheme bumps `schema_version` and needs new goldens. Expanding which source patterns are recognized may add elements and requires regenerating affected baselines. The spec wins where this file disagrees with it.
 
 ## Input
+
+### JavaScript support
+
+JavaScript uses the same narrow state miner after syntax normalization. `this` becomes `self`, so a class's `this.status` is stored as `self.status` and its methods share the existing class-machine convention. Class methods and variable-bound functions keep the JavaScript module ID, including its `./` prefix and extension. Dictionary keys use the existing literal-key support.
+
+Literal string comparisons using `===` or `==` normalize to the same state equality; `!==` and `!=` support the existing negative exit-guard rule. This string-state abstraction does not model JavaScript coercion or detect an equality-operator-only change. `console.log` uses the existing observational logging convention. Unknown syntax and side effects remain barriers; conditions inside loops and try blocks, compound guards, enums and arbitrary data-flow are not inferred.
 
 The same `files` dict the structural generator gets (see `structure.md`): repo-relative path with `/` separators to the file's full text, only the files `scope.json` keeps, each already parsed by the orchestrator.
 
@@ -33,7 +39,7 @@ No other top-level keys. `states` and `transitions` are each sorted by `id`. [`S
 | `state` | value one variable of one machine takes | `file`, `id`, `kind`, `machine`, `value`, `variable` |
 | `transition` | function or method moving a variable from one value to another | `file`, `guard`, `id`, `kind`, `source`, `target`, `trigger` |
 
-- `variable` is a local name (`status`) or a direct `self` attribute (`self.status`).
+- `variable` is a local name (`status`), a direct `self` attribute (`self.status`), or a literal string-key access rooted in either (`session['state']`, `self.data['state']`). Dictionary keys are normalized with Python's `repr`, so changing quote style does not change an id.
 - `machine` groups states. For `self.<attr>` it is the class's structural id (`shop.orders:Order`), so every method of the class shares one machine. For a local name it is the function's structural id, so two functions never share states.
 - `value` is the string literal.
 - `trigger` is the structural id of the function or method (`module:qualname`, as in `structure.md`).
@@ -54,19 +60,19 @@ A value holding quotes or commas is escaped inside the array, so two different s
 
 1. Visit functions and methods defined directly in a module or a class. Classes are recursed; functions nested in functions are not. A name defined twice keeps its last definition, as in structural.
 2. Skip any function that contains `global` or `nonlocal` anywhere in it.
-3. For each `if` directly in the function body, and each `elif` chained to it, read the test. An `else:` whose only statement is an `if` parses exactly as an `elif` and is read as one. It counts only when it is one `==` between a variable (local name or direct `self` attribute) and a string literal, either way round.
-4. In that branch's body, find the first direct assignment (`=` with one target, or annotated `x: str = ...`) to the same variable. Skipped on the way: any constant on a line of its own (a docstring, `...`), `pass`, a bare annotation with no value (`x: str`), and an assignment of a literal to another local name (unless that name is `self`, which stops it). Anything else stops the search. A string literal assigned gives the target state; any other value gives nothing.
+3. For each `if` directly in the function body or inside a `with` / `async with`, and each `elif` chained to it, read the test. An `else:` whose only statement is an `if` parses exactly as an `elif` and is read as one. It counts only when it is one `==` between a supported variable and a string literal, either way round. A negative guard with no `else`, such as `if state != 'open': return` or `if not (state == 'open'): raise ...`, supplies that equality on the fall-through path when its body unconditionally exits. Direct exits and an `if` whose two branches exit stop scanning subsequent statements in that block; this is not general reachability analysis.
+4. In the branch's body, or after a recognized exit guard, find the first assignment (`=` with one target, or annotated `x: str = ...`) to the same variable, including one inside a `with` / `async with`. Skipped on the way: any constant on a line of its own (a docstring, `...`), `pass`, a bare annotation with no value (`x: str`), an unrelated local literal assignment, and a recognizable logging statement. Rebinding `self` or a dictionary containing the tracked key stops the search. Logging is recognized by conventional names: `print`, `log`, or logging methods on `logging`, `logger`, `log`, `self.logger`, or `self.log`; arguments containing a call, assignment expression, `await`, or `yield` stop the search. These names are an observational convention, not proof that a shadowed logger is pure. Other calls and statements stop the search. A string literal assigned gives the target state; any other value gives nothing.
 5. Each match gives one transition from the guard's value to the assigned value, and the two states it joins. A state exists only as the source or target of a transition.
-6. `self.<attr>` checks outside a class (in a module-level function) give nothing.
+6. State rooted in `self` shares a class machine and gives nothing outside a class. Dictionary state rooted in a local belongs to that function; aliases between functions are not inferred.
 
 ### Left out
 
 The miner does not see:
 
-- `else` branches (except an `else:` holding only an `if`, see rule 3), and conditions nested inside another statement;
+- `else` branches (except an `else:` holding only an `if`, see rule 3), and conditions nested inside another condition, loop, or `try`;
 - compound conditions (`and`, `or`, chained comparisons), `!=`, `in`, `match`;
 - Enum members and any value that is not a string literal (`State.PAID`, `make()`);
-- aliases (`s = self.status`) and attributes other than direct `self.<attr>`;
+- aliases (`s = self.status`), computed dictionary keys, and attributes other than direct `self.<attr>`;
 - any function containing `global` or `nonlocal`;
 - a lone assignment with no recognized transition: its value is no state.
 

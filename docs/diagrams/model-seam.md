@@ -17,6 +17,8 @@ Each model's generator and schema decide everything inside that model: kinds, id
 
 ## The element rule (structural and behavioral)
 
+`common.parse_files` dispatches by source extension. Python uses `ast`; JavaScript uses `javascript_model` with pinned Tree-sitter and is lowered into the syntax subset the existing generators consume. The internal AST is never compiled or executed. JavaScript module IDs start with `./` and retain the repository path and extension, keeping them disjoint from Python's slash-free dotted IDs. Source `file` paths remain unchanged. The public generator inputs, element rule and JSON schemas stay the same.
+
 Every top-level list in a model file holds elements. Each element has a unique `id` (unique in the whole model), a `kind` and the in-scope `file` it comes from; every other field is an attribute. Values that are not lists, such as `schema_version`, are not elements and are not diffed.
 
 ```json
@@ -51,7 +53,7 @@ flowchart TB
     accDescr: For structural and behavioral, the core parses the in-scope files, calls the model's generator, validates the committed model against the model's schema, flattens both to a map from id to element and diffs them by id. For ownership, the core builds commit records, propose_ownership turns them into ownership.json at init, and the core's checker judges each commit against those rules.
 
     subgraph SB[Structural and behavioral]
-        Files[in-scope files, path to text<br/>chosen by scope.json] --> Parse[parse_files, every file once<br/>no verdict: PARSE_FAILED, FILE_TOO_LARGE]
+        Files[in-scope files, path to text<br/>chosen by scope.json] --> Parse[shared language dispatch and validation<br/>no verdict: PARSE_FAILED, FILE_TOO_LARGE]
         Parse --> Gen["generate_name<br/>(generator)"]
         Gen --> Fresh[fresh model<br/>flattened to id: element]
         Committed["/models/name.json, committed"] --> Valid["validate against the model's schema<br/>and unique ids<br/>no verdict: MODELS_NOT_FOUND, INVALID_MODELS"]

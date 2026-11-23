@@ -87,6 +87,8 @@ Blank forms. Copy one into place and fill only the copy.
 
 ## epics/
 
+- `epics/E08-javascript-extraction/EPIC.md` and `DESIGN.md` - the user-authorized Python behavioral improvements and standalone JavaScript adapter on the current team code; local verification and review are tracked here.
+
 Live Epics, one folder each. Finished ones move to `closed/`; never build from one.
 
 - `epics/README.md` — how an Epic is named, how it and its W-row name each other, its branch, its lifecycle from draft to closed, and when a change needs no Epic. Read it before drafting, reviewing, building or closing an Epic.

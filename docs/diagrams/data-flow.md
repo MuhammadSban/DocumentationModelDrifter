@@ -30,7 +30,7 @@ flowchart TB
     subgraph CHECK[drifter.check: the same steps for both ways in]
         Read["read_sources<br/>reads and validates the 4 files in /models"]
         Scope["scope.json picks the in-scope files"]
-        Files["Read and parse every in-scope file<br/>at most 1 MB, UTF-8, ast.parse"]
+        Files["Read and parse every in-scope file<br/>at most 1 MB, UTF-8<br/>Python AST or JavaScript adapter"]
         Gen["Generators<br/>fresh structural and behavioral, in memory"]
         Cmp["Comparison<br/>diff by id: ADDED, REMOVED, MODIFIED"]
         Hist["Commits base..head"]
@@ -118,7 +118,7 @@ Every arrow, store and limit above, checked against the code on 2026-11-21 at `2
 | `read_sources` reads the 4 files in `/models` first, validates them, then reads the in-scope files that `scope.json` picks: two reads. | `drifter/check.py:220-232` | yes |
 | On the hosted way each read is one batched download. | `GitHub_Connector/fetch.py:87-109` | yes |
 | An in-scope file is judged by size (1 MB), then UTF-8, then syntax. | `drifter/check.py:36`, `:236-250`, `:344-349` | yes |
-| The parser is `ast.parse` of whichever Python runs the tool. Nothing in the code pins it. The package asks for Python 3.12 or newer; the image and CI use 3.12. | `models/common.py:33`; `pyproject.toml:10`; `Dockerfile:3`; `.github/workflows/ci.yml:21` | yes |
+| Python uses `ast.parse` of the running Python; standalone JavaScript uses pinned Tree-sitter and lowers supported syntax into the same internal AST subset. The package asks for Python 3.12 or newer; the image and CI use 3.12. | `models/common.py`, `models/javascript_model.py`; `pyproject.toml`; `Dockerfile`; `.github/workflows/ci.yml` | yes |
 | The structural generator also writes text made by `ast.unparse` of the running Python. | `models/structural_model.py:116` | yes |
 | Each generator parses the text again with `parse_files`. | `models/structural_model.py:18`; `models/behavioral_model.py:20` | yes |
 | Structural and behavioral are regenerated and diffed by id; ownership is judged, never regenerated. | `drifter/check.py:89-99`, `:103-106`, `:109-136`, `:167-190` | yes |

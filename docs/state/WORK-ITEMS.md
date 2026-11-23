@@ -3,6 +3,7 @@
 ## Next action
 
 - **W5-3-JS, local work authorized:** the user requested Python behavioral improvements and standalone JavaScript extraction feeding the existing models, and explicitly asked for these changes in the copied real clone. Track this limited implementation in `docs/epics/E08-javascript-extraction/EPIC.md`; no remote push or broader language-engine decisions are included. Preserve the current team code at 0829935, including E07, volatility and dependency locks.
+- **W5-3-JS local implementation:** 258 available regression tests, 35 additional Python behavioral cases and six mixed-language core/CLI checks pass (299 distinct tests). Ruff, all five import contracts, compilation and whitespace checks pass; existing dependency pins and hashes are unchanged, with the two parser releases added. HTTP/clone integration and a fresh installation of the upstream lock remain pending because this tool session cannot initialize its Windows loopback/MSYS runtime and fallback transports disconnected. CI, final audit and human acceptance remain open; the Epic is not closed.
 
 Read this first after a memory loss. It wins over what an agent remembers. Direction is in `STRATEGY.md`; status is only here.
 

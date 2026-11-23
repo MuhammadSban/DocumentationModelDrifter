@@ -11,8 +11,8 @@ classDiagram
 
     class scope["scope.json"] {
         picks generator input, sets generation parameters
-        include: every .py file
-        exclude: the top-level tests/ only, tests/**
+        include: committed source patterns, new defaults can include JavaScript
+        exclude: tests, plus vendored folders in a new JavaScript scope
         verbosity: 1 to 4, absent means 4
         defaults written by init
         patterns: mapping-v1.1.yaml glob
@@ -53,6 +53,8 @@ classDiagram
 ```
 
 ## The verbosity ladder
+
+For a repository without a committed scope, `init` keeps the existing Python-only defaults when no JavaScript is present. Otherwise it includes `.py`, `.js`, `.mjs`, `.cjs`, `.jsx` and excludes `tests/**` plus `node_modules`, `vendor` and `third_party` at any depth. A committed scope, including `{}` and its legacy defaults, is never widened automatically. JavaScript uses the same verbosity ladder and ownership rules.
 
 `scope.json`'s `verbosity` says how much of the code `structural.json` describes. Each level keeps everything the level below it keeps, so a level is a subset of the one above. An absent key means 4, which is what the generator wrote before the parameter existed, so a repository that declares none holds byte-identical models. `drifter init --verbosity` sets it before the first model is generated; afterwards `drifter update --verbosity` changes it, regenerating at the new level and making it the baseline.
 
