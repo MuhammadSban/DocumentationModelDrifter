@@ -51,7 +51,7 @@ against the model committed at that same commit (`model_differences` and `differ
 Both sides of that comparison therefore read their level from the same committed `scope.json`, and
 can never disagree about it. The one case left is a person who edits the level and does not
 regenerate, and that case already has a spec sentence and needs no new one: "Editing the scope
-without regenerating the models shows up as drift by itself" (`docs/base/specifications.md:263-264`).
+without regenerating the models shows up as drift by itself" (`docs/base/specifications.md` §3.2, Scope).
 Verbosity is part of the scope, so the sentence covers it as written.
 
 ### Three generation sites take the level, and one function decides which generator has a ladder

@@ -60,7 +60,7 @@ from verbosity's own part of it. The commits of steps 1 to 7 carry the trailers 
 
 **Revised on 2026-11-22, after the first review returned REVISE.** Its three blocking findings
 were each checked against the disk and each held. The second generation site,
-`Source/Frontend/model_drift.py:40-52`, is now named in step 3 and covered by step 6, which also
+`snapshot` in `Source/Frontend/model_drift.py`, is now named in step 3 and covered by step 6, which also
 passes the same level to both `snapshot` calls so the drift chip compares like with like. Step 4's
 `generate_models` parameter is keyword with a default, because
 `Source/GitHub_Connector/analysis.py:132` calls it with one argument for `POST /system/generate`,
@@ -181,8 +181,8 @@ and no committed model moves.
 - Files: `Source/Frontend/model_drift.py` (`snapshot(reader, commit, verbosity=None)` passes the
   level to the structural generator, reading the commit's own `scope.json` through `_scope` when
   none is given); `Source/GitHub_Connector/api.py` (`models_view` gains
-  `verbosity: int | None = None`, validated 1 to 4, passes the **same** level to both `snapshot`
-  calls, at `:198` and `:201`, and hands `render` the route the page was served from so the panel's
+  `verbosity: int | None = None`, validated 1 to 4, passes the **same** level to both of its
+  `snapshot` calls, at the head and at the base, and hands `render` the route the page was served from so the panel's
   form has somewhere to submit, plus the committed level so the page can name both);
   `Source/Frontend/model_viewer.py` (the panel above the three model panels: a GET form with four
   radio stops, `repository` and `commit_id` as hidden inputs, read-only when there is no route; one
@@ -342,7 +342,7 @@ answer, and the rest become rows in `docs/decisions/OPEN-DECISIONS.md`.
    design on disk: one level for every repository, one `localStorage` key, per origin** — the
    design states it and names the cost (`DESIGN.md`, "The panel's memory is per origin", and the
    per-reader preview row beside it). The memory writes to no repository and to no model
-   (`Source/Frontend/model_drift.py:40-52` regenerates from the commit's files only), so the
+   (`snapshot` in `Source/Frontend/model_drift.py` regenerates from the commit's files only), so the
    choice is reversible in one line and needs no row of its own. Left as step 6 builds it.
 5. Does the previewed level belong on a shared link, so that two readers of one screenshot see the
    same page? **Settled by the code: no, not in this Epic.** The console frames the page in an
@@ -364,33 +364,36 @@ Run on 2026-11-22 at the commit of step 7, in a Python 3.13 virtualenv built fro
 does not replace the auditor's: `.claude/agents/auditor.md` re-runs every line at HEAD, from a
 session that did not build the Epic.
 
+**Two corrections to the criteria themselves came before this run, and both were caught by review,
+not by the builder.** First, lines 7 and 8 originally selected with `-k verbosity`, which matched no
+test at all, the test names saying "level": as written they reported success while running nothing.
+Second, and worse, no line ran `tests/drifter` — line 5 ran
+`tests/structural tests/behavioral tests/connector tests/drift tests/common`, and line 8's selector
+matched step 3's hand-edit case but neither of step 8's own tests. So steps 8 and 10 were pinned by
+nothing while a paragraph here claimed they were pinned. Line 5 now runs `tests/drifter`, line 8's
+selector reaches `update --verbosity` and the plain-`update` case, and step 10 has its own line, 13.
+Step 9's connector tests were genuinely inside line 5 all along.
+
+Every line below was then re-run, each with the command the criterion now carries.
+
 | Line | Result |
 |---|---|
 | 1. CI green | **Not run.** `gh` is not installed on this machine, and nothing is pushed, so no run exists to ask about. The human's or the auditor's, with `gh` available. |
-| 2. Spec lines updated | Pass. The diff names `docs/base/specifications.md`; line 261 was made untrue and is fixed in step 7. |
-| 3. No open row for E02 | **Fails by design, and must.** Rows E02-a to E02-c carry the human's approval but only the human moves a row to `docs/decisions/RULED/` (R1). It passes once they do. |
+| 2. Spec lines updated | Pass. `git diff --stat main...HEAD -- docs/base/specifications.md` gives `1 file changed, 7 insertions(+), 2 deletions(-)`; line 261 was made untrue and is fixed in step 7. |
+| 3. No open row for E02 | **Fails by design, and must.** The grep prints 4 lines: rows E02-a to E02-c and the section's detail line. They carry the human's approval, but only the human moves a row to `docs/decisions/RULED/` (R1). It passes once they do. |
 | 4. The human accepts | Theirs, after lines 1 to 3. |
-| 5. Level 4 is today's bytes | Pass. The whole suite gives 368 passed, 1 failed, and the one failure is `tests/connector/test_fetch.py::test_a_skipped_batch_fails_at_once_instead_of_fetching_lazily`, which fails on `main` in this environment too: Apple Git 2.39.5 raises `CalledProcessError` from `git cat-file --batch` on a blobless clone instead of the `AnalysisError` the test expects. `git diff --stat main...HEAD -- docs/contract/` prints nothing. |
-| 6. The ladder is a ladder | Pass, 9 passed. |
-| 7. A bad level never reaches a generator | Pass, 8 passed, 76 deselected. |
-| 8. Set before the first model, and re-baselined | Pass, 5 passed, 79 deselected. |
-| 9. The panel and both levels | Pass, 40 passed, and the `Source/Frontend/index.html` diff prints nothing. |
+| 5. Level 4 is today's bytes | Pass. `254 passed`, 1 failed, and the one failure is `tests/connector/test_fetch.py::test_a_skipped_batch_fails_at_once_instead_of_fetching_lazily`, which fails on `main` in this environment too: Apple Git 2.39.5 raises `CalledProcessError` from `git cat-file --batch` on a blobless clone instead of the `AnalysisError` the test expects. `git diff --stat main...HEAD -- docs/contract/` prints nothing. |
+| 6. The ladder is a ladder | Pass, `9 passed`. |
+| 7. A bad level never reaches a generator | Pass, `8 passed, 76 deselected`. |
+| 8. Set before the first model, and re-baselined | Pass, `7 passed, 77 deselected`, with the selector this line now carries. |
+| 9. The panel and both levels | Pass, `40 passed`, and the `Source/Frontend/index.html` diff prints nothing. |
 | 10. The models say what the code does | Pass, 3 and 5. |
 | 11. Imports follow the map | Pass, `Contracts: 5 kept, 0 broken.` |
 | 12. The hole is named | Pass, 1 and 3. |
+| 13. The parameter seam holds | Pass, `2 passed, 82 deselected`. |
 
-**Corrected after the third review, which found this paragraph untrue.** It claimed steps 8 to 10
-needed no Done line of their own. Two of its three clauses were wrong: line 5 ran
-`tests/structural tests/behavioral tests/connector tests/drift tests/common` and so never ran
-`tests/drifter` at all, and line 8's selector matched step 3's hand-edit case but neither of step
-8's own tests. Steps 8 and 10 were pinned by nothing while the Epic said they were pinned. Line 5
-now runs `tests/drifter` too, line 8's selector reaches `update --verbosity` and the plain-`update`
-case, and step 10 has its own line, 13. Step 9's connector tests were genuinely inside line 5 all
-along. The counts in the table below are from the run after that correction.
-
-`ruff check` passes, which is not a Done line but is half of what CI runs. Lines 7 and 8 were
-corrected here on the same day: their `-k verbosity` selectors matched no test, the test names
-saying "level" and not "verbosity", so as written they reported success while running nothing.
+The whole suite, which is wider than line 5, gives `368 passed` with the same single failure.
+`ruff check` passes, which is not a Done line but is half of what CI runs.
 
 ### Driven by hand, 2026-11-22
 
