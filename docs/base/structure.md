@@ -4,17 +4,25 @@
 def generate_structural(files: dict[str, str], verbosity: int = FULL) -> dict
 ```
 
-The function reads Python source code and returns the structural model of that code. It is a pure function: it runs no git, network, clock or randomness, so the same files always give the same model.
+The function reads Python and standalone JavaScript source and returns the structural model of that code. It is a pure function: it runs no git, network, clock or randomness, so the same files always give the same model.
 
 `verbosity` is a level from 1 to 4 that says how much of the code the model describes, read from `scope.json`'s `verbosity` key. 4, the default, is every node kind and every attribute below, which is what this function returned before the parameter existed. Each lower level keeps everything the level below it keeps: 3 drops `async`, `decorators` and `params`; 2 drops the `function` and `method` nodes with them; 1 drops the `class` nodes and the `inherits` edges too, leaving the modules and the imports between them. The ladder is tabulated in `docs/diagrams/models-folder.md`.
 
 ## Input
 
+### JavaScript support
+
+Standalone `.js`, `.mjs`, `.cjs` and `.jsx` files use the same node and edge kinds. Their module IDs are `./` followed by the repository path including its extension; unlike Python's dotted IDs, these contain a slash, preventing cross-language collisions. `file` always stays the original repository-relative path.
+
+The adapter reads declared functions, variable-bound function expressions and arrows, classes, class methods and arrow-function fields. Async flags are retained, defaults are omitted from parameters, rest parameters use `...name`, and destructuring patterns have normalized spacing. An anonymous default export uses the name `default`. JSX is parsed but component-use edges are not invented.
+
+Relative ES imports, re-exports and literal CommonJS `require` bindings create edges to in-scope JavaScript files. Exact file paths win; extension and directory-index candidates resolve only when there is exactly one match. Direct named/default export aliases support inheritance resolution. External packages, computed imports, bundler aliases and transitive re-export inheritance are not resolved. No analyzed code is installed or executed.
+
 ### What it is
 
-`files` holds the code at one commit. 
+`files` holds the code at one commit.
 
-It is a **dict** with one entry per Python file:
+It is a **dict** with one entry per supported source file:
 
 - The **key** is the **file's path**, relative to the repository root, with `/` separators
 (for example `src/shop/orders.py`).
@@ -89,7 +97,7 @@ These are the possible kinds of nodes:
 
 | kind | One per | Extra fields |
 | --- | --- | --- |
-| `module` | `.py` file | none |
+| `module` | supported source file | none |
 | `class` | class defined directly in a module or class body | none |
 | `function` | function defined directly in a module body | `async`, `decorators`, `params` |
 | `method` | function defined directly in a class body | `async`, `decorators`, `params` |

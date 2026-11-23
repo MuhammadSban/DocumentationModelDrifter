@@ -64,6 +64,7 @@ An import points down: a module imports from its own layer or a lower one, never
 | | `models.structural_model` | the structural generator and its schema |
 | | `models.behavioral_model` | the behavioral generator and its schema |
 | | `models.ownership_model` | the ownership proposal, `CommitRecord` and its schema |
+| | `models.javascript_model` | pinned JavaScript parsing and internal AST normalization, reached through `common.parse_files` |
 
 The GitHub Action (Phase 5, not built) calls `drifter.cli` and adds no Python package.
 

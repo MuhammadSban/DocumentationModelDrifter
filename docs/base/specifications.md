@@ -130,7 +130,7 @@ Outside: the analysed repository, read-only. The tool never writes to it, /model
   Authorized reviewers remain responsible for compliance judgments.
 - The hosted service supports public GitHub repositories. The CLI and the Action work on any
   checkout. Code and /models live in the same repository.
-- The first version supports Python source only. Files are read as text and parsed, never
+- The tool supports Python and standalone JavaScript (.js, .mjs, .cjs and .jsx). Files are read as text and parsed, never
   imported or executed. This specification names no parser: each team chooses its own, and each
   release pins its parser and Python version.
 - Both teams use the pod contract (Section 5).
@@ -214,8 +214,10 @@ legal-compliance certification are excluded.
 
 The model format is Team 15's: only Team 15's system reads and writes /models, so the pod contract
 leaves it to this specification. Both generators take the in-scope files as a dict of path to
-text. The orchestrator parses every in-scope file once before any generator runs and stops with
-PARSE_FAILED, so generators may assume every file parses.
+text. The orchestrator validates every in-scope file before any generator runs and stops with
+PARSE_FAILED, so generators may assume every file parses. The shared parser uses CPython ast for
+Python and pinned Tree-sitter for JavaScript, lowering recognized JavaScript syntax into the AST
+subset the existing generators consume. That representation is never compiled or executed.
 
 - **Structural**
   - Question: What exists, and how do the parts relate?
@@ -270,11 +272,15 @@ becomes the baseline. The ladder and its caps are in docs/diagrams/models-folder
 The volatility key, a check parameter, says how many differences one model may carry and still
 count as aligned: a level from 1 to 4, absent meaning 1, tolerating 0, 3, 9 and 29 changed elements
 per model, each model counted on its own. Every difference is listed at every level; only aligned
-changes. An ownership violation is never tolerated. No drifter command writes volatility: a person
-edits it in scope.json. A value of either key outside 1 to 4 is INVALID_MODELS. Above 1 the answer
-departs from the pod contract (5.1).
-drifter init writes the defaults, include `**/*.py` and exclude
-`tests/**`. Ownership rules apply to every path, whatever the scope says. Editing the scope without
+changes. An ownership violation is never tolerated. No drifter command sets a new volatility value:
+a person edits it in scope.json. A value of either key outside 1 to 4 is INVALID_MODELS. Above 1
+the answer departs from the pod contract (5.1).
+Without a committed scope, drifter init preserves the Python defaults, include `**/*.py` and exclude
+`tests/**`, for Python-only repositories. When standalone JavaScript exists outside tests and vendored
+folders, it adds JavaScript extensions and excludes node_modules, vendor and third_party at any depth.
+An existing committed scope is reused, including an empty object's legacy Python defaults; it is never
+widened silently. Hosted generation also preserves its committed verbosity; the CLI init level
+overrides that level. Ownership rules apply to every path, whatever the scope says. Editing the scope without
 regenerating the models shows up as differences by itself: drift at volatility 1, and above 1 only
 once a model carries more differences than the level tolerates. scope.json and hand-written ownership rules
 use the glob syntax of mapping-v1.1.yaml, with one matcher for all three: `**/` matches zero or
@@ -585,7 +591,7 @@ generators, comparison, gate and review loop stay.
 | Comparison | baseline model and fresh model -> differences |
 | Change detection | base and head -> changes, skipped and unmapped, classified by the pod's mapping-v1.1.yaml (hosted service only) |
 | Result store | one /analyze result -> a saved run, durable across restarts (hosted service only) |
-| Orchestrator | one request -> one four-field answer, and in the hosted service one /analyze result with it as drift; parses every in-scope file once (PARSE_FAILED), then calls the others in order |
+| Orchestrator | one request -> one four-field answer, and in the hosted service one /analyze result with it as drift; validates every in-scope file (PARSE_FAILED), then calls the generators, which use the same parser dispatch |
 | Tester | a system's URL -> the course's report, with what each test got |
 
 One codebase, three ways to run it, all through the orchestrator:

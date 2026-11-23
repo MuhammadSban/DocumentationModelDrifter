@@ -203,7 +203,7 @@ def models_view(
             parsed[OWNERSHIP_FILE] = check.proposed_ownership(cmp)
         # the scope the page actually trimmed by, so a repository that declares none still shows
         # code rather than every path in its history
-        parsed.setdefault(SCOPE_FILE, check.DEFAULT_SCOPE)
+        parsed.setdefault(SCOPE_FILE, check.default_scope(cmp.tree()))
         # the level this repository commits, which the page names beside the one it is drawing
         committed_level = check.verbosity_of(parsed[SCOPE_FILE])
         # how many changed elements still count as aligned: the repository's own, unless the

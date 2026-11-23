@@ -30,7 +30,7 @@ flowchart TB
     subgraph CHECK[drifter.check: the same steps for both ways in]
         Read["read_sources<br/>reads and validates the 4 files in /models"]
         Scope["scope.json picks the in-scope files"]
-        Files["Read and parse every in-scope file<br/>at most 1 MB, UTF-8, ast.parse"]
+        Files["Read and parse every in-scope file<br/>at most 1 MB, UTF-8<br/>Python AST or JavaScript adapter"]
         Gen["Generators<br/>fresh structural and behavioral, in memory"]
         Cmp["Comparison<br/>diff by id: ADDED, REMOVED, MODIFIED"]
         Hist["Commits base..head"]
@@ -117,14 +117,14 @@ Every arrow, store and limit above, checked against the code on 2026-11-21 at `2
 | `drifter` imports nothing from `GitHub_Connector`, so the CLI has no change detection and no result store. | `drifter/cli.py:18-28`; `drifter/check.py:24-27`; the `core` contract of `.importlinter` | yes |
 | `read_sources` reads the 4 files in `/models` first, validates them, then reads the in-scope files that `scope.json` picks: two reads. | `drifter/check.py:292-309` | yes |
 | On the hosted way each read is one batched download. | `GitHub_Connector/fetch.py:87-109` | yes |
-| An in-scope file is judged by size (1 MB), then UTF-8, then syntax. | `drifter/check.py:38`, `:312-326`, `:436-441` | yes |
-| The parser is `ast.parse` of whichever Python runs the tool. Nothing in the code pins it. The package asks for Python 3.12 or newer; the image and CI use 3.12. | `models/common.py:33`; `pyproject.toml:10`; `Dockerfile:3`; `.github/workflows/ci.yml:20` | yes |
-| The structural generator also writes text made by `ast.unparse` of the running Python. | `models/structural_model.py:194` | yes |
-| Each generator parses the text again with `parse_files`. | `models/structural_model.py:81`; `models/behavioral_model.py:20` | yes |
-| Structural and behavioral are regenerated and diffed by id; ownership is judged, never regenerated. | `drifter/check.py:91-107`, `:113-116`, `:184-212`, `:243-266` | yes |
-| The commits judged are base..head, or the head alone for a root commit, on both ways in. | `GitHub_Connector/fetch.py:135-139`; `drifter/check.py:426-429` | yes |
-| The answer has four fields: `aligned`, `behavioral`, `ownership`, `structural`. | `drifter/check.py:102-107` | yes |
-| The CLI prints the answer and exits 0, 1 or 2; it saves nothing. | `drifter/cli.py:64-69`, `:96-99` | yes |
+| An in-scope file is judged by size (1 MB), then UTF-8, then syntax. | `drifter/check.py:MAX_FILE_BYTES`, `_read_files`, `_decode` | yes |
+| Python uses `ast.parse` of the running Python; standalone JavaScript uses pinned Tree-sitter and lowers supported syntax into the same internal AST subset. The package asks for Python 3.12 or newer; the image and CI use 3.12. | `models/common.py:parse_files`, `models/javascript_model.py`; `pyproject.toml`; `Dockerfile`; `.github/workflows/ci.yml` | yes |
+| The structural generator also writes text made by `ast.unparse` of the running Python. | `models/structural_model.py:_decorator` | yes |
+| Each generator parses the text again with `parse_files`. | `models/structural_model.py:generate_structural`; `models/behavioral_model.py:generate_behavioral` | yes |
+| Structural and behavioral are regenerated and diffed by id; ownership is judged, never regenerated. | `drifter/check.py:answer`, `model_differences`, `check_ownership` | yes |
+| The commits judged are base..head, or the head alone for a root commit, on both ways in. | `GitHub_Connector/fetch.py:135-139`; `drifter/check.py:LocalReader.log` | yes |
+| The answer has four fields: `aligned`, `behavioral`, `ownership`, `structural`. | `drifter/check.py:answer` | yes |
+| The CLI prints the answer and exits 0, 1 or 2; it saves nothing. | `drifter/cli.py:main`, `_print` | yes |
 | The hosted result joins the drift answer, or a drift error, with change detection. | `GitHub_Connector/analysis.py:123-139`, `:162-169` | yes |
 | A run is saved once, as one file named by its id, after the clone is deleted. | `GitHub_Connector/analysis.py:140-141`; `GitHub_Connector/runs.py:27-44` | yes |
 | The result store is `runs_dir`: the Railway volume when one is mounted, otherwise a local `runs` folder. On Railway the app does not start without a volume. | `GitHub_Connector/settings.py:30`, `:50-54`, `:68-71` | yes |

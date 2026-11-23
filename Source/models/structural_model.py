@@ -1,11 +1,11 @@
-# builds the structural model from Python source: module, class, function and method nodes,
+# builds the structural model from supported source: module, class, function and method nodes,
 # with imports and inherits edges between this repository's own modules and classes
 
 from __future__ import annotations
 
 import ast
 
-from models.common import parse_files
+from models.common import JAVASCRIPT_EXTENSIONS, parse_files
 
 SCHEMA_VERSION = 1
 
@@ -74,7 +74,7 @@ def _by_kind(kept: list[dict]) -> dict[str, list[dict]]:
 
 def generate_structural(files: dict[str, str], verbosity: int = FULL) -> dict:
     # returns the structural model of files (repo-relative path -> text), raises ParseFailed
-    # if any file is not valid Python. verbosity trims what the model describes, FULL being
+    # if any file is not valid source. verbosity trims what the model describes, FULL being
     # everything; the core validates the committed value before calling.
     if verbosity not in KEPT_KINDS:
         raise ValueError(f"verbosity {verbosity!r} is not one of {sorted(KEPT_KINDS)}")
@@ -131,6 +131,9 @@ def _at_level(nodes: dict[str, dict], edges: dict[str, dict], verbosity: int) ->
 def module_id(path: str) -> str:
     # turns a repo-relative path into a dotted module name: src/shop/orders.py -> shop.orders,
     # shop/__init__.py -> shop, src/__init__.py -> src, and a root __init__.py stays __init__
+    if path.endswith(JAVASCRIPT_EXTENSIONS):
+        # keeps a slash in JavaScript IDs, so they cannot collide with Python's dotted IDs
+        return "./" + path
     path = path.removesuffix(".py")
     if path != "src/__init__":
         path = path.removeprefix("src/")
