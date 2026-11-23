@@ -57,13 +57,15 @@ def _repo(tmp_path, *commits):
 def view(tmp_path, monkeypatch):
     # asks the route for one commit's models, against a bare repository on disk. verbosity previews
     # the models at one level of the ladder, as the parameters panel's form asks for them.
-    def ask(*commits, verbosity=None, panel=None):
+    def ask(*commits, verbosity=None, volatility=None, panel=None):
         repo, head, remotes = _repo(tmp_path, *commits)
         monkeypatch.setenv("DRIFTER_REMOTE_BASE_URL", remotes.as_uri() + "/")
         get_settings.cache_clear()
         params = {"repository": repo, "commit_id": head}
         if verbosity is not None:
             params["verbosity"] = verbosity
+        if volatility is not None:
+            params["volatility"] = volatility
         if panel is not None:
             params["panel"] = panel
         try:
@@ -281,6 +283,32 @@ def test_a_preview_compares_the_drawn_level_with_itself(view):
     response = view(base, head, verbosity=1)
 
     assert chips(response.text)["Structural"] == "same as previous commit"
+
+
+@pytest.mark.parametrize("volatility, chip", [
+    (None, "drifted from previous commit"),   # no level declared is Exact, as it always was
+    (1, "drifted from previous commit"),
+    (3, "same as previous commit"),           # three added functions are fewer than ten
+])
+def test_volatility_decides_what_the_chip_calls_drift(view, volatility, chip):
+    # the page's chip counts the same changed elements drifter check counts, so the two cannot
+    # disagree about whether a handful of new functions is drift
+    base = {**CODE, "models/scope.json": write_model(SCOPE)}
+    three_more = {"src/app.py": CODE["src/app.py"] + "".join(
+        f"\n\ndef extra{n}(x):\n    return x\n" for n in range(3))}
+
+    response = view(base, three_more, volatility=volatility)
+
+    assert chips(response.text)["Structural"] == chip
+
+
+def test_the_page_reports_both_committed_levels(view):
+    # the console's two sliders start where the repository is only because the page says so
+    response = view({**CODE, "models/scope.json": write_model({**SCOPE, "volatility": 2})},
+                    panel="off")
+
+    assert "committedVolatility: 2" in response.text
+    assert "committed: 4" in response.text
 
 
 def test_panel_off_drops_the_stops_and_keeps_the_note(view):

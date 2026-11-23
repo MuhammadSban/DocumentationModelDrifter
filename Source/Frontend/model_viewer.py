@@ -78,6 +78,8 @@ def render(
     repository: str | None = None,
     commit_id: str | None = None,
     panel: bool = True,
+    drawn_volatility: int = 1,
+    committed_volatility: int = 1,
 ) -> str:
     # renders the standalone page: the shell, the models, and the script that draws them.
     # route is where the parameters panel submits to, which only a served page has: rendered to a
@@ -107,7 +109,7 @@ def render(
         + "\n</main>\n"
         + _script()
         + _remember(route, panel)
-        + _report_level(drawn_level, committed_level)
+        + _report_level(drawn_level, committed_level, drawn_volatility, committed_volatility)
         + "\n</body>\n</html>\n"
     )
 
@@ -224,15 +226,16 @@ def _levels_note(drawn: int, committed: int, served: bool) -> str:
     )
 
 
-def _report_level(drawn: int, committed: int) -> str:
-    # tells whoever framed this page which level it drew and which the repository commits, so the
-    # console's slider can start where the repository is and name a preview as one. Two integers
-    # and no secret, so the target origin is not narrowed; a page nobody framed posts to itself and
-    # nothing listens.
+def _report_level(drawn: int, committed: int, drawn_vol: int = 1, committed_vol: int = 1) -> str:
+    # tells whoever framed this page which levels it drew and which the repository commits, for
+    # both parameters, so the console's sliders can start where the repository is and name a
+    # preview as one. Four integers and no secret, so the target origin is not narrowed; a page
+    # nobody framed posts to itself and nothing listens.
     return (
         "\n<script>\n"
         "try { if (parent !== window) parent.postMessage("
-        f'{{ drifter: "level", drawn: {drawn}, committed: {committed} }}, "*"); }}\n'
+        f'{{ drifter: "level", drawn: {drawn}, committed: {committed},'
+        f' drawnVolatility: {drawn_vol}, committedVolatility: {committed_vol} }}, "*"); }}\n'
         "catch (e) { /* a frame that will not take a message is not worth failing the page for */ }\n"
         "</script>"
     )

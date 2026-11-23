@@ -94,9 +94,10 @@ header {
 #modelsbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; flex:none;
              padding:9px 16px; background:var(--bg-panel); border-bottom:1px solid var(--border-default); }
 #modelsbar label { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--fg-muted); }
-#verbosity { width:190px; accent-color:var(--accent); }
-#verbosityname { font-size:13px; min-width:66px; }
-#verbositywhat { font-size:12px; color:var(--fg-muted); }
+#verbosity, #volatility { width:150px; accent-color:var(--accent); }
+#verbosityname, #volatilityname { font-size:13px; min-width:62px; }
+#verbositywhat, #volatilitywhat { font-size:12px; color:var(--fg-muted); }
+.barsep { width:1px; height:20px; background:var(--border-default); }
 /* says when the slider is previewing a level the repository has not committed */
 #verbositynote { font-size:12px; color:var(--text-muted); margin-left:auto; }
 #verbositynote.preview { color:var(--work); }
@@ -273,6 +274,12 @@ footer.meta .sel { user-select:all; }
     <datalist id="vsteps"><option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option></datalist>
     <b id="verbosityname">Full</b>
     <span id="verbositywhat">adds every signature</span>
+    <span class="barsep" aria-hidden="true"></span>
+    <label for="volatility">Volatility</label>
+    <input id="volatility" type="range" min="1" max="4" step="1" value="1"
+           aria-describedby="volatilitywhat" list="vsteps">
+    <b id="volatilityname">Exact</b>
+    <span id="volatilitywhat">any change is drift</span>
     <span id="verbositynote"></span>
   </div>
   <iframe id="models" title="Models of the selected repository"></iframe>
@@ -303,6 +310,8 @@ let repos = [];          // {repo, branch, base, paused, state, code, msg, count
 let selected = null;
 let verbosity = null;      // the level this console asks for; null means "as the repository committed it"
 let committedLevel = null; // the level the framed page reports having drawn from /models
+let volatility = null;     // how strict the check is, same rule: null means as committed
+let committedVolatility = null;
 let result = null;       // AnalysisResult | {expired:true} | null
 let apiBase = "";        // "" means same origin, i.e. through tools/ui.py
 let rate = { remaining: 60, reset: 0 };
@@ -313,7 +322,7 @@ let timer = null, ticker = null;
 function save() {
   try {
     localStorage.setItem(STORE, JSON.stringify({
-      api: apiBase, interval: iv(), paused, verbosity,
+      api: apiBase, interval: iv(), paused, verbosity, volatility,
       repos: repos.map(r => ({ repo:r.repo, branch:r.branch, base:r.base, paused:r.paused, runId:r.runId }))
     }));
   } catch (e) { /* private window or blocked storage: run in-memory */ }
@@ -328,6 +337,7 @@ function load() {
     paused = !!d.paused;
     // only a level this ladder holds; anything else falls back to the committed one
     verbosity = LEVELS[d.verbosity] ? Number(d.verbosity) : null;
+    volatility = VOLATILITY[d.volatility] ? Number(d.volatility) : null;
     if (d.interval) $("#interval").value = String(d.interval);
     repos = (d.repos || []).map(r => ({
       repo:r.repo, branch:r.branch || null, base:r.base, paused:!!r.paused, runId:r.runId || null,
@@ -718,6 +728,15 @@ const LEVELS = {
   4: ["Full", "adds every signature"]
 };
 
+/* how strict the check is: how many changed elements a model may carry and still read as aligned.
+   Exact is the default and is what the check has always done. */
+const VOLATILITY = {
+  1: ["Exact", "any change is drift"],
+  2: ["Light", "tolerates up to 3 changed elements"],
+  3: ["Moderate", "tolerates fewer than 10"],
+  4: ["Loose", "tolerates fewer than 30"]
+};
+
 function renderModels() {
   const frame = $("#models");
   const r = repos.find(x => x.repo === selected);
@@ -730,7 +749,8 @@ function renderModels() {
   // an untouched slider never forces a level on a repository that chose its own.
   const want = api("/models/view?repository=" + encodeURIComponent(r.repo) +
                    "&commit_id=" + encodeURIComponent(r.base) + "&panel=off" +
-                   (verbosity === null ? "" : "&verbosity=" + verbosity));
+                   (verbosity === null ? "" : "&verbosity=" + verbosity) +
+                   (volatility === null ? "" : "&volatility=" + volatility));
   if (frame.getAttribute("src") !== want) frame.setAttribute("src", want);
 }
 
@@ -746,11 +766,20 @@ function renderVerbosity() {
   const note = $("#verbositynote");
   // only a level this console asked for, differing from the one the repository commits, is a
   // preview. Until the page reports its level we claim nothing.
+  const shownVol = volatility === null ? (committedVolatility || 1) : volatility;
+  const [volName, volWhat] = VOLATILITY[shownVol] || VOLATILITY[1];
+  $("#volatility").value = String(shownVol);
+  $("#volatilityname").textContent = volName;
+  $("#volatilitywhat").textContent = volWhat;
+
   const previewing = verbosity !== null && committedLevel !== null && verbosity !== committedLevel;
-  note.textContent = previewing
-    ? "previewing — drifter check uses level " + committedLevel + ", the one committed"
+  const previewingVol =
+    volatility !== null && committedVolatility !== null && volatility !== committedVolatility;
+  note.textContent = previewing || previewingVol
+    ? "previewing — drifter check uses the levels this repository commits, " +
+      "verbosity " + committedLevel + " and volatility " + committedVolatility
     : "";
-  note.classList.toggle("preview", previewing);
+  note.classList.toggle("preview", previewing || previewingVol);
 }
 
 /* =========================================================
@@ -836,6 +865,8 @@ $("#tab-models").onclick = () => setView("models");
    one drag across four stops is one reload and not four */
 $("#verbosity").oninput = () => { verbosity = Number($("#verbosity").value); renderVerbosity(); };
 $("#verbosity").onchange = () => { verbosity = Number($("#verbosity").value); save(); renderModels(); };
+$("#volatility").oninput = () => { volatility = Number($("#volatility").value); renderVerbosity(); };
+$("#volatility").onchange = () => { volatility = Number($("#volatility").value); save(); renderModels(); };
 
 /* the framed page says which level it drew and which the repository commits, so the slider can
    start where the repository is and the bar can tell a preview from the committed level. Same
@@ -844,6 +875,7 @@ addEventListener("message", (e) => {
   const d = e.data;
   if (!d || d.drifter !== "level") return;
   committedLevel = Number(d.committed) || null;
+  committedVolatility = Number(d.committedVolatility) || null;
   renderVerbosity();
 });
 
