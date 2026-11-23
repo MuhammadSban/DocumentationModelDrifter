@@ -1,6 +1,6 @@
 # E07: Who writes /models
 
-Status: ratified · Owner: Kaan
+Status: closed · Owner: Kaan
 
 W-row: W0-6 (build order step 1.1) in `docs/state/WORK-ITEMS.md` · Branch: `E07-who-writes-models`
 
