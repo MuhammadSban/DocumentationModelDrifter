@@ -135,6 +135,11 @@ The human decided the calls in the W1-2 row (`docs/state/WORK-ITEMS.md:143`). Th
 
 ## Review
 
+RATIFY · design-reviewer at 069c1b8 · 2026-11-22 (reported, not written by the reviewer, as the human accepted for b6668ff)
+
+- Every line that must name `tests/image/` does: step 4's Files, What and Check, Done line 14 and fact line 31. Keeping `tests/build/` in the checks of steps 1 to 3 is right, since a path named on pytest's command line is not filtered by `norecursedirs`.
+- pytest 9.2.0's default `norecursedirs` is `*.egg`, `.*`, `_darcs`, `build`, `CVS`, `dist`, `node_modules`, `venv`, `{arch}`, and `image` matches none of them. No other `test_image*.py` exists, and `parents[2]` is still the root after the move. 358 + 4 = 362 is reachable.
+
 Revised after the verdict below, between steps 3 and 4, on the human's call of 2026-11-22: pytest's default `norecursedirs` holds `build`, so CI never collected `tests/build/` (run 45090643620 on `09b07d3`: `358 passed`). Step 4 moves the test file to `tests/image/`; fact lines 31 and 33, the Steps intro, step 4's Files, What and Check, and Done line 14 say so. The checks of steps 1 to 3 keep `tests/build/`, the path at their commits. The next reviewer writes its verdict above this paragraph.
 
 RATIFY · design-reviewer at b6668ff · 2026-11-22 (accepted by the human from the reviewer's report: the reviewer writes no verdict on an Epic whose Status is not `draft`, so it changed nothing and reported)
