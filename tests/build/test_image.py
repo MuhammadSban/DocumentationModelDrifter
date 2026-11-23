@@ -19,3 +19,9 @@ def test_dockerignore_keeps_out_git_env_and_caches() -> None:
     lines = _lines(".dockerignore")
     for pattern in ("**/.git", "**/.env*", "**/__pycache__", "**/.mypy_cache"):
         assert pattern in lines, f".dockerignore lacks {pattern}"
+
+
+def test_source_is_the_last_copy_in_the_dockerfile() -> None:
+    # checks Source/ is copied last, so a change there reuses every layer above it
+    copies = [line for line in _lines("Dockerfile") if line.startswith("COPY ")]
+    assert copies[-1] == "COPY Source/ Source/", f"the last COPY is {copies[-1]!r}"
