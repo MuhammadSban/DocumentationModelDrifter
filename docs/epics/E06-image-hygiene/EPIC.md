@@ -135,6 +135,12 @@ The human decided the calls in the W1-2 row (`docs/state/WORK-ITEMS.md:143`). Th
 
 ## Review
 
+RATIFY · design-reviewer at b6668ff · 2026-11-22 (accepted by the human from the reviewer's report: the reviewer writes no verdict on an Epic whose Status is not `draft`, so it changed nothing and reported)
+
+- The seven findings are closed. Done line 7 and line 8 pass `bash -n`. Line 8's port matches the container's default 8000 (`Dockerfile:32`). On a line with two hashes, line 11's `sed` changes both. Line 16 prints `0` today, and step 3 makes it `1`. Line 17's `find` covers the whole tree, and runs as root, since the `Dockerfile` has no `USER` line. Step 5 names `docs/README.md:109` and `:111`. The Goal's 60 MB cites fact line 22.
+- Not blocking: the Goal says step 5 "replaces" the 60 MB, but step 5 writes the measured figure into the W1-2 row and `docker.md` and does not edit this file. Read "replaces" as "writes".
+- The filled-copy check prints nothing. The commit touches only this file and carries `Step: plan`.
+
 Revised after the verdict below, before any code, on the human's instruction of 2026-11-22: seven of its non-blocking findings are closed. Done line 7 writes the escaped parentheses into its command; Done line 8 publishes on port 18000 and names its whole output; Done line 11's `sed` has the `g` flag; Done line 16 counts only `RUN` lines; Done line 17 checks the whole tree under `/home/drifter`; step 5 also reads `docs/README.md:109`; the Goal says its 60 MB is a sum of file sizes that step 1 measures. Fact line 32 and the `data-flow.md` citation are left as noted. The next reviewer writes its verdict above this paragraph.
 
 RATIFY · design-reviewer at fd9dea1 · 2026-11-22
