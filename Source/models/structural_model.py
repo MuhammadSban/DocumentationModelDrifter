@@ -29,6 +29,48 @@ KEPT_KINDS = {
 # names the signature attributes only FULL carries (structure.md), dropped from a node below it
 SIGNATURE = ("async", "decorators", "params")
 
+# how many nodes of each kind a level keeps. This is what makes a lower level a smaller picture
+# and not just a narrower one: without it every level draws all 30 modules of this repository and
+# the diagrams are identical. None means every one of that kind.
+#
+# Which ones are kept is decided by how many edges touch a node, most first, with the id breaking
+# ties: the parts other parts depend on are the ones an overview is about. The ranking uses the
+# whole model's edges, which no level changes for a module, so a level's nodes are always a subset
+# of the level above it.
+BUDGETS = {
+    OVERVIEW: {"module": 6},
+    TYPES: {"module": 12, "class": 8},
+    MEMBERS: {"module": 20, "class": 15, "function": 20, "method": 20},
+    FULL: {},
+}
+
+
+def _busiest(kept: list[dict], edges: dict[str, dict], verbosity: int) -> list[dict]:
+    # keeps the most connected nodes of each kind, up to that kind's budget for this level
+    budgets = BUDGETS[verbosity]
+    if not budgets:
+        return kept
+    degree: dict[str, int] = {}
+    for edge in edges.values():
+        degree[edge["source"]] = degree.get(edge["source"], 0) + 1
+        degree[edge["target"]] = degree.get(edge["target"], 0) + 1
+    out = []
+    for kind, group in _by_kind(kept).items():
+        limit = budgets.get(kind)
+        if limit is None or len(group) <= limit:
+            out += group
+            continue
+        out += sorted(group, key=lambda n: (-degree.get(n["id"], 0), n["id"]))[:limit]
+    return out
+
+
+def _by_kind(kept: list[dict]) -> dict[str, list[dict]]:
+    # groups nodes by kind, so each kind is budgeted against its own and not against the others
+    groups: dict[str, list[dict]] = {}
+    for node in kept:
+        groups.setdefault(node["kind"], []).append(node)
+    return groups
+
 
 def generate_structural(files: dict[str, str], verbosity: int = FULL) -> dict:
     # returns the structural model of files (repo-relative path -> text), raises ParseFailed
@@ -68,10 +110,11 @@ def generate_structural(files: dict[str, str], verbosity: int = FULL) -> dict:
 
 
 def _at_level(nodes: dict[str, dict], edges: dict[str, dict], verbosity: int) -> dict:
-    # trims the model to one level: the kinds that level keeps, the signature attributes only FULL
-    # carries, and the edges whose both ends survived. At FULL nothing is dropped, so the bytes are
-    # what this generator wrote before verbosity existed.
+    # trims the model to one level: how many nodes of each kind it keeps, the kinds it keeps at
+    # all, the signature attributes only FULL carries, and the edges whose both ends survived. At
+    # FULL nothing is dropped, so the bytes are what this generator wrote before verbosity existed.
     kept = [node for node in nodes.values() if node["kind"] in KEPT_KINDS[verbosity]]
+    kept = _busiest(kept, edges, verbosity)
     if verbosity != FULL:
         kept = [{k: v for k, v in node.items() if k not in SIGNATURE} for node in kept]
     ids = {node["id"] for node in kept}
