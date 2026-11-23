@@ -17,7 +17,7 @@ Read this first after a memory loss. It wins over what an agent remembers. Direc
 - **Done 2026-11-21: W1-5 (step 0.6a), the module map and its import check.** `lint-imports` checks five import contracts on every PR and every push to `main` (PR #48; Epic `docs/closed/E01-module-map/EPIC.md`; proof in the W1-5 row).
 - **Parked: W1-4, committing `/models` for this repository.** It is not next. It needs an `ownership.json` that names owners for this repository's files, and the human has not decided whether to have one (2026-11-21).
 - **Done 2026-11-21: W1-6 (step 0.5), minimal CI.** `pytest` and `ruff` run on every PR and every push to `main`, and Railway waits for them (PR #44, PR #46; proof in the W1-6 row).
-- **Can run beside it:** W0-6 (step 1.1). W1-6 also unblocks W3-1 and W4-3: their Depends on column names only W1-6.
+- **Built:** W0-6 (step 1.1), Epic E07, waiting for its audit. W1-6 also unblocks W3-1 and W4-3: their Depends on column names only W1-6.
 - **Blocked on the human:** W0-7, the ownership ruling (step 4.1), and CLI-1, the CLI's exit code on a git failure. Their rows, and every other open call, are in `docs/decisions/OPEN-DECISIONS.md`.
 - **Where the work is:** steps 0.1, 0.2a, 0.2b, 0.3a, 0.3b, 0.4a, 0.4b and 0.5 are on `main` since PR #44 and PR #46 (2026-11-21). Step 0.6a is on `main` since PR #48, merged as `96b6c1f` (2026-11-21). Step 0.6b is in PR #50 (2026-11-21).
 

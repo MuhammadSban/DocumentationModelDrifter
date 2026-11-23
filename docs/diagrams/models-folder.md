@@ -68,3 +68,13 @@ The console's models page previews any level without committing one, and says wh
 | 4 | Full | level 3, plus `async`, `decorators` and `params` | plus: the signature of each one |
 
 Level 3 is why `structural.schema.json` holds three node variants and not two: a member named without its signature is neither a `plainNode`, whose `kind` is `class` or `module`, nor a `functionNode`, which requires all three attributes, so it is a `memberNode`. The variant is additive, so `schema_version` stays 1. Behavioral has no ladder: it emits every state and transition at every level while row N2 is unruled. Ownership has none either, being checked and never regenerated. The seam's side of this is "Generation parameters" in `model-seam.md`; the design is `docs/closed/E02-model-parameters/DESIGN.md`.
+
+## Who writes /models
+
+| Writer | structural.json, behavioral.json | ownership.json, scope.json |
+|---|---|---|
+| `drifter check`, `POST /system/analyze` | regenerated in memory, never written | read only |
+| `drifter init` | written from the code at the commit, with the default scope | written: ownership proposed from all history, scope as the defaults. With any of the four files present it writes nothing and exits 1, unless `--force`; `--force` replaces all four, hand edits included |
+| `drifter update` | rewritten from the code, with the committed `scope.json` | read (`scope.json`) or untouched (`ownership.json`) |
+| `POST /system/generate` | returned in the response as `drifter init` would write them; nothing is written or saved | the same |
+| a person | not by hand: a hand edit that does not match the code is listed on every check, and is drift at the default volatility, 1 (Exact); at a higher volatility it is drift only once the model carries more changes than that level tolerates | edited by hand |
