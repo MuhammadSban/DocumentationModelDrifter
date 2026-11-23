@@ -46,3 +46,12 @@ def test_every_requirement_has_an_exact_version_and_a_hash() -> None:
             spec, _, hashes = req.partition("--hash=")
             assert PINNED.match(spec.strip()), f"{name}: no exact version in {spec.strip()!r}"
             assert hashes.startswith("sha256:"), f"{name}: no sha256 hash for {spec.strip()!r}"
+
+
+def test_dockerfile_and_ci_name_the_same_exact_python_patch() -> None:
+    # checks the image and CI run one three-part Python version
+    image = re.search(r"^FROM python:([^-\s]+)", "\n".join(_lines("Dockerfile")), re.M)
+    ci = re.search(r'^python-version:\s*"([^"]+)"', "\n".join(_lines(".github/workflows/ci.yml")), re.M)
+    assert image and ci, "the FROM line or the python-version is missing"
+    assert re.fullmatch(r"\d+\.\d+\.\d+", image[1]), f"the Dockerfile names {image[1]}, not a patch"
+    assert image[1] == ci[1], f"the Dockerfile names {image[1]}, CI names {ci[1]}"
