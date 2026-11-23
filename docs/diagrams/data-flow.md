@@ -76,7 +76,7 @@ A solid arrow is data flowing during one check. A dotted arrow is a write into `
 | `drifter init` | written from the code at the commit, with the default scope | written: ownership proposed from all history, scope as the defaults. With any of the four files present it writes nothing and exits 1, unless `--force`; `--force` replaces all four, hand edits included |
 | `drifter update` | rewritten from the code, with the committed `scope.json` | read (`scope.json`) or untouched (`ownership.json`) |
 | `POST /system/generate` | returned in the response as `drifter init` would write them; nothing is written or saved | the same |
-| a person | not by hand: a hand edit that does not match the code shows as drift on the next check | edited by hand |
+| a person | not by hand: a hand edit that does not match the code is listed on every check, and is drift at the default volatility, 1 (Exact); at a higher volatility it is drift only once the model carries more changes than that level tolerates | edited by hand |
 
 ## What sees a change
 

@@ -632,6 +632,30 @@ def test_a_new_elif_state_is_one_added_state_and_one_added_transition(tmp_path, 
     ]
 
 
+def test_a_hand_edit_to_behavioral_json_is_drift(tmp_path, monkeypatch, capsysbinary):
+    # guards the "a person" row of "Who writes /models": at the default volatility, 1 (Exact),
+    # a hand edit that removes a state the code still makes is drift
+    repo = _code_repo(tmp_path, MACHINE)
+    _run(repo, monkeypatch, capsysbinary, "init")
+    _commit(repo, "add models")
+    path = repo / "models" / "behavioral.json"
+    model = json.loads(path.read_bytes())
+    model["states"] = [s for s in model["states"] if s["value"] != "paid"]
+    path.write_bytes(write_model(model).encode())
+    _commit(repo, "hand-edit behavioral.json")
+
+    code, out = _check(repo, monkeypatch, capsysbinary)
+
+    assert code == 1
+    answer = json.loads(out)
+    assert answer["aligned"] is False
+    assert (answer["structural"], answer["ownership"]) == ([], [])
+    assert answer["behavioral"] == [
+        {"change": "ADDED", "file": "src/order.py", "kind": "state",
+         "id": 'state:["src/order.py","order:Order","self.status","paid"]'},
+    ]
+
+
 def test_update_regenerates_behavioral_as_init_writes_it(tmp_path, monkeypatch, capsysbinary):
     repo = _code_repo(tmp_path, MACHINE)
     _run(repo, monkeypatch, capsysbinary, "init")
