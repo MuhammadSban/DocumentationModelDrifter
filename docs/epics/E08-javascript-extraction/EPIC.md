@@ -1,6 +1,6 @@
 # E08: Python and JavaScript extraction
 
-Status: draft · Owner: Codex
+Status: ratified · Owner: Codex
 
 W-row: W5-3-JS in docs/state/WORK-ITEMS.md · Branch: E08-javascript-extraction
 
@@ -47,12 +47,17 @@ Apply the user's previously requested Python behavioral improvements and standal
 
 ## Open questions
 
-- Shared representation? Lower parsed JavaScript into the AST subset both existing generators already consume, never compile or execute it. Keep Python parsing and IDs unchanged; JavaScript IDs start with ./ and retain paths/extensions (common.parse_files, structural.module_id).
-- Which scope? Existing committed scope remains authoritative, including empty or Python-only selections. Only an absent scope selects Python plus standalone .js/.mjs/.cjs/.jsx when non-vendored JavaScript exists. Invalid scope must fail rather than widen (check.in_scope, _scope_rule and Frontend.model_drift._scope).
-- Behavioral authorization? The user requested Python improvements, then JavaScript extraction feeding all three models. Reuse the existing narrow string-state rules, normalize this to self, and retain unsupported effects as barriers. N2 and broad language-engine O4 remain open; no replacement model is introduced (user instructions; behavioral_model.generate_behavioral).
-- Team changes? Apply diffs against 0829935, preserve structural BUDGETS and core volatility settings, E07 behavioral model drift checks, and dependency hashes. The preview deadline has already been fixed upstream and needs no duplicate change (structural_model.BUDGETS; check.PARAMETERS; api.models_view; requirements.in).
-- Imports? Relative in-scope ES imports and literal require only; direct named/default export aliases. No package aliases, ambiguous resolution or transitive re-export inheritance (DESIGN.md).
+- Shared representation? Settled: lower JavaScript into the AST subset both existing generators consume; never compile or execute it. Preserve Python parsing and IDs; JavaScript IDs retain ./ plus paths/extensions. This fits the existing unconstrained string IDs and element kinds (DESIGN.md:7; Source/models/common.py:24; Source/models/structural_model.py:131; Source/models/structural.schema.json; docs/diagrams/model-seam.md, element rule).
+- Which scope? Settled: preserve explicit committed selections, including empty and Python-only; use the mixed-language default only for absent scope with non-vendored JavaScript. Reject invalid scope rather than widen it, updating the viewer's current fallback accordingly (DESIGN.md:9; Source/drifter/check.py:226 and :473; Source/Frontend/model_drift.py, _scope; docs/diagrams/model-seam.md:38, planned update in Step 3).
+- Behavioral authorization? Settled by the user's narrow request: Python improvements and JavaScript feeding existing models. Reuse string-state mining, normalize this to self and keep unknown effects as barriers; N2 and broad O4 remain open without selecting a replacement model (docs/state/WORK-ITEMS.md:5; Source/models/behavioral_model.py:17 and :108; docs/decisions/OPEN-DECISIONS.md, N2 and O4).
+- Team changes? Settled: integrate against 0829935 while preserving budgets, volatility, E07 checks and dependency hashes. Keep the existing preview slot and deadline implementation (Source/models/structural_model.py:40; Source/drifter/check.py:133; Source/GitHub_Connector/api.py:171; requirements.in:1; requirements-dev.in:3; DESIGN.md:9).
+- Imports? Settled for this implementation: relative in-scope ES imports and literal require, with direct named/default export aliases; omit unresolved or ambiguous targets and do not infer package aliases or transitive re-export inheritance (DESIGN.md:7; docs/state/WORK-ITEMS.md:5).
 
 ## Review
 
-Pending fresh review against this clone.
+RATIFY — design-reviewer at a33883f — 2026-11-23
+
+- The filled-copy checks print nothing for both planning files; each step names its files, check and trailer, and Done criteria give commands and expected outcomes with CI and human acceptance explicitly pending (docs/templates/README.md; EPIC.md, Steps and Done criteria).
+- Repository premises hold: both generators consume parse_files, hosted paths delegate to the core, existing schemas permit the proposed IDs/kinds, and the dependency lock comes from requirements.in (Source/models/structural_model.py:81; Source/models/behavioral_model.py:20; Source/GitHub_Connector/analysis.py, generate and _drift; Source/models/structural.schema.json; Source/models/behavioral.schema.json; requirements.in:1).
+- The revised plan includes the parser node and premise in data-flow.md, resolving the original omission; existing module boundaries and the three-model seam remain the implementation constraints (DESIGN.md:11; docs/diagrams/data-flow.md:33 and :121; docs/diagrams/dependency.md; docs/invariants/INVARIANTS.md, INV-1 to INV-3).
+- The recorded user authorization covers this limited Python/JavaScript integration. Ownership self-grant and broad language-engine choices remain outside it; no question needs a new decision row. This verdict authorizes local implementation only and does not claim implementation checks or remote CI have passed (docs/state/WORK-ITEMS.md:5; EPIC.md, Goal and Done criteria; docs/decisions/OPEN-DECISIONS.md, W0-7, N2 and O4).
