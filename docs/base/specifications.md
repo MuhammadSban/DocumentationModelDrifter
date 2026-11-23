@@ -258,15 +258,25 @@ including the push being checked. Regenerating and comparing it would fail whene
 touched a folder, whether or not anything was wrong. Checking authors against rules answers the
 ownership question directly: was this change made by someone allowed to make it?
 
-Scope. scope.json holds include and exclude path patterns, and the generation parameters. It
-decides which files feed the structural and behavioral generators, and how much of them the
-structural model describes: the verbosity key is a level from 1 to 4, absent meaning 4, which is
-every node kind with its signatures. drifter init --verbosity sets it before the first model is
-generated and writes it where it is not 4; drifter update --verbosity changes it afterwards, regenerating at
-the new level, which becomes the baseline. The ladder is in docs/diagrams/models-folder.md.
+Scope. scope.json holds include and exclude path patterns, and the model parameters: generation
+parameters, which change what a generator emits, and check parameters, which change how the check
+judges the differences it finds. It decides which files feed the structural and behavioral
+generators, and how much of them the structural model describes: the verbosity key, a generation
+parameter, is a level from 1 to 4, absent meaning 4, which is every node kind with its signatures.
+Below 4 a level also keeps only the most connected nodes of each kind, up to a fixed number per
+kind. drifter init --verbosity sets it before the first model is generated and writes it where it
+is not 4; drifter update --verbosity changes it afterwards, regenerating at the new level, which
+becomes the baseline. The ladder and its caps are in docs/diagrams/models-folder.md.
+The volatility key, a check parameter, says how many differences one model may carry and still
+count as aligned: a level from 1 to 4, absent meaning 1, tolerating 0, 3, 9 and 29 changed elements
+per model, each model counted on its own. Every difference is listed at every level; only aligned
+changes. An ownership violation is never tolerated. No drifter command writes volatility: a person
+edits it in scope.json. A value of either key outside 1 to 4 is INVALID_MODELS. Above 1 the answer
+departs from the pod contract (5.1).
 drifter init writes the defaults, include `**/*.py` and exclude
 `tests/**`. Ownership rules apply to every path, whatever the scope says. Editing the scope without
-regenerating the models shows up as drift by itself. scope.json and hand-written ownership rules
+regenerating the models shows up as differences by itself: drift at volatility 1, and above 1 only
+once a model carries more differences than the level tolerates. scope.json and hand-written ownership rules
 use the glob syntax of mapping-v1.1.yaml, with one matcher for all three: `**/` matches zero or
 more folders, `**` anything, `*` within one path segment, `?` one character of a segment, and
 `\` makes the next character literal. init proposes only exact paths, escaping `\`, `*` and
@@ -441,6 +451,13 @@ the drift tests (contract section 1).
 
 Everything else in the contract this system follows as written, including change detection,
 classification, unmapped, saved results and error codes.
+
+One exception is Team 15's own and applies only when a repository's scope.json sets volatility
+above 1. The contract's drift field allows aligned only with three empty lists; here aligned can
+be true while structural or behavioral lists differences up to the level's tolerance (3.2). An
+ownership violation still makes it false. No fixture of the contract sets volatility, so no
+tester's expected answer differs. Row VOL-1 of docs/decisions/OPEN-DECISIONS.md asks whether the
+contract should describe it.
 
 ### 5.2 How this system's answer appears
 
