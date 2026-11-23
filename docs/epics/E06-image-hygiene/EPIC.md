@@ -135,6 +135,10 @@ The human decided the calls in the W1-2 row (`docs/state/WORK-ITEMS.md:143`). Th
 
 ## Review
 
+RATIFY · design-reviewer at 408a479 · 2026-11-22 (reported, not written by the reviewer)
+
+- Step 5's check, run as written at HEAD, prints `exit 1`, then `1`; with `LC_ALL=C` it reads `exit 2`, so the failure now shows in its own output. At `ff79932` and at `f8d52bc~1` it prints the three phrases, `exit 0`, then `0`. Done line 15 is unchanged and holds.
+
 Revised after the verdict below: step 5's check now echoes the first grep's exit status, so `exit 1` shows in its own output. The next reviewer writes its verdict above this paragraph.
 
 REVISE · design-reviewer at 3391c46 · 2026-11-22 (reported, not written by the reviewer)
