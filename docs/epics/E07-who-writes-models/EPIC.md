@@ -1,6 +1,6 @@
 # E07: Who writes /models
 
-Status: draft · Owner: Kaan
+Status: ratified · Owner: Kaan
 
 W-row: W0-6 (build order step 1.1) in `docs/state/WORK-ITEMS.md` · Branch: `E07-who-writes-models`
 
@@ -77,6 +77,33 @@ This Epic's own:
 None: the human answered the three proposals in the W0-6 row (2026-11-22), and every fact the steps rest on was checked against the disk at `18c69ff`.
 
 ## Review
+
+RATIFY · design-reviewer at e7efef0 · 2026-11-22
+
+- The first finding at `b2019e8` is fixed. The Goal cites `docs/proposals/init/init.md:59` (fix 4) and no longer says E02 deleted it. `git cat-file -t HEAD:docs/proposals/init/init.md` prints `blob`. The W0-6 row (`docs/state/WORK-ITEMS.md:100`) now says only "since E02".
+- The second finding is fixed. Done lines 2 and 9, and the INV-2 check in `DESIGN.md:34`, compare with `origin/main...HEAD` after `git fetch`.
+- The filled-copy check in `docs/templates/README.md:14` prints nothing for `EPIC.md` or for `DESIGN.md`. Each step names its files, one check command with its output and its trailer. Done lines 1 to 3 and 5 to 10 are commands with expected output, and line 4 is the human's acceptance. Both drafting commits carry `Step: plan`.
+- Step 1's prediction holds at `e7efef0`. I ran the step's body as a scratch test, since deleted: `init`, commit, remove the `"paid"` state, write it back with `write_model`, commit, then `check`. Result: exit 1, `aligned` false, empty `structural` and `ownership`, and one behavioral `ADDED` `state` in `src/order.py`, so `1 passed`. `-k hand_edit_to_behavioral` selects nothing today ("97 deselected"). The fixtures it names exist: `test_cli.py:44`, `:51`, `:500`, `:510`, `:599`, `:613`. `write_model` returns text (`Source/models/common.py:42`), so "writes it back with `write_model`" means writing that text to the file.
+- These citations hold:
+  - `check.py:91-107`: `answer`, tolerance and `drifted`.
+  - `check.py:127` and `:131`: `EXACT`, and `TOLERATED` {0, 3, 9, 29}.
+  - `check.py:198-211`: ADDED means in the code and not in the model.
+  - `behavioral.schema.json:34-42`: `source` and `target` are plain strings.
+  - `data-flow.md:71` and `:73-79`, with `:79` worded as quoted.
+  - `models-folder.md` has the headings `:1` and `:55` only.
+  - `pod-contract.md:132` (L7), `pod_tests.py:359` (T-31) and `test_model_golden.py:23` (L7 exits 1).
+  - `test_cli.py:517`: init writes a `scope.json` without `volatility`.
+  - `test_cli.py:815`: the volatility test.
+  - `data-flow.md:130-134`: its premise rows for init, update and generate.
+  - `.claude/settings.json:13`: `data-flow.md` is on ask, and `models-folder.md` is not.
+  - The spec's only "by hand" lines are `:245`, `:398` and `:503`.
+  - `OPEN-DECISIONS.md` has no `E07`, `RULED/` holds only its README, and `docs/closed/` ends at E06.
+  - There are 30 tracked non-test `.py` files.
+  - Done 6 and Done 7 print today what the Epic says they print.
+- Authority order: nothing here contradicts the contract, a ruling, INV-2 or the spec. The qualifier adds volatility, which the spec does not mention, to the two models, and it agrees with `check.py:91-107`. `DESIGN.md` is present, as it must be, because two models in `docs/diagrams/` change.
+- Open questions: none to settle. The human's four calls in the W0-6 row map onto the Epic as follows: the base `18c69ff` is in Facts, the copied and qualified table is in step 2, `DESIGN.md` exists, and the guard is step 1. No row in `OPEN-DECISIONS.md` is needed.
+- Not blocking: `origin/main` has moved since drafting. It is now `a88e519`, after PR #62 and PR #63, so the Fact "`origin/main` is `18c69ff`" is dated. `git diff --stat 18c69ff a88e519` touches only `Source/Frontend/model_viewer.py` and `docs/invariants/INVARIANTS.md` (−3, which removes the duplicate INV rows the last review noted). It adds no test, so Done 10's `466` still holds. Done 9 and the INV-2 check still hold, because three-dot diffs compare from the merge base whether or not the branch takes `a88e519`.
+- Not blocking: the Next action line in step 2 is in bold markup (`**Can run beside it:** W0-6 (step 1.1).`). Keep the bold label pattern when rewriting it.
 
 Revised after the verdict below, on its two findings at `b2019e8`: the Goal cites `docs/proposals/init/init.md:59` and no longer says E02 deleted it, and the W0-6 row's own sentence is fixed in the same commit; Done lines 2 and 9 and `DESIGN.md`'s INV-2 check compare with `origin/main` after `git fetch`. Also from its non-blocking notes: step 2 says the second sentence of the Next action line stays, and `DESIGN.md` marks "in a reviewed commit" as what `data-flow.md` draws, not something enforced. The next reviewer writes its verdict above this paragraph.
 
