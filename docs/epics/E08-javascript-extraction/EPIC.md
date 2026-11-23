@@ -10,7 +10,7 @@ Apply the user's previously requested Python behavioral improvements and standal
 
 ## Relies on
 
-- Models: docs/diagrams/dependency.md, model-seam.md and models-folder.md (changes parsing and new-repository scope descriptions); data-flow.md (reads only).
+- Models: docs/diagrams/dependency.md, model-seam.md, models-folder.md and data-flow.md (changes parsing and new-repository scope descriptions).
 - Rulings: none; RULED contains its README only. No ownership self-grant or broader engine decision is chosen.
 - Invariants: INV-1, INV-2 and INV-3 (reads; no changes).
 
@@ -30,13 +30,13 @@ Apply the user's previously requested Python behavioral improvements and standal
 
 ### Step 3/3: Document and verify the integration
 
-- Files: docs/base/specifications.md, structure.md, behavioral.md; docs/diagrams/dependency.md, model-seam.md, models-folder.md; docs/README.md, docs/state/WORK-ITEMS.md; focused regression additions in tests/languages/test_javascript.py and tests/connector/test_javascript_analysis.py.
+- Files: docs/base/specifications.md, structure.md, behavioral.md; docs/diagrams/dependency.md, model-seam.md, models-folder.md, data-flow.md; docs/README.md, docs/state/WORK-ITEMS.md; focused regression additions in tests/languages/test_javascript.py and tests/connector/test_javascript_analysis.py.
 - Check: python -m pytest -q -> all local tests pass.
 - Trailer: Step: 3/3
 
 ## Done criteria
 
-1. CI: gh run list --commit HEAD --limit 1 --json conclusion -> success. Pending until a separately authorized push; this local delivery does not close the Epic.
+1. CI: gh run list --commit $(git rev-parse HEAD) --limit 1 --json conclusion -> success. Pending until a separately authorized push; this local delivery does not close the Epic.
 2. Specification: git diff --stat origin/main...HEAD -- docs/base/specifications.md -> includes supported-language and default-scope changes.
 3. Decisions: git grep -n E08 -- docs/decisions/OPEN-DECISIONS.md -> no matches.
 4. The human accepts; pending their review.

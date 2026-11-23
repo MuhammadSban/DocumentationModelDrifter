@@ -8,6 +8,8 @@ Add one runtime module, models.javascript_model, using tree-sitter 0.25.2 and tr
 
 analysis.py continues delegating to drifter.check. The shared new-repository default includes JavaScript only where non-vendored JavaScript exists; committed scope remains authoritative. The viewer uses the same fallback and labels JavaScript paths correctly. Preserve upstream volatility and verbosity/node-budget behavior and E07's authored-model checks. Ownership continues using Git history without a language-specific parser. The two pinned parsers are added to requirements.in, its existing hash-locked requirements.txt and pyproject.toml; retain every other locked dependency.
 
+Update data-flow.md's parser node and premise to describe Python ast.parse plus Tree-sitter JavaScript lowering. The data-flow topology remains the same shared parser feeding the existing generators.
+
 ## Premises, verified
 
 | Premise | How verified | Holds? |
