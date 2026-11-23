@@ -57,13 +57,15 @@ def _repo(tmp_path, *commits):
 def view(tmp_path, monkeypatch):
     # asks the route for one commit's models, against a bare repository on disk. verbosity previews
     # the models at one level of the ladder, as the parameters panel's form asks for them.
-    def ask(*commits, verbosity=None):
+    def ask(*commits, verbosity=None, panel=None):
         repo, head, remotes = _repo(tmp_path, *commits)
         monkeypatch.setenv("DRIFTER_REMOTE_BASE_URL", remotes.as_uri() + "/")
         get_settings.cache_clear()
         params = {"repository": repo, "commit_id": head}
         if verbosity is not None:
             params["verbosity"] = verbosity
+        if panel is not None:
+            params["panel"] = panel
         try:
             response = TestClient(app).get("/models/view", params=params)
         finally:
@@ -279,6 +281,42 @@ def test_a_preview_compares_the_drawn_level_with_itself(view):
     response = view(base, head, verbosity=1)
 
     assert chips(response.text)["Structural"] == "same as previous commit"
+
+
+def test_panel_off_drops_the_stops_and_keeps_the_note(view):
+    # the console's Models tab carries its own verbosity slider, so the framed page is asked for
+    # the note alone: two controls for one value, one of them scrolled out of sight, is worse
+    response = view({**LADDER, "models/scope.json": write_model(SCOPE)}, panel="off", verbosity=2)
+
+    assert response.status_code == 200
+    assert 'name="verbosity"' not in response.text
+    assert "<form" not in response.text
+    assert "Showing level 2 of 4, Types, as a preview" in response.text
+    # and no stop to remember, so the page keeps none
+    assert "localStorage" not in response.text
+
+
+def test_the_page_reports_its_level_to_whoever_framed_it(view):
+    # the console's slider starts where the repository is, and names a preview as one, only because
+    # the page tells it both numbers
+    response = view({**LADDER, "models/scope.json": write_model({**SCOPE, "verbosity": 1})},
+                    panel="off", verbosity=3)
+
+    assert 'drifter: "level", drawn: 3, committed: 1' in response.text
+    assert "parent !== window" in response.text
+
+
+def test_the_console_slider_and_the_page_name_the_same_levels():
+    # two files name the ladder, index.html for the slider and model_viewer.py for the note. They
+    # must agree, or the slider says Members while the page draws something else.
+    from pathlib import Path
+
+    from Frontend import ui
+    from Frontend.model_viewer import LEVEL_NAMES
+
+    console = (Path(ui.__file__).parent / "index.html").read_text(encoding="utf-8")
+    for level, (name, _) in LEVEL_NAMES.items():
+        assert f'{level}: ["{name}"' in console, f"the console does not call level {level} {name}"
 
 
 def test_the_console_server_forwards_every_path_the_console_asks_the_api_for():

@@ -172,6 +172,7 @@ def models_view(
     repository: str,
     commit_id: str,
     verbosity: Annotated[int | None, Query(ge=1, le=4)] = None,
+    panel: str | None = None,
 ) -> Response:
     # renders one commit's models as the page the console's Models view frames: the structural
     # model regenerated at that commit, the repository's own ownership rules beside it, and the
@@ -228,6 +229,9 @@ def models_view(
         route="/models/view",
         repository=repository,
         commit_id=commit_id,
+        # the console frames this page under a verbosity slider of its own and asks for panel=off,
+        # so the page keeps its note and leaves the stops to the one control the reader can see
+        panel=panel != "off",
     )
     return Response(page, media_type="text/html")
 

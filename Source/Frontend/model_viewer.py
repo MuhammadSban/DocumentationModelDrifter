@@ -77,11 +77,13 @@ def render(
     route: str | None = None,
     repository: str | None = None,
     commit_id: str | None = None,
+    panel: bool = True,
 ) -> str:
     # renders the standalone page: the shell, the models, and the script that draws them.
     # route is where the parameters panel submits to, which only a served page has: rendered to a
     # file there is no server behind it, so the panel is shown read-only instead of offering a
-    # control that would do nothing.
+    # control that would do nothing. panel False leaves the stops out and keeps the note, for the
+    # console, which frames this page under a verbosity slider of its own.
     return (
         "<!doctype html>\n"
         '<html lang="en">\n<head>\n<meta charset="utf-8">\n'
@@ -100,10 +102,12 @@ def render(
             route=route,
             repository=repository,
             commit_id=commit_id,
+            panel=panel,
         )
         + "\n</main>\n"
         + _script()
-        + _remember(route)
+        + _remember(route, panel)
+        + _report_level(drawn_level, committed_level)
         + "\n</body>\n</html>\n"
     )
 
@@ -118,6 +122,7 @@ def fragment(
     route: str | None = None,
     repository: str | None = None,
     commit_id: str | None = None,
+    panel: bool = True,
 ) -> str:
     # renders the models alone, without a page around them, so the console can put them inside
     # its own shell: the parameters panel, then one panel per model, in the order a reader meets them
@@ -129,7 +134,7 @@ def fragment(
     return (
         f'<div class="top">\n<h1>Models</h1>\n<p class="mono">{escape(models.source)}</p>\n'
         f"{_compared(verdict)}</div>\n"
-        + _parameters(drawn_level, committed_level, route, repository, commit_id)
+        + _parameters(drawn_level, committed_level, route, repository, commit_id, panel)
         + "\n".join(sections)
     )
 
@@ -150,12 +155,20 @@ def _compared(verdict: Verdict | None) -> str:
 
 
 def _parameters(
-    drawn: int, committed: int, route: str | None, repository: str | None, commit_id: str | None
+    drawn: int, committed: int, route: str | None, repository: str | None, commit_id: str | None,
+    panel: bool = True,
 ) -> str:
     # the model parameters panel: one stop per verbosity level, and what the level means for what
     # the reader is looking at. A GET form, so changing the level needs no script at all: the page
     # is asked for again at the new level and the server regenerates. Without a route there is no
     # server behind the page, so the stops are shown disabled and the panel says how to change it.
+    # the console carries its own slider in the Models tab, so a framed page is asked for the note
+    # alone: two controls for one value, one of them scrolled out of sight, is worse than one
+    if not panel:
+        return (
+            '<section class="panel params">\n<h2>Parameters</h2>\n'
+            f"{_levels_note(drawn, committed, True)}</section>\n"
+        )
     served = route is not None and repository is not None and commit_id is not None
     stops = "".join(
         f'<label class="stop{" on" if level == drawn else ""}">'
@@ -211,12 +224,27 @@ def _levels_note(drawn: int, committed: int, served: bool) -> str:
     )
 
 
-def _remember(route: str | None) -> str:
+def _report_level(drawn: int, committed: int) -> str:
+    # tells whoever framed this page which level it drew and which the repository commits, so the
+    # console's slider can start where the repository is and name a preview as one. Two integers
+    # and no secret, so the target origin is not narrowed; a page nobody framed posts to itself and
+    # nothing listens.
+    return (
+        "\n<script>\n"
+        "try { if (parent !== window) parent.postMessage("
+        f'{{ drifter: "level", drawn: {drawn}, committed: {committed} }}, "*"); }}\n'
+        "catch (e) { /* a frame that will not take a message is not worth failing the page for */ }\n"
+        "</script>"
+    )
+
+
+def _remember(route: str | None, panel: bool = True) -> str:
     # remembers the reader's stop in their own browser, so the panel opens where they left it. The
     # page's one script besides Mermaid, and the only part of the panel that needs one: losing it
     # costs the memory and nothing else. Wrapped in try and catch, since a private window or
-    # blocked storage makes every one of these calls throw.
-    if route is None:
+    # blocked storage makes every one of these calls throw. With no panel of its own there is no
+    # stop to remember and the console holds the level instead, so this script is left out.
+    if route is None or not panel:
         return ""
     return (
         "\n<script>\n"
