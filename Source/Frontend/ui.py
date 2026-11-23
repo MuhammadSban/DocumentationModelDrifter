@@ -1,4 +1,5 @@
-# serves the console and forwards /system/* to the v1 API, so the page and the API share one origin
+# serves the console and forwards /system/* and the framed /models/view to the v1 API, so the page
+# and the API share one origin
 
 from __future__ import annotations
 
@@ -16,6 +17,11 @@ WEB = Path(__file__).resolve().parent
 PASS_REQUEST = ("content-type", "accept")
 PASS_RESPONSE = ("content-type",)
 
+# the paths the API owns rather than this folder: the v1 API, and the models page the console frames
+# in an iframe. Without /models/view here the Models tab asks this server for a file of that name
+# and gets a 404, so the whole framed page is missing, panel and models alike.
+PROXIED = ("/system/", "/models/")
+
 
 class Handler(SimpleHTTPRequestHandler):
     # serves the console from this folder, proxying /system/* so the browser stays same-origin
@@ -25,8 +31,8 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(WEB), **kwargs)
 
     def do_GET(self) -> None:
-        # splits the two jobs: API calls go upstream, everything else is a file
-        if self.path.startswith("/system/") or self.path == "/system":
+        # splits the two jobs: what the API owns goes upstream, everything else is a file
+        if self.path.startswith(PROXIED) or self.path == "/system":
             self._forward("GET")
         else:
             super().do_GET()
